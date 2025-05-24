@@ -1,43 +1,45 @@
-import { useState, useRef } from 'react'
-import { usePlayerStore, type LoopBookmark } from '../../stores/playerStore'
-import { toast } from 'react-hot-toast'
-import { formatTime } from '../../utils/formatTime'
-import { generateShareableUrl } from '../../utils/shareableUrl'
-import { 
-  Bookmark, 
-  Plus, 
-  Trash2, 
-  Share2, 
-  Download, 
-  Upload, 
-  Edit, 
+import { useState, useRef } from "react";
+import { usePlayerStore, type LoopBookmark } from "../../stores/playerStore";
+import { toast } from "react-hot-toast";
+import { formatTime } from "../../utils/formatTime";
+import { generateShareableUrl } from "../../utils/shareableUrl";
+import {
+  Bookmark,
+  Plus,
+  Trash2,
+  Share2,
+  Download,
+  Upload,
+  Edit,
   PlayCircle,
-  X
-} from 'lucide-react'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
-import { Textarea } from '../ui/textarea'
+  X,
+} from "lucide-react";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
-} from '../ui/dialog'
-import { cn } from '../../utils/cn'
+  DialogTitle,
+} from "../ui/dialog";
+import { cn } from "../../utils/cn";
 
 export const BookmarkDrawer = () => {
-  const [bookmarkName, setBookmarkName] = useState('')
-  const [bookmarkAnnotation, setBookmarkAnnotation] = useState('')
-  const [isAddingBookmark, setIsAddingBookmark] = useState(false)
-  const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editAnnotation, setEditAnnotation] = useState('')
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  
+  const [bookmarkName, setBookmarkName] = useState("");
+  const [bookmarkAnnotation, setBookmarkAnnotation] = useState("");
+  const [isAddingBookmark, setIsAddingBookmark] = useState(false);
+  const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(
+    null
+  );
+  const [editName, setEditName] = useState("");
+  const [editAnnotation, setEditAnnotation] = useState("");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const {
     currentFile,
     currentYouTube,
@@ -50,21 +52,21 @@ export const BookmarkDrawer = () => {
     updateBookmark,
     deleteBookmark: storeDeleteBookmark,
     loadBookmark: storeLoadBookmark,
-    importBookmarks: storeImportBookmarks
-  } = usePlayerStore()
+    importBookmarks: storeImportBookmarks,
+  } = usePlayerStore();
 
   // Add a new bookmark
   const handleAddBookmark = () => {
     if (loopStart === null || loopEnd === null) {
-      toast.error('Please set loop points first')
-      return
+      toast.error("Please set loop points first");
+      return;
     }
-    
+
     if (!bookmarkName.trim()) {
-      toast.error('Please enter a name for the bookmark')
-      return
+      toast.error("Please enter a name for the bookmark");
+      return;
     }
-    
+
     storeAddBookmark({
       name: bookmarkName.trim(),
       start: loopStart,
@@ -73,147 +75,154 @@ export const BookmarkDrawer = () => {
       annotation: bookmarkAnnotation.trim(),
       mediaName: currentFile?.name,
       mediaType: currentFile?.type,
-      youtubeId: currentYouTube?.id
-    })
-    
-    setBookmarkName('')
-    setBookmarkAnnotation('')
-    setIsAddingBookmark(false)
-    toast.success('Bookmark added')
-  }
+      youtubeId: currentYouTube?.id,
+    });
+
+    setBookmarkName("");
+    setBookmarkAnnotation("");
+    setIsAddingBookmark(false);
+    toast.success("Bookmark added");
+  };
 
   // Start editing a bookmark
   const handleEditBookmark = (bookmark: LoopBookmark) => {
-    setEditingBookmarkId(bookmark.id)
-    setEditName(bookmark.name)
-    setEditAnnotation(bookmark.annotation || '')
-    setIsEditDialogOpen(true)
-  }
+    setEditingBookmarkId(bookmark.id);
+    setEditName(bookmark.name);
+    setEditAnnotation(bookmark.annotation || "");
+    setIsEditDialogOpen(true);
+  };
 
   // Save bookmark edits
   const handleSaveEdit = () => {
-    if (!editingBookmarkId) return
-    
+    if (!editingBookmarkId) return;
+
     if (!editName.trim()) {
-      toast.error('Bookmark name cannot be empty')
-      return
+      toast.error("Bookmark name cannot be empty");
+      return;
     }
-    
+
     updateBookmark(editingBookmarkId, {
       name: editName.trim(),
-      annotation: editAnnotation.trim()
-    })
-    
-    setIsEditDialogOpen(false)
-    setEditingBookmarkId(null)
-    toast.success('Bookmark updated')
-  }
+      annotation: editAnnotation.trim(),
+    });
+
+    setIsEditDialogOpen(false);
+    setEditingBookmarkId(null);
+    toast.success("Bookmark updated");
+  };
 
   // Delete a bookmark
   const handleDeleteBookmark = (id: string) => {
-    storeDeleteBookmark(id)
-    toast.success('Bookmark deleted')
-  }
+    storeDeleteBookmark(id);
+    toast.success("Bookmark deleted");
+  };
 
   // Load a bookmark
   const handleLoadBookmark = (id: string) => {
-    storeLoadBookmark(id)
-    toast.success('Bookmark loaded')
-  }
+    storeLoadBookmark(id);
+    toast.success("Bookmark loaded");
+  };
 
   // Export bookmarks
   const handleExportBookmarks = () => {
     if (bookmarks.length === 0) {
-      toast.error('No bookmarks to export')
-      return
+      toast.error("No bookmarks to export");
+      return;
     }
-    
-    const dataStr = JSON.stringify(bookmarks, null, 2)
-    const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`
-    
-    const exportFileDefaultName = `abloop-bookmarks-${new Date().toISOString().slice(0, 10)}.json`
-    
-    const linkElement = document.createElement('a')
-    linkElement.setAttribute('href', dataUri)
-    linkElement.setAttribute('download', exportFileDefaultName)
-    linkElement.click()
-    
-    toast.success('Bookmarks exported')
-  }
+
+    const dataStr = JSON.stringify(bookmarks, null, 2);
+    const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(
+      dataStr
+    )}`;
+
+    const exportFileDefaultName = `abloop-bookmarks-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+
+    const linkElement = document.createElement("a");
+    linkElement.setAttribute("href", dataUri);
+    linkElement.setAttribute("download", exportFileDefaultName);
+    linkElement.click();
+
+    toast.success("Bookmarks exported");
+  };
 
   // Import bookmarks
-  const handleImportBookmarks = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    
-    const reader = new FileReader()
-    
+  const handleImportBookmarks = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
     reader.onload = (e) => {
       try {
-        const importedBookmarks = JSON.parse(e.target?.result as string)
-        
+        const importedBookmarks = JSON.parse(e.target?.result as string);
+
         if (Array.isArray(importedBookmarks)) {
-          storeImportBookmarks(importedBookmarks)
-          toast.success(`Imported ${importedBookmarks.length} bookmarks`)
+          storeImportBookmarks(importedBookmarks);
+          toast.success(`Imported ${importedBookmarks.length} bookmarks`);
         } else {
-          toast.error('Invalid bookmark file format')
+          toast.error("Invalid bookmark file format");
         }
       } catch (error) {
-        console.error('Error importing bookmarks:', error)
-        toast.error('Error importing bookmarks')
+        console.error("Error importing bookmarks:", error);
+        toast.error("Error importing bookmarks");
       }
-    }
-    
-    reader.readAsText(file)
-    
+    };
+
+    reader.readAsText(file);
+
     // Reset the input
-    event.target.value = ''
-  }
+    event.target.value = "";
+  };
 
   // Trigger file input click
   const handleImportClick = () => {
-    fileInputRef.current?.click()
-  }
+    fileInputRef.current?.click();
+  };
 
   // Generate a shareable URL with current loop settings
   const handleShareLoopSettings = () => {
     if (loopStart === null || loopEnd === null) {
-      toast.error('Please set loop points first')
-      return
+      toast.error("Please set loop points first");
+      return;
     }
-    
+
     // Generate URL using the utility function
     const url = generateShareableUrl({
       loopStart,
       loopEnd,
       youtubeId: currentYouTube?.id,
-      playbackRate
-    })
-    
+      playbackRate,
+    });
+
     // Copy to clipboard
-    navigator.clipboard.writeText(url)
-      .then(() => toast.success('Shareable link copied to clipboard'))
-      .catch(() => toast.error('Failed to copy link'))
-  }
+    navigator.clipboard
+      .writeText(url)
+      .then(() => toast.success("Shareable link copied to clipboard"))
+      .catch(() => toast.error("Failed to copy link"));
+  };
 
   // Toggle drawer
   const toggleDrawer = () => {
-    setIsDrawerOpen(!isDrawerOpen)
-  }
+    setIsDrawerOpen(!isDrawerOpen);
+  };
 
   return (
     <>
       {/* Drawer toggle button - fixed at the bottom right, adjusted for mobile */}
       <button
         onClick={toggleDrawer}
-        className="fixed bottom-28 sm:bottom-20 right-4 z-20 p-3 rounded-full bg-purple-600 text-white shadow-lg hover:bg-purple-700 transition-colors"
+        className="fixed bottom-60 sm:bottom-42 sm:right-40 right-20 z-20 p-2.5 rounded-lg bg-purple-600 text-white shadow-lg hover:bg-purple-700 transition-colors"
         aria-label={isDrawerOpen ? "Close bookmarks" : "Open bookmarks"}
       >
         <Bookmark size={20} />
       </button>
 
       {/* Bookmarks drawer */}
-      <div 
+      <div
         className={cn(
           "fixed right-0 top-0 h-full bg-white dark:bg-gray-800 shadow-xl z-30 transition-all duration-300 ease-in-out overflow-y-auto",
           isDrawerOpen ? "w-80 translate-x-0" : "w-80 translate-x-full"
@@ -245,7 +254,7 @@ export const BookmarkDrawer = () => {
               <Plus size={16} className="mr-1" />
               <span>Add</span>
             </Button>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -271,7 +280,7 @@ export const BookmarkDrawer = () => {
               <Download size={16} className="mr-1" />
               <span>Export</span>
             </Button>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -290,27 +299,31 @@ export const BookmarkDrawer = () => {
               />
             </Button>
           </div>
-          
+
           {isAddingBookmark && (
             <div className="mb-4 space-y-3 p-3 border border-gray-200 dark:border-gray-700 rounded-md">
               <div>
                 <Input
                   placeholder="Bookmark name"
                   value={bookmarkName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBookmarkName(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setBookmarkName(e.target.value)
+                  }
                   className="w-full"
                 />
               </div>
-              
+
               <div>
                 <Textarea
                   placeholder="Annotation (optional)"
                   value={bookmarkAnnotation}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setBookmarkAnnotation(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    setBookmarkAnnotation(e.target.value)
+                  }
                   className="w-full h-20 resize-none"
                 />
               </div>
-              
+
               <div className="flex justify-end space-x-2">
                 <Button
                   variant="outline"
@@ -323,29 +336,35 @@ export const BookmarkDrawer = () => {
                   variant="default"
                   size="sm"
                   onClick={handleAddBookmark}
-                  disabled={!bookmarkName.trim() || loopStart === null || loopEnd === null}
+                  disabled={
+                    !bookmarkName.trim() ||
+                    loopStart === null ||
+                    loopEnd === null
+                  }
                 >
                   Save
                 </Button>
               </div>
             </div>
           )}
-          
+
           {bookmarks.length === 0 ? (
             <div className="text-center py-6 text-gray-500 dark:text-gray-400">
               <Bookmark className="mx-auto h-8 w-8 opacity-50 mb-2" />
               <p>No bookmarks yet</p>
-              <p className="text-sm">Create your first bookmark by clicking the + button above</p>
+              <p className="text-sm">
+                Create your first bookmark by clicking the + button above
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
               {bookmarks.map((bookmark) => (
-                <div 
+                <div
                   key={bookmark.id}
                   className={cn(
                     "p-3 rounded-md border flex items-start justify-between hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors",
-                    selectedBookmarkId === bookmark.id 
-                      ? "border-primary bg-primary/5" 
+                    selectedBookmarkId === bookmark.id
+                      ? "border-primary bg-primary/5"
                       : "border-gray-200 dark:border-gray-700"
                   )}
                 >
@@ -355,25 +374,27 @@ export const BookmarkDrawer = () => {
                         onClick={() => handleLoadBookmark(bookmark.id)}
                         className="flex items-center group text-left"
                       >
-                        <PlayCircle size={16} className="mr-2 text-gray-500 group-hover:text-primary" />
+                        <PlayCircle
+                          size={16}
+                          className="mr-2 text-gray-500 group-hover:text-primary"
+                        />
                         <span className="font-medium truncate group-hover:text-primary">
                           {bookmark.name}
                         </span>
                       </button>
                     </div>
-                    
+
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       <span>
-                        {formatTime(bookmark.start)} - {formatTime(bookmark.end)}
+                        {formatTime(bookmark.start)} -{" "}
+                        {formatTime(bookmark.end)}
                       </span>
                       {bookmark.annotation && (
-                        <div className="mt-1 italic">
-                          {bookmark.annotation}
-                        </div>
+                        <div className="mt-1 italic">{bookmark.annotation}</div>
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="flex space-x-1 ml-2">
                     <Button
                       variant="ghost"
@@ -384,7 +405,7 @@ export const BookmarkDrawer = () => {
                     >
                       <Edit size={14} />
                     </Button>
-                    
+
                     <Button
                       variant="ghost"
                       size="icon"
@@ -411,7 +432,7 @@ export const BookmarkDrawer = () => {
               Update the name and annotation for this bookmark.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <label htmlFor="edit-name" className="text-sm font-medium">
@@ -420,11 +441,13 @@ export const BookmarkDrawer = () => {
               <Input
                 id="edit-name"
                 value={editName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditName(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setEditName(e.target.value)
+                }
                 placeholder="Bookmark name"
               />
             </div>
-            
+
             <div className="space-y-2">
               <label htmlFor="edit-annotation" className="text-sm font-medium">
                 Annotation
@@ -432,13 +455,15 @@ export const BookmarkDrawer = () => {
               <Textarea
                 id="edit-annotation"
                 value={editAnnotation}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditAnnotation(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setEditAnnotation(e.target.value)
+                }
                 placeholder="Annotation (optional)"
                 className="h-24"
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -446,7 +471,7 @@ export const BookmarkDrawer = () => {
             >
               Cancel
             </Button>
-            
+
             <Button
               variant="default"
               onClick={handleSaveEdit}
@@ -458,5 +483,5 @@ export const BookmarkDrawer = () => {
         </DialogContent>
       </Dialog>
     </>
-  )
-}
+  );
+};
