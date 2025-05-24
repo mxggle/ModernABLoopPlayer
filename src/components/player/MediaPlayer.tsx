@@ -36,8 +36,10 @@ export const MediaPlayer = () => {
     if (!mediaElement) return;
 
     if (isPlaying) {
+      console.log("Attempting to play media:", currentFile?.url);
       mediaElement.play().catch((err) => {
         console.error("Error playing media:", err);
+        toast.error("Error playing media. The file may be corrupted or not supported.");
         setIsPlaying(false);
       });
     } else {
@@ -196,13 +198,25 @@ export const MediaPlayer = () => {
 
   // Handle media metadata loaded
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    console.log("Media metadata loaded:", {
+      duration: e.currentTarget.duration,
+      src: e.currentTarget.src,
+      readyState: e.currentTarget.readyState
+    });
     setDuration(e.currentTarget.duration);
   };
 
   // Handle media ended
   const handleEnded = () => {
+    console.log("Media playback ended");
     setIsPlaying(false);
     setCurrentTime(0);
+  };
+  
+  // Handle media loading errors
+  const handleError = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    console.error("Media loading error:", e.currentTarget.error);
+    toast.error("Failed to load media. The file may be corrupted or not supported.");
   };
 
   if (!currentFile) return null;
@@ -216,6 +230,7 @@ export const MediaPlayer = () => {
           className="w-full h-auto max-h-[calc(100vh-220px)] sm:max-h-[calc(100vh-200px)] rounded-lg shadow-lg"
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={handleEnded}
+          onError={handleError}
         />
       ) : (
         <>
@@ -224,6 +239,7 @@ export const MediaPlayer = () => {
             src={currentFile.url}
             onLoadedMetadata={handleLoadedMetadata}
             onEnded={handleEnded}
+            onError={handleError}
           />
           <div
             className="w-full rounded-lg flex items-center justify-center overflow-hidden relative"

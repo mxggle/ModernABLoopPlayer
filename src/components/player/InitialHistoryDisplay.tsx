@@ -1,31 +1,31 @@
-import { usePlayerStore } from '../../stores/playerStore'
-import { formatDistanceToNow } from 'date-fns'
-import { FileAudio, Youtube, Clock, History, Play } from 'lucide-react'
-import { Button } from '../ui/button'
-import { toast } from 'react-hot-toast'
+import { usePlayerStore } from "../../stores/playerStore";
+import { formatDistanceToNow } from "date-fns";
+import { FileAudio, Youtube, Clock, History, Play } from "lucide-react";
+import { Button } from "../ui/button";
+import { toast } from "react-hot-toast";
 
 export const InitialHistoryDisplay = () => {
-  const { mediaHistory, loadFromHistory } = usePlayerStore()
-  
+  const { mediaHistory, loadFromHistory } = usePlayerStore();
+
   // If no history, don't display anything
   if (mediaHistory.length === 0) {
-    return null
+    return null;
   }
 
   // Format date for display
   const formatDate = (timestamp: number) => {
     try {
-      return formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
     } catch (error) {
-      return 'Unknown time'
+      return "Unknown time";
     }
-  }
+  };
 
   // Load media from history
   const handleLoadFromHistory = (id: string) => {
-    loadFromHistory(id)
-    toast.success('Media loaded')
-  }
+    loadFromHistory(id);
+    toast.success("Media loaded");
+  };
 
   return (
     <div className="mb-8">
@@ -35,7 +35,7 @@ export const InitialHistoryDisplay = () => {
           Your Recent Media
         </h3>
         <span className="text-xs text-gray-500 bg-white/80 dark:bg-gray-800/80 px-2 py-1 rounded-full">
-          {mediaHistory.length} {mediaHistory.length === 1 ? 'item' : 'items'}
+          {mediaHistory.length} {mediaHistory.length === 1 ? "item" : "items"}
         </span>
       </div>
 
@@ -50,13 +50,13 @@ export const InitialHistoryDisplay = () => {
             <div className="flex items-center gap-3">
               {/* Icon based on media type */}
               <div className="shrink-0">
-                {item.type === 'file' ? (
+                {item.type === "file" ? (
                   <FileAudio size={24} className="text-blue-500" />
                 ) : (
                   <Youtube size={24} className="text-red-500" />
                 )}
               </div>
-              
+
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-medium truncate">{item.name}</h4>
                 <p className="text-xs text-gray-500 flex items-center gap-1">
@@ -64,14 +64,14 @@ export const InitialHistoryDisplay = () => {
                   {formatDate(item.accessedAt)}
                 </p>
               </div>
-              
+
               <Button
                 variant="ghost"
                 size="sm"
                 className="opacity-0 group-hover:opacity-100 transition-opacity text-purple-600 hover:text-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900/30 h-8 w-8 p-0"
                 onClick={(e) => {
-                  e.stopPropagation()
-                  handleLoadFromHistory(item.id)
+                  e.stopPropagation();
+                  handleLoadFromHistory(item.id);
                 }}
               >
                 <Play size={16} />
@@ -86,8 +86,8 @@ export const InitialHistoryDisplay = () => {
           <span>+ {mediaHistory.length - 6} more items in history</span>
         </div>
       )}
-      
+
       <div className="border-t border-gray-200 dark:border-gray-700 my-6"></div>
     </div>
-  )
-}
+  );
+};
