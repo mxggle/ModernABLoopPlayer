@@ -17,8 +17,15 @@ export const PlayerLayout = () => {
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showInputSections, setShowInputSections] = useState(true);
 
-  const { currentFile, theme, setTheme, showWaveform, setShowWaveform } =
-    usePlayerStore();
+  const { 
+    currentFile, 
+    currentYouTube,
+    theme, 
+    setTheme, 
+    showWaveform, 
+    setShowWaveform,
+    setCurrentYouTube 
+  } = usePlayerStore();
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();
@@ -45,6 +52,20 @@ export const PlayerLayout = () => {
       setShowInputSections(false);
     }
   }, [currentFile, youtubeId]);
+  
+  // Sync the local youtubeId with the store's currentYouTube
+  useEffect(() => {
+    if (currentYouTube) {
+      setYoutubeId(currentYouTube.id);
+    } else {
+      setYoutubeId(null);
+    }
+  }, [currentYouTube]);
+  
+  // Handle YouTube video ID submission
+  const handleVideoIdSubmit = (videoId: string) => {
+    setCurrentYouTube({ id: videoId });
+  };
 
   return (
     <div className="flex flex-col h-screen max-h-screen max-w-5xl mx-auto p-4 overflow-hidden">
@@ -192,7 +213,7 @@ export const PlayerLayout = () => {
               <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-3">
                 Load YouTube Video
               </h2>
-              <YouTubeInput onVideoIdSubmit={setYoutubeId} />
+              <YouTubeInput onVideoIdSubmit={handleVideoIdSubmit} />
             </div>
 
             <div className="card p-6 space-y-4">
