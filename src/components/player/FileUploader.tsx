@@ -1,51 +1,62 @@
-import { useCallback } from 'react'
-import { useDropzone } from 'react-dropzone'
-import { toast } from 'react-hot-toast'
-import { usePlayerStore } from '../../stores/playerStore'
-import { Music, FileAudio } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { useCallback } from "react";
+import { useDropzone } from "react-dropzone";
+import { toast } from "react-hot-toast";
+import { usePlayerStore } from "../../stores/playerStore";
+import { FileAudio } from "lucide-react";
+import { motion } from "framer-motion";
 
 export const FileUploader = () => {
-  const { setCurrentFile } = usePlayerStore()
+  const { setCurrentFile } = usePlayerStore();
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles.length === 0) return;
 
-    const file = acceptedFiles[0]
-    
-    // Check if file is audio or video
-    if (!file.type.includes('audio') && !file.type.includes('video')) {
-      toast.error('Please upload an audio or video file')
-      return
-    }
-    
-    // Create object URL for the file
-    const url = URL.createObjectURL(file)
-    
-    // Set the current file in the store
-    setCurrentFile({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      url
-    })
-    
-    toast.success(`Loaded: ${file.name}`)
-  }, [setCurrentFile])
+      const file = acceptedFiles[0];
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+      // Check if file is audio or video
+      if (!file.type.includes("audio") && !file.type.includes("video")) {
+        toast.error("Please upload an audio or video file");
+        return;
+      }
+
+      // Create object URL for the file
+      const url = URL.createObjectURL(file);
+
+      // Set the current file in the store
+      setCurrentFile({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        url,
+      });
+
+      toast.success(`Loaded: ${file.name}`);
+    },
+    [setCurrentFile]
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'audio/*': ['.mp3', '.wav', '.ogg', '.flac', '.aac'],
-      'video/*': ['.mp4', '.webm', '.ogv']
+      "audio/*": [".mp3", ".wav", ".ogg", ".flac", ".aac"],
+      "video/*": [".mp4", ".webm", ".ogv"],
     },
-    maxFiles: 1
-  })
+    maxFiles: 1,
+  });
 
   return (
     <div
       {...getRootProps()}
-      className={`p-6 border-2 ${isDragActive ? 'border-purple-500' : 'border-purple-100 dark:border-purple-900/30'} bg-white dark:bg-gray-800 rounded-xl shadow-sm text-center cursor-pointer transition-all duration-200 h-full flex flex-col justify-center items-center ${isDragActive ? 'bg-purple-50 dark:bg-purple-900/20' : 'hover:bg-purple-50/50 dark:hover:bg-purple-900/10'}`}
+      className={`p-6 border-2 ${
+        isDragActive
+          ? "border-purple-500"
+          : "border-purple-100 dark:border-purple-900/30"
+      } bg-white dark:bg-gray-800 rounded-xl shadow-sm text-center cursor-pointer transition-all duration-200 h-full flex flex-col justify-center items-center ${
+        isDragActive
+          ? "bg-purple-50 dark:bg-purple-900/20"
+          : "hover:bg-purple-50/50 dark:hover:bg-purple-900/10"
+      }`}
     >
       <input {...getInputProps()} />
       <div className="relative">
@@ -53,9 +64,9 @@ export const FileUploader = () => {
           <div className="absolute -left-2 top-1/2 transform -translate-y-1/2">
             <FileAudio className="h-10 w-10 text-purple-500 dark:text-purple-400 drop-shadow-md" />
           </div>
-          <div className="absolute -right-2 top-1/2 transform -translate-y-1/2">
+          {/* <div className="absolute -right-2 top-1/2 transform -translate-y-1/2">
             <Music className="h-10 w-10 text-indigo-500 dark:text-indigo-400 drop-shadow-md" />
-          </div>
+          </div> */}
         </div>
       </div>
       <motion.div
@@ -77,5 +88,5 @@ export const FileUploader = () => {
         </p>
       </motion.div>
     </div>
-  )
-}
+  );
+};
