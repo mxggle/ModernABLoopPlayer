@@ -55,9 +55,19 @@ export const CombinedControls = () => {
     setIsPlaying(!isPlaying);
   };
 
-  // Handle timeline slider change
+  // Handle timeline slider change with improved seeking capability
   const handleTimelineChange = (values: number[]) => {
+    // Update the time in the store, which will be picked up by the media player
     setCurrentTime(values[0]);
+    
+    // We apply a direct class to show this was a manual user action
+    // This helps distinguish manual seeking from normal playback updates
+    document.body.classList.add('user-seeking');
+    
+    // Remove the class after a short delay
+    setTimeout(() => {
+      document.body.classList.remove('user-seeking');
+    }, 100);
   };
 
   // Handle volume slider change
@@ -162,30 +172,30 @@ export const CombinedControls = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-10">
-      <div className="max-w-6xl mx-auto px-3 py-1">
-        {/* Timeline slider */}
-        <div className="flex items-center space-x-2 mb-1">
-          <span className="text-sm">{formatTime(currentTime)}</span>
+      <div className="max-w-6xl mx-auto px-4 py-2">
+        {/* Timeline slider - improved design and visibility */}
+        <div className="flex items-center space-x-3 mb-3">
+          <span className="text-sm font-medium">{formatTime(currentTime)}</span>
           <Slider
             value={[currentTime]}
             min={0}
             max={duration || 100}
             step={0.1}
             onValueChange={handleTimelineChange}
-            className="relative flex-1 flex items-center select-none touch-none h-5"
+            className="relative flex-1 flex items-center select-none touch-none h-6"
           />
-          <span className="text-sm">{formatTime(duration)}</span>
+          <span className="text-sm font-medium">{formatTime(duration)}</span>
         </div>
 
-        {/* Main controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+        {/* Main controls - improved layout and grouping */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
             <button
               onClick={toggleMute}
-              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
               aria-label={volume > 0 ? "Mute" : "Unmute"}
             >
-              {volume > 0 ? <Volume2 size={20} /> : <VolumeX size={20} />}
+              {volume > 0 ? <Volume2 size={18} /> : <VolumeX size={18} />}
             </button>
 
             <Slider
@@ -194,14 +204,14 @@ export const CombinedControls = () => {
               max={1}
               step={0.01}
               onValueChange={handleVolumeChange}
-              className="relative flex items-center select-none touch-none w-24 h-5"
+              className="relative flex items-center select-none touch-none w-28 h-5"
             />
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
             <button
               onClick={seekBackward}
-              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
               aria-label="Seek backward 5 seconds"
             >
               <SkipBack size={20} />
@@ -209,52 +219,58 @@ export const CombinedControls = () => {
 
             <button
               onClick={togglePlayPause}
-              className="p-3 bg-purple-600 rounded-full text-white hover:bg-purple-700"
+              className="p-3 bg-purple-600 rounded-full text-white hover:bg-purple-700 shadow-md transition-all duration-150 active:scale-95"
               aria-label={isPlaying ? "Pause" : "Play"}
             >
-              {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+              {isPlaying ? (
+                <Pause size={24} />
+              ) : (
+                <Play size={24} className="ml-1" />
+              )}
             </button>
 
             <button
               onClick={seekForward}
-              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
               aria-label="Seek forward 5 seconds"
             >
               <SkipForward size={20} />
             </button>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={decreasePlaybackRate}
-              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label="Decrease playback rate"
-            >
-              <Rewind size={20} />
-            </button>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 mr-1 border-r border-gray-200 dark:border-gray-700 pr-3">
+              <button
+                onClick={decreasePlaybackRate}
+                className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+                aria-label="Decrease playback rate"
+              >
+                <Rewind size={16} />
+              </button>
 
-            <span className="text-sm font-medium">
-              {playbackRate.toFixed(2)}x
-            </span>
+              <span className="text-sm font-medium min-w-[42px] text-center">
+                {playbackRate.toFixed(2)}x
+              </span>
 
-            <button
-              onClick={increasePlaybackRate}
-              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label="Increase playback rate"
-            >
-              <FastForward size={20} />
-            </button>
+              <button
+                onClick={increasePlaybackRate}
+                className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+                aria-label="Increase playback rate"
+              >
+                <FastForward size={16} />
+              </button>
+            </div>
 
             <Button
               variant={isLooping ? "default" : "outline"}
               size="sm"
               onClick={toggleLooping}
-              className="gap-1 ml-2"
+              className="gap-1 py-1 px-3 h-8 text-xs font-medium"
               aria-label="Toggle looping"
             >
-              <Repeat size={16} />
+              <Repeat size={14} />
               <span className="hidden sm:inline">
-                {isLooping ? "Looping" : "Loop Off"}
+                {isLooping ? "Loop On" : "Loop"}
               </span>
             </Button>
 
@@ -262,30 +278,31 @@ export const CombinedControls = () => {
               variant="outline"
               size="sm"
               onClick={() => setShowABControls(!showABControls)}
-              className="gap-1"
+              className="gap-1 py-1 px-3 h-8 text-xs font-medium"
             >
               {showABControls ? (
-                <ChevronDown size={16} />
+                <ChevronDown size={14} />
               ) : (
-                <ChevronUp size={16} />
+                <ChevronUp size={14} />
               )}
-              <span className="hidden sm:inline">AB Controls</span>
+              <span className="hidden sm:inline">AB Loop</span>
             </Button>
           </div>
         </div>
 
-        {/* AB Loop Controls (expandable) */}
+        {/* AB Loop Controls (expandable) - improved layout and controls */}
         {showABControls && (
-          <div className="pt-1 pb-1 border-t border-gray-200 dark:border-gray-700 mt-1">
-            <div className="flex items-center gap-2 mb-1">
+          <div className="pt-3 pb-2 border-t border-gray-200 dark:border-gray-700 mt-2">
+            <div className="flex items-center gap-3 mb-3">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={setLoopStartAtCurrentTime}
                 aria-label="Set loop start at current time"
+                className="py-1 px-3 h-8 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30"
               >
                 <AlignStartHorizontal size={16} />
-                <span className="ml-1 hidden sm:inline">Set A</span>
+                <span className="ml-1 hidden sm:inline font-medium">Set A</span>
               </Button>
 
               <Button
@@ -293,9 +310,10 @@ export const CombinedControls = () => {
                 size="sm"
                 onClick={setLoopEndAtCurrentTime}
                 aria-label="Set loop end at current time"
+                className="py-1 px-3 h-8 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30"
               >
                 <AlignEndHorizontal size={16} />
-                <span className="ml-1 hidden sm:inline">Set B</span>
+                <span className="ml-1 hidden sm:inline font-medium">Set B</span>
               </Button>
               <div className="flex-1">
                 <Slider
@@ -310,12 +328,13 @@ export const CombinedControls = () => {
             </div>
 
             <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={jumpToLoopStart}
                   disabled={loopStart === null}
+                  className="py-1 px-3 h-8 font-medium disabled:opacity-50"
                 >
                   <ChevronLeft size={16} />
                   <span className="ml-1">
@@ -328,6 +347,7 @@ export const CombinedControls = () => {
                   size="sm"
                   onClick={jumpToLoopEnd}
                   disabled={loopEnd === null}
+                  className="py-1 px-3 h-8 font-medium disabled:opacity-50"
                 >
                   <span className="mr-1">
                     B: {loopEnd !== null ? formatTime(loopEnd) : "--:--"}
@@ -341,6 +361,7 @@ export const CombinedControls = () => {
                 size="sm"
                 onClick={clearLoopPoints}
                 disabled={loopStart === null && loopEnd === null}
+                className="py-1 px-3 h-8 font-medium text-red-600 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:hover:bg-transparent"
               >
                 Clear Loop
               </Button>

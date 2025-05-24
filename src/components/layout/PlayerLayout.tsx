@@ -47,22 +47,40 @@ export const PlayerLayout = () => {
   }, [currentFile, youtubeId]);
 
   return (
-    <div className="flex flex-col min-h-screen max-w-6xl mx-auto p-3 overflow-hidden">
-      {/* Header */}
-      <header className="flex items-center justify-between mb-3 py-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+    <div className="flex flex-col h-screen max-h-screen max-w-5xl mx-auto p-4 overflow-hidden">
+      {/* Header - improved layout */}
+      <header className="flex items-center justify-between mb-4 py-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+        <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
           ModernABLoop
         </h1>
 
         <div className="flex items-center space-x-3">
+          {/* Media Sources Button in Header */}
+          {(currentFile || youtubeId) && (
+            <button
+              onClick={toggleInputSections}
+              className="flex items-center space-x-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-md text-gray-700 dark:text-gray-200 shadow-sm transition-colors text-sm font-medium"
+            >
+              <span>{showInputSections ? "Hide Sources" : "Show Sources"}</span>
+              <span className="hidden sm:inline text-xs text-gray-500 dark:text-gray-400 ml-1">
+                {currentFile
+                  ? currentFile.name.substring(0, 15) +
+                    (currentFile.name.length > 15 ? "..." : "")
+                  : youtubeId
+                  ? `YT: ${youtubeId.substring(0, 8)}...`
+                  : ""}
+              </span>
+            </button>
+          )}
+
           <button
             onClick={toggleTheme}
-            className="p-2.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm transition-colors"
+            className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm transition-colors"
             aria-label={
               theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
             }
           >
-            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </button>
 
           <Dialog.Root
@@ -71,10 +89,10 @@ export const PlayerLayout = () => {
           >
             <Dialog.Trigger asChild>
               <button
-                className="p-2.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm transition-colors"
+                className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm transition-colors"
                 aria-label="Show keyboard shortcuts"
               >
-                <Info size={20} />
+                <Info size={16} />
               </button>
             </Dialog.Trigger>
 
@@ -163,30 +181,9 @@ export const PlayerLayout = () => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="space-y-3 flex-grow overflow-hidden flex flex-col">
-        {/* Media Input Section - Collapsible */}
-        {(currentFile || youtubeId) && (
-          <div className="mb-4">
-            <button
-              onClick={toggleInputSections}
-              className="flex items-center justify-between w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              <span className="font-medium">
-                {showInputSections
-                  ? "Hide Media Sources"
-                  : "Show Media Sources"}
-              </span>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {currentFile
-                  ? currentFile.name
-                  : youtubeId
-                  ? `YouTube: ${youtubeId}`
-                  : ""}
-              </span>
-            </button>
-          </div>
-        )}
+      {/* Main Content - better spacing */}
+      <main className="space-y-4 flex-grow overflow-hidden flex flex-col max-h-[calc(100vh-80px)]">
+        {/* Media Input Section - Collapsible (now controlled from header) */}
 
         {/* Media Input Section */}
         {(showInputSections || (!currentFile && !youtubeId)) && (
@@ -209,26 +206,34 @@ export const PlayerLayout = () => {
 
         {/* Player Section */}
         {(youtubeId || currentFile) && (
-          <div className="card overflow-hidden flex-grow">
+          <div
+            className={`card overflow-hidden flex-grow bg-white dark:bg-gray-800 shadow-md rounded-lg ${
+              !showWaveform ? "flex flex-col" : ""
+            }`}
+          >
             {youtubeId && !currentFile && <YouTubePlayer videoId={youtubeId} />}
 
             {currentFile && <MediaPlayer />}
 
-            {currentFile && currentFile.type.includes("audio") && (
-              <div className="flex items-center justify-end p-2 border-t border-gray-100 dark:border-gray-700">
+            {/* Enhanced waveform toggle - more prominent */}
+            {/* {currentFile && currentFile.type.includes("audio") && (
+              <div className="flex items-center justify-between p-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30">
+                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Audio Visualization
+                </span>
                 <button
                   onClick={toggleWaveform}
-                  className="px-3 py-1 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-md hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors font-medium"
+                  className="px-4 py-1.5 text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-md hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors font-medium shadow-sm"
                 >
                   {showWaveform ? "Hide Waveform" : "Show Waveform"}
                 </button>
               </div>
-            )}
+            )} */}
 
             {currentFile &&
               currentFile.type.includes("audio") &&
               showWaveform && (
-                <div className="p-2 border-t border-gray-100 dark:border-gray-700">
+                <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gradient-to-r from-purple-50/50 to-indigo-50/50 dark:from-purple-900/10 dark:to-indigo-900/10">
                   <WaveformVisualizer />
                 </div>
               )}
@@ -238,8 +243,8 @@ export const PlayerLayout = () => {
         {/* Controls Section */}
         {(currentFile || youtubeId) && (
           <>
-            {/* Add padding at the bottom to account for the fixed controls */}
-            <div className="pb-16"></div>
+            {/* Minimal padding for controls */}
+            <div className="pb-2"></div>
 
             {/* Combined Controls (fixed at bottom) */}
             <CombinedControls />
@@ -250,9 +255,12 @@ export const PlayerLayout = () => {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 text-center text-xs text-gray-500 dark:text-gray-400">
-        <p>ModernABLoop - A tool for creating loops in audio and video files</p>
+      {/* Footer - subtle improvement */}
+      <footer className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 text-center text-xs text-gray-500 dark:text-gray-400">
+        <p>
+          ModernABLoop - A tool for creating precise loops in audio and video
+          files
+        </p>
       </footer>
     </div>
   );

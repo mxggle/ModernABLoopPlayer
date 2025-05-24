@@ -1,11 +1,14 @@
-import { useRef, useEffect } from 'react'
-import { usePlayerStore } from '../../stores/playerStore'
-import { toast } from 'react-hot-toast'
+import { useRef, useEffect, useState } from "react";
+import { usePlayerStore } from "../../stores/playerStore";
+import { toast } from "react-hot-toast";
+import { Play, Pause } from "lucide-react";
 
 export const MediaPlayer = () => {
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  
+  // Get showWaveform state to adjust player height
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [localPlayState, setLocalPlayState] = useState(false);
+
   const {
     currentFile,
     isPlaying,
@@ -14,138 +17,199 @@ export const MediaPlayer = () => {
     loopStart,
     loopEnd,
     isLooping,
+    showWaveform,
     setCurrentTime,
     setDuration,
     setIsPlaying,
-  } = usePlayerStore()
+  } = usePlayerStore();
+
+  // Keep local state in sync with global state
+  useEffect(() => {
+    setLocalPlayState(isPlaying);
+  }, [isPlaying]);
 
   // Handle play/pause
   useEffect(() => {
-    const mediaElement = currentFile?.type.includes('video') ? videoRef.current : audioRef.current
-    if (!mediaElement) return
-    
+    const mediaElement = currentFile?.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+
     if (isPlaying) {
-      mediaElement.play().catch(err => {
-        console.error('Error playing media:', err)
-        setIsPlaying(false)
-      })
+      mediaElement.play().catch((err) => {
+        console.error("Error playing media:", err);
+        setIsPlaying(false);
+      });
     } else {
-      mediaElement.pause()
+      mediaElement.pause();
     }
-  }, [isPlaying, currentFile, setIsPlaying])
+  }, [isPlaying, currentFile, setIsPlaying]);
 
   // Handle volume changes
   useEffect(() => {
-    const mediaElement = currentFile?.type.includes('video') ? videoRef.current : audioRef.current
-    if (!mediaElement) return
-    
-    mediaElement.volume = volume
-  }, [volume, currentFile])
+    const mediaElement = currentFile?.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+
+    mediaElement.volume = volume;
+  }, [volume, currentFile]);
 
   // Handle playback rate changes
   useEffect(() => {
-    const mediaElement = currentFile?.type.includes('video') ? videoRef.current : audioRef.current
-    if (!mediaElement) return
+    const mediaElement = currentFile?.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+
+    mediaElement.playbackRate = playbackRate;
+  }, [playbackRate, currentFile]);
+
+  // Handle manual seeking when UI slider is moved
+  useEffect(() => {
+    if (!currentFile) return;
     
-    mediaElement.playbackRate = playbackRate
-  }, [playbackRate, currentFile])
+    const mediaElement = currentFile.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+    
+    // Add listener for manual seeking from UI controls
+    const handleUserSeeking = () => {
+      if (document.body.classList.contains('user-seeking')) {
+        // Update the media element's time to the current value from the store
+        const storeTime = usePlayerStore.getState().currentTime;
+        mediaElement.currentTime = storeTime;
+      }
+    };
+    
+    // Listen for manual seek class changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          handleUserSeeking();
+        }
+      });
+    });
+    
+    observer.observe(document.body, { attributes: true });
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, [currentFile]);
 
   // Handle A-B loop
   useEffect(() => {
-    const mediaElement = currentFile?.type.includes('video') ? videoRef.current : audioRef.current
-    if (!mediaElement) return
-    
+    const mediaElement = currentFile?.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+
     const handleTimeUpdate = () => {
-      const currentTimeValue = mediaElement.currentTime
-      setCurrentTime(currentTimeValue)
-      
+      const currentTimeValue = mediaElement.currentTime;
+      setCurrentTime(currentTimeValue);
+
       // Handle A-B looping
       if (isLooping && loopStart !== null && loopEnd !== null) {
         // Add a small buffer to prevent edge case issues
-        const buffer = 0.1
-        
+        const buffer = 0.1;
+
         if (currentTimeValue >= loopEnd - buffer) {
           // When we reach the end point, jump back to start
-          mediaElement.currentTime = loopStart
-          console.log('Loop: Jumping back to start point', loopStart)
-        } else if (currentTimeValue < loopStart - buffer && currentTimeValue > 0) {
+          mediaElement.currentTime = loopStart;
+          console.log("Loop: Jumping back to start point", loopStart);
+        } else if (
+          currentTimeValue < loopStart - buffer &&
+          currentTimeValue > 0
+        ) {
           // If somehow we're before the start point (e.g., user dragged the slider)
-          mediaElement.currentTime = loopStart
-          console.log('Loop: Jumping to start point', loopStart)
+          mediaElement.currentTime = loopStart;
+          console.log("Loop: Jumping to start point", loopStart);
         }
       }
-    }
-    
+    };
+
     // Use more frequent checking for more precise looping
-    const checkInterval = setInterval(handleTimeUpdate, 50)
-    
+    const checkInterval = setInterval(handleTimeUpdate, 50);
+
     // Also keep the timeupdate event for standard time tracking
-    mediaElement.addEventListener('timeupdate', handleTimeUpdate)
-    
+    mediaElement.addEventListener("timeupdate", handleTimeUpdate);
+
     return () => {
-      clearInterval(checkInterval)
-      mediaElement.removeEventListener('timeupdate', handleTimeUpdate)
-    }
-  }, [currentFile, isLooping, loopStart, loopEnd, setCurrentTime])
-  
+      clearInterval(checkInterval);
+      mediaElement.removeEventListener("timeupdate", handleTimeUpdate);
+    };
+  }, [currentFile, isLooping, loopStart, loopEnd, setCurrentTime]);
+
   // Add a listener for seeking to handle manual seeking
   useEffect(() => {
-    const mediaElement = currentFile?.type.includes('video') ? videoRef.current : audioRef.current
-    if (!mediaElement) return
-    
+    const mediaElement = currentFile?.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+
     // Create a variable to track the last time we showed a toast
-    let lastToastTime = 0
-    const toastCooldown = 2000 // 2 seconds cooldown between toasts
-    
+    let lastToastTime = 0;
+    const toastCooldown = 2000; // 2 seconds cooldown between toasts
+
     const handleSeeking = () => {
       // When user manually seeks, check if we need to enforce loop boundaries
       if (isLooping && loopStart !== null && loopEnd !== null) {
-        const currentTimeValue = mediaElement.currentTime
-        const now = Date.now()
-        
+        const currentTimeValue = mediaElement.currentTime;
+        const now = Date.now();
+
         if (currentTimeValue < loopStart) {
-          mediaElement.currentTime = loopStart
-          
+          mediaElement.currentTime = loopStart;
+
           // Only show toast if enough time has passed since the last one
           if (now - lastToastTime > toastCooldown) {
-            toast('Staying within loop bounds', { duration: 1000, icon: 'ℹ️', id: 'loop-bounds-toast' })
-            lastToastTime = now
+            toast("Staying within loop bounds", {
+              duration: 1000,
+              icon: "ℹ️",
+              id: "loop-bounds-toast",
+            });
+            lastToastTime = now;
           }
         } else if (currentTimeValue > loopEnd) {
-          mediaElement.currentTime = loopStart
-          
+          mediaElement.currentTime = loopStart;
+
           // Only show toast if enough time has passed since the last one
           if (now - lastToastTime > toastCooldown) {
-            toast('Returning to loop start', { duration: 1000, icon: 'ℹ️', id: 'loop-start-toast' })
-            lastToastTime = now
+            toast("Returning to loop start", {
+              duration: 1000,
+              icon: "ℹ️",
+              id: "loop-start-toast",
+            });
+            lastToastTime = now;
           }
         }
       }
-    }
-    
-    mediaElement.addEventListener('seeking', handleSeeking)
-    
+    };
+
+    mediaElement.addEventListener("seeking", handleSeeking);
+
     return () => {
-      mediaElement.removeEventListener('seeking', handleSeeking)
-    }
-  }, [currentFile, isLooping, loopStart, loopEnd])
+      mediaElement.removeEventListener("seeking", handleSeeking);
+    };
+  }, [currentFile, isLooping, loopStart, loopEnd]);
 
   // Handle media metadata loaded
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLMediaElement>) => {
-    setDuration(e.currentTarget.duration)
-  }
+    setDuration(e.currentTarget.duration);
+  };
 
   // Handle media ended
   const handleEnded = () => {
-    setIsPlaying(false)
-    setCurrentTime(0)
-  }
+    setIsPlaying(false);
+    setCurrentTime(0);
+  };
 
-  if (!currentFile) return null
+  if (!currentFile) return null;
 
   return (
     <div className="relative">
-      {currentFile.type.includes('video') ? (
+      {currentFile.type.includes("video") ? (
         <video
           ref={videoRef}
           src={currentFile.url}
@@ -161,37 +225,59 @@ export const MediaPlayer = () => {
             onLoadedMetadata={handleLoadedMetadata}
             onEnded={handleEnded}
           />
-          <div 
+          <div
             className="w-full rounded-lg flex items-center justify-center overflow-hidden relative"
-            style={{ height: 'calc(100vh - 280px)', maxHeight: '600px' }}
+            style={{
+              height: showWaveform
+                ? "calc(100vh - 500px)"
+                : "calc(100vh - 300px)", // Expand height when waveform is hidden
+              transition: "height 0.3s ease-in-out", // Smooth transition
+            }}
           >
-            {/* Background image with gradient overlay */}
-            <div 
-              className="absolute inset-0 bg-cover bg-center z-0" 
-              style={{ 
-                backgroundImage: 'url("/audio-background.svg")', 
-                backgroundSize: 'cover'
+            {/* Improved background with subtler gradient */}
+            <div
+              className="absolute inset-0 bg-cover bg-center z-0"
+              style={{
+                backgroundImage: 'url("/audio-background.svg")',
+                backgroundSize: "cover",
+                opacity: 0.8,
               }}
             ></div>
-            <div className="absolute inset-0 bg-gradient-to-b from-purple-500/30 to-gray-900/70 z-10"></div>
-            
-            {/* Audio file info */}
-            <div className="z-20 text-center p-6 bg-white/10 backdrop-blur-sm rounded-xl shadow-lg border border-white/20">
-              <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-purple-600 flex items-center justify-center shadow-xl">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                </svg>
+            <div className="absolute inset-0 bg-gradient-to-b from-purple-500/20 to-gray-900/60 z-10"></div>
+
+            {/* Enhanced Audio file info with quick controls */}
+            <div className="z-20 text-center p-8 bg-white/15 backdrop-blur-md rounded-xl shadow-lg border border-white/20 max-w-md w-full">
+              <div className="flex items-center justify-center mb-6">
+                <div
+                  className="w-28 h-28 rounded-full bg-purple-600 flex items-center justify-center shadow-xl mr-6"
+                  onClick={() => {
+                    setIsPlaying(!isPlaying);
+                    setLocalPlayState(!localPlayState);
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  {localPlayState ? (
+                    <Pause className="h-12 w-12 text-white" />
+                  ) : (
+                    <Play className="h-12 w-12 text-white ml-2" />
+                  )}
+                </div>
+                <div className="text-left">
+                  <h3 className="text-2xl font-bold text-white mb-2 truncate max-w-[200px]">
+                    {currentFile.name}
+                  </h3>
+                  <p className="text-sm text-white/90 font-medium">
+                    Audio Track
+                  </p>
+                  <div className="mt-2 text-white/70 text-xs">
+                    Click the circle to play/pause
+                  </div>
+                </div>
               </div>
-              <p className="text-xl font-medium text-white mb-2">
-                {currentFile.name}
-              </p>
-              <p className="text-sm text-white/80">
-                Audio File
-              </p>
             </div>
           </div>
         </>
       )}
     </div>
-  )
-}
+  );
+};

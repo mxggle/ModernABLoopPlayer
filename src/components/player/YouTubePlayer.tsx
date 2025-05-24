@@ -176,13 +176,13 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
 
     player.setPlaybackRate(playbackRate);
   }, [playbackRate, player]);
-  
+
   // Handle custom timeline slider changes
   // This effect responds to when the user drags the custom timeline slider
   const previousTimeRef = useRef(currentTime);
   useEffect(() => {
     if (!player) return;
-    
+
     // Only seek if the time change is significant (user interaction, not just small updates)
     // and if we're not already seeking via YouTube controls
     const timeDifference = Math.abs(currentTime - previousTimeRef.current);
@@ -190,16 +190,16 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
       // Mark that we're doing a seek and record the time
       setIsSeeking(true);
       lastSeekTime.current = Date.now();
-      
+
       // Seek to the new time
       player.seekTo(currentTime, true);
-      
+
       // After a short delay, reset the seeking state
       setTimeout(() => {
         setIsSeeking(false);
       }, 500);
     }
-    
+
     previousTimeRef.current = currentTime;
   }, [currentTime, player, isSeeking]);
 
@@ -217,10 +217,15 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
       // or has recently seeked (within the last 500ms)
       const timeSinceLastSeek = Date.now() - lastSeekTime.current;
       const seekingCooldown = 500; // ms
-      
+
       // Handle A-B looping only if not in seeking cooldown
-      if (isLooping && !isSeeking && timeSinceLastSeek > seekingCooldown && 
-          loopStart !== null && loopEnd !== null) {
+      if (
+        isLooping &&
+        !isSeeking &&
+        timeSinceLastSeek > seekingCooldown &&
+        loopStart !== null &&
+        loopEnd !== null
+      ) {
         // Add a small buffer to prevent edge case issues
         const buffer = 0.1;
 
@@ -245,11 +250,22 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
   }, [player, isLooping, isSeeking, loopStart, loopEnd, setCurrentTime]);
 
   return (
-    <div
-      className="relative rounded-lg overflow-hidden"
-      style={{ height: "calc(100vh - 280px)", maxHeight: "600px" }}
-    >
-      <div id="youtube-player" ref={playerRef} className="w-full h-full" />
+    <div className="relative rounded-lg overflow-hidden w-full">
+      {/* Use a container with padding-top to maintain aspect ratio */}
+      <div
+        style={{
+          paddingTop: "42%", // Reduced from 56.25% to fit better in viewport
+          position: "relative",
+          maxHeight: "calc(100vh - 180px)",
+          width: "100%",
+        }}
+      >
+        <div
+          id="youtube-player"
+          ref={playerRef}
+          className="absolute top-0 left-0 w-full h-full"
+        />
+      </div>
     </div>
   );
 };
