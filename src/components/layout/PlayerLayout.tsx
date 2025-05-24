@@ -23,7 +23,6 @@ export const PlayerLayout = () => {
     theme, 
     setTheme, 
     showWaveform, 
-    setShowWaveform,
     setCurrentYouTube 
   } = usePlayerStore();
 
@@ -34,11 +33,6 @@ export const PlayerLayout = () => {
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
-  };
-
-  // Toggle waveform visibility
-  const toggleWaveform = () => {
-    setShowWaveform(!showWaveform);
   };
 
   // Toggle input sections visibility

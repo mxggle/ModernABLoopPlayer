@@ -140,6 +140,11 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         currentYouTube: null,
         currentTime: 0,
         isPlaying: false,
+        // Reset loop points and selected bookmark when switching media
+        loopStart: null,
+        loopEnd: null,
+        isLooping: false,
+        selectedBookmarkId: null,
       }),
       setCurrentYouTube: (youtube) => {
         if (youtube) {
@@ -150,6 +155,11 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           currentFile: null,
           currentTime: 0,
           isPlaying: false,
+          // Reset loop points and selected bookmark when switching media
+          loopStart: null,
+          loopEnd: null,
+          isLooping: false,
+          selectedBookmarkId: null,
         });
       },
       setIsPlaying: (isPlaying) => set({ isPlaying }),
