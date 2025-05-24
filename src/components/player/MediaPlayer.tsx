@@ -68,32 +68,32 @@ export const MediaPlayer = () => {
   // Handle manual seeking when UI slider is moved
   useEffect(() => {
     if (!currentFile) return;
-    
+
     const mediaElement = currentFile.type.includes("video")
       ? videoRef.current
       : audioRef.current;
     if (!mediaElement) return;
-    
+
     // Add listener for manual seeking from UI controls
     const handleUserSeeking = () => {
-      if (document.body.classList.contains('user-seeking')) {
+      if (document.body.classList.contains("user-seeking")) {
         // Update the media element's time to the current value from the store
         const storeTime = usePlayerStore.getState().currentTime;
         mediaElement.currentTime = storeTime;
       }
     };
-    
+
     // Listen for manual seek class changes
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'class') {
+        if (mutation.attributeName === "class") {
           handleUserSeeking();
         }
       });
     });
-    
+
     observer.observe(document.body, { attributes: true });
-    
+
     return () => {
       observer.disconnect();
     };
