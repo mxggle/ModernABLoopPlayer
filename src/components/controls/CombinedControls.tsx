@@ -288,6 +288,15 @@ export const CombinedControls = () => {
                 <span className="ml-1 hidden sm:inline">Set A</span>
               </Button>
 
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setLoopEndAtCurrentTime}
+                aria-label="Set loop end at current time"
+              >
+                <AlignEndHorizontal size={16} />
+                <span className="ml-1 hidden sm:inline">Set B</span>
+              </Button>
               <div className="flex-1">
                 <Slider
                   value={rangeValues}
@@ -298,16 +307,6 @@ export const CombinedControls = () => {
                   className="w-full"
                 />
               </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={setLoopEndAtCurrentTime}
-                aria-label="Set loop end at current time"
-              >
-                <AlignEndHorizontal size={16} />
-                <span className="ml-1 hidden sm:inline">Set B</span>
-              </Button>
             </div>
 
             <div className="flex justify-between items-center">
