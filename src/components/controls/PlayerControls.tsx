@@ -7,18 +7,15 @@ import {
   SkipForward,
   Volume2,
   VolumeX,
-  Rewind,
-  FastForward,
   Minus,
   Plus,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useRef } from "react";
+import { useRef } from "react";
 import { cn } from "@/utils/cn";
 
 export const PlayerControls = () => {
-  const [isDragging, setIsDragging] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -46,16 +43,7 @@ export const PlayerControls = () => {
     setCurrentTime(Math.max(0, Math.min(duration, newTime)));
   };
 
-  // Handle timeline slider change
-  const handleTimelineChange = (value: number[]) => {
-    setCurrentTime(value[0]);
-    setIsDragging(true);
-  };
-
-  // Handle timeline slider commit
-  const handleTimelineCommit = () => {
-    setIsDragging(false);
-  };
+  // Timeline slider handlers are not currently used but kept for future implementation
 
   // Handle volume slider change
   const handleVolumeChange = (value: number[]) => {

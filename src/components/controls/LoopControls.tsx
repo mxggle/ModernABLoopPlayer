@@ -1,10 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { usePlayerStore } from "@/stores/playerStore";
 import { formatTime } from "@/utils/formatTime";
 import {
   RepeatIcon,
-  ChevronsLeftIcon,
-  ChevronsRightIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
 } from "lucide-react";
@@ -31,7 +29,6 @@ export const LoopControls = () => {
   const [bpmInput, setBpmInput] = useState("");
   const [sliderValue, setSliderValue] = useState<[number, number]>([0, 0]);
   const [isDragging, setIsDragging] = useState(false);
-  const sliderRef = useRef<HTMLDivElement>(null);
 
   const {
     currentTime,
@@ -44,8 +41,7 @@ export const LoopControls = () => {
     toggleLooping,
     setLoopPoints,
     moveLoopWindow,
-    extendLoopStart,
-    extendLoopEnd,
+
     scaleLoop,
     setBpm,
     setQuantizeLoop,
