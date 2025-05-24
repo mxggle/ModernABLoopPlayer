@@ -6,6 +6,10 @@ A sleek and intuitive web app for looping YouTube videos and local audio/video f
 📼 Drag & drop local files or paste a YouTube link
 🔁 Set custom loop points to focus on what matters
 
+![alt text](./screenshots/screenshot-1.png)
+![alt text](./screenshots/screenshot-2.png)
+![alt text](./screenshots/screenshot-3.png)
+
 ## ✨ Features
 
 - **Audio/Video Playback** - Supports both audio and video file formats
