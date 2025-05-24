@@ -6,6 +6,8 @@ import { FileUploader } from "../player/FileUploader";
 import { YouTubeInput } from "../player/YouTubeInput";
 import { CombinedControls } from "../controls/CombinedControls";
 import { BookmarkDrawer } from "../player/BookmarkDrawer";
+import { MediaHistory } from "../player/MediaHistory";
+import { InitialHistoryDisplay } from "../player/InitialHistoryDisplay";
 import { WaveformVisualizer } from "../waveform/WaveformVisualizer";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { Moon, Sun, Info } from "lucide-react";
@@ -214,6 +216,9 @@ export const PlayerLayout = () => {
                 Choose Your Media Source
               </h2>
               
+              {/* Check for history and display if available */}
+              <InitialHistoryDisplay />
+
               {/* Tabs-style grid layout */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-8">
                 {/* YouTube Card */}
@@ -301,6 +306,9 @@ export const PlayerLayout = () => {
             <BookmarkDrawer />
           </>
         )}
+        
+        {/* Media History - Always visible */}
+        <MediaHistory />
       </main>
 
       {/* Footer - subtle improvement */}

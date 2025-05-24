@@ -6,6 +6,7 @@ export interface MediaFile {
   type: string
   size: number
   url: string
+  id?: string
 }
 
 export interface YouTubeMedia {
@@ -24,6 +25,18 @@ export interface LoopBookmark {
   youtubeId?: string
   playbackRate?: number
   annotation?: string
+}
+
+export interface MediaHistoryItem {
+  id: string
+  type: 'file' | 'youtube'
+  name: string
+  accessedAt: number
+  fileData?: Omit<MediaFile, 'id'>
+  youtubeData?: {
+    title?: string
+    youtubeId?: string
+  }
 }
 
 export interface PlayerState {
@@ -56,6 +69,8 @@ export interface PlayerState {
   
   // History and sharing
   recentYouTubeVideos: YouTubeMedia[]
+  mediaHistory: MediaHistoryItem[]
+  historyLimit: number
 }
 
 export interface PlayerActions {
@@ -102,6 +117,11 @@ export interface PlayerActions {
   // History actions
   addRecentYouTubeVideo: (video: YouTubeMedia) => void
   clearRecentYouTubeVideos: () => void
+  addToMediaHistory: (item: Omit<MediaHistoryItem, 'id' | 'accessedAt'>) => void
+  loadFromHistory: (historyItemId: string) => void
+  removeFromHistory: (historyItemId: string) => void
+  clearMediaHistory: () => void
+  setHistoryLimit: (limit: number) => void
 }
 
 const initialState: PlayerState = {
@@ -127,6 +147,8 @@ const initialState: PlayerState = {
   bookmarks: [],
   selectedBookmarkId: null,
   recentYouTubeVideos: [],
+  mediaHistory: [],
+  historyLimit: 30,
 }
 
 export const usePlayerStore = create<PlayerState & PlayerActions>()(
@@ -135,20 +157,62 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       ...initialState,
       
       // Media actions
-      setCurrentFile: (file) => set({ 
-        currentFile: file,
-        currentYouTube: null,
-        currentTime: 0,
-        isPlaying: false,
-        // Reset loop points and selected bookmark when switching media
-        loopStart: null,
-        loopEnd: null,
-        isLooping: false,
-        selectedBookmarkId: null,
-      }),
+      setCurrentFile: (file) => {
+        if (file) {
+          // Add ID if not present
+          const fileWithId = file.id ? file : {
+            ...file,
+            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          };
+          
+          // Add to history
+          get().addToMediaHistory({
+            type: 'file',
+            name: fileWithId.name,
+            fileData: {
+              name: fileWithId.name,
+              type: fileWithId.type,
+              size: fileWithId.size,
+              url: fileWithId.url
+            }
+          });
+          
+          set({ 
+            currentFile: fileWithId,
+            currentYouTube: null,
+            currentTime: 0,
+            isPlaying: false,
+            // Reset loop points and selected bookmark when switching media
+            loopStart: null,
+            loopEnd: null,
+            isLooping: false,
+            selectedBookmarkId: null,
+          });
+        } else {
+          set({
+            currentFile: null,
+            currentTime: 0,
+            isPlaying: false,
+            loopStart: null,
+            loopEnd: null,
+            isLooping: false,
+            selectedBookmarkId: null,
+          });
+        }
+      },
       setCurrentYouTube: (youtube) => {
         if (youtube) {
           get().addRecentYouTubeVideo(youtube);
+          
+          // Also add to general history
+          get().addToMediaHistory({
+            type: 'youtube',
+            name: youtube.title || `YouTube Video: ${youtube.id}`,
+            youtubeData: {
+              title: youtube.title,
+              youtubeId: youtube.id
+            }
+          });
         }
         set({ 
           currentYouTube: youtube,
@@ -321,6 +385,87 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         }
       }),
       clearRecentYouTubeVideos: () => set({ recentYouTubeVideos: [] }),
+      
+      // Extended history management
+      addToMediaHistory: (item) => set(state => {
+        const id = `history-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const timestamp = Date.now();
+        
+        // Check if this item already exists in history
+        let existingItemIndex = -1;
+        
+        if (item.type === 'file' && item.fileData) {
+          existingItemIndex = state.mediaHistory.findIndex(
+            h => h.type === 'file' && h.fileData?.url === item.fileData?.url
+          );
+        } else if (item.type === 'youtube' && item.youtubeData) {
+          existingItemIndex = state.mediaHistory.findIndex(
+            h => h.type === 'youtube' && h.youtubeData?.youtubeId === item.youtubeData?.youtubeId
+          );
+        }
+        
+        // If item exists, update its timestamp and move to top of history
+        if (existingItemIndex >= 0) {
+          const updatedHistory = [...state.mediaHistory];
+          const existingItem = updatedHistory.splice(existingItemIndex, 1)[0];
+          
+          return {
+            mediaHistory: [
+              { ...existingItem, accessedAt: timestamp },
+              ...updatedHistory
+            ].slice(0, state.historyLimit)
+          };
+        }
+        
+        // Otherwise add as new item
+        return {
+          mediaHistory: [
+            { ...item, id, accessedAt: timestamp },
+            ...state.mediaHistory
+          ].slice(0, state.historyLimit)
+        };
+      }),
+      
+      loadFromHistory: (historyItemId) => {
+        const { mediaHistory } = get();
+        const historyItem = mediaHistory.find(item => item.id === historyItemId);
+        
+        if (!historyItem) return;
+        
+        if (historyItem.type === 'file' && historyItem.fileData) {
+          const fileData: MediaFile = {
+            ...historyItem.fileData,
+            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          };
+          get().setCurrentFile(fileData);
+        } else if (historyItem.type === 'youtube' && historyItem.youtubeData) {
+          // Get the YouTube ID from the history item
+          const youtubeId = historyItem.youtubeData.youtubeId;
+          if (!youtubeId) return;
+          
+          const youtubeData: YouTubeMedia = {
+            id: youtubeId,
+            title: historyItem.youtubeData.title
+          };
+          get().setCurrentYouTube(youtubeData);
+        }
+        
+        // Update the access timestamp
+        get().addToMediaHistory({
+          type: historyItem.type,
+          name: historyItem.name,
+          fileData: historyItem.fileData,
+          youtubeData: historyItem.youtubeData
+        });
+      },
+      
+      removeFromHistory: (historyItemId) => set(state => ({
+        mediaHistory: state.mediaHistory.filter(item => item.id !== historyItemId)
+      })),
+      
+      clearMediaHistory: () => set({ mediaHistory: [] }),
+      
+      setHistoryLimit: (limit) => set({ historyLimit: limit }),
     }),
     {
       name: 'abloop-player-storage',
@@ -329,6 +474,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         theme: state.theme,
         bookmarks: state.bookmarks,
         recentYouTubeVideos: state.recentYouTubeVideos,
+        mediaHistory: state.mediaHistory,
+        historyLimit: state.historyLimit,
       }),
     }
   )
