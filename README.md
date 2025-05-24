@@ -44,6 +44,21 @@ A sleek and intuitive web app for looping YouTube videos and local audio/video f
 
 - Node.js 16+ and npm/yarn
 - Modern web browser with Web Audio API support
+- Vercel account (for deployment)
+
+### Deploy to Vercel
+
+Deploy your own instance of ModernABLoop with one click:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyourusername%2Fmodern-ab-loop&project-name=modern-ab-loop&repository-name=modern-ab-loop)
+
+Or deploy manually:
+
+1. Install Vercel CLI: `npm install -g vercel`
+2. Run `vercel` in the project directory and follow the prompts
+3. For production: `vercel --prod`
+
+### Local Development
 
 ### Installation
 
