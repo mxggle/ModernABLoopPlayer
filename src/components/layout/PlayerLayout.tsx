@@ -62,10 +62,10 @@ export const PlayerLayout = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen max-h-screen max-w-5xl mx-auto p-4 overflow-hidden">
+    <div className="flex flex-col h-screen max-h-screen w-full max-w-5xl mx-auto px-3 sm:px-4 py-2 sm:py-4 overflow-hidden">
       {/* Header - improved layout */}
-      <header className="flex items-center justify-between mb-4 py-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+      <header className="flex items-center justify-between mb-2 sm:mb-4 py-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+        <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent whitespace-nowrap">
           ModernABLoop
         </h1>
 
@@ -74,7 +74,7 @@ export const PlayerLayout = () => {
           {(currentFile || youtubeId) && (
             <button
               onClick={toggleInputSections}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-md text-gray-700 dark:text-gray-200 shadow-sm transition-colors text-sm font-medium"
+              className="flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-md text-gray-700 dark:text-gray-200 shadow-sm transition-colors font-medium"
             >
               <span>{showInputSections ? "Hide Sources" : "Show Sources"}</span>
               <span className="hidden sm:inline text-xs text-gray-500 dark:text-gray-400 ml-1">
@@ -197,21 +197,21 @@ export const PlayerLayout = () => {
       </header>
 
       {/* Main Content - better spacing */}
-      <main className="space-y-4 flex-grow overflow-hidden flex flex-col max-h-[calc(100vh-80px)]">
+      <main className="space-y-2 sm:space-y-4 flex-grow overflow-hidden flex flex-col max-h-[calc(100vh-80px)]">
         {/* Media Input Section - Collapsible (now controlled from header) */}
 
         {/* Media Input Section */}
         {(showInputSections || (!currentFile && !youtubeId)) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="card p-6 space-y-4">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mb-3 sm:mb-6">
+            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 space-y-3 sm:space-y-4">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-2">
                 Load YouTube Video
               </h2>
               <YouTubeInput onVideoIdSubmit={handleVideoIdSubmit} />
             </div>
 
-            <div className="card p-6 space-y-4">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-3">
+            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 space-y-3 sm:space-y-4">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-2">
                 Load Audio/Video File
               </h2>
               <FileUploader />
@@ -222,9 +222,7 @@ export const PlayerLayout = () => {
         {/* Player Section */}
         {(youtubeId || currentFile) && (
           <div
-            className={`card overflow-hidden flex-grow bg-white dark:bg-gray-800 shadow-md rounded-lg ${
-              !showWaveform ? "flex flex-col" : ""
-            }`}
+            className={`relative flex-grow flex flex-col overflow-hidden rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700`}
           >
             {youtubeId && !currentFile && <YouTubePlayer videoId={youtubeId} />}
 

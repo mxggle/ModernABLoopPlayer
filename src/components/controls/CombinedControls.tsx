@@ -172,10 +172,10 @@ export const CombinedControls = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-10">
-      <div className="max-w-6xl mx-auto px-4 py-2">
+      <div className="max-w-6xl mx-auto px-2 sm:px-4 py-1 sm:py-2">
         {/* Timeline slider - improved design and visibility */}
-        <div className="flex items-center space-x-3 mb-3">
-          <span className="text-sm font-medium">{formatTime(currentTime)}</span>
+        <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+          <span className="text-xs sm:text-sm font-medium min-w-[45px] text-right">{formatTime(currentTime)}</span>
           <Slider
             value={[currentTime]}
             min={0}
@@ -184,18 +184,18 @@ export const CombinedControls = () => {
             onValueChange={handleTimelineChange}
             className="relative flex-1 flex items-center select-none touch-none h-6"
           />
-          <span className="text-sm font-medium">{formatTime(duration)}</span>
+          <span className="text-xs sm:text-sm font-medium min-w-[45px]">{formatTime(duration)}</span>
         </div>
 
         {/* Main controls - improved layout and grouping */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center space-x-3">
             <button
               onClick={toggleMute}
-              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+              className="p-1 sm:p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
               aria-label={volume > 0 ? "Mute" : "Unmute"}
             >
-              {volume > 0 ? <Volume2 size={18} /> : <VolumeX size={18} />}
+              {volume > 0 ? <Volume2 size={16} className="sm:w-[18px] sm:h-[18px]" /> : <VolumeX size={16} className="sm:w-[18px] sm:h-[18px]" />}
             </button>
 
             <Slider
@@ -204,28 +204,28 @@ export const CombinedControls = () => {
               max={1}
               step={0.01}
               onValueChange={handleVolumeChange}
-              className="relative flex items-center select-none touch-none w-28 h-5"
+              className="relative flex items-center select-none touch-none w-20 sm:w-28 h-5"
             />
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <button
               onClick={seekBackward}
               className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
               aria-label="Seek backward 5 seconds"
             >
-              <SkipBack size={20} />
+              <SkipBack size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>
 
             <button
               onClick={togglePlayPause}
-              className="p-3 bg-purple-600 rounded-full text-white hover:bg-purple-700 shadow-md transition-all duration-150 active:scale-95"
+              className="p-2 sm:p-3 bg-purple-600 rounded-full text-white hover:bg-purple-700 shadow-md transition-all duration-150 active:scale-95"
               aria-label={isPlaying ? "Pause" : "Play"}
             >
               {isPlaying ? (
-                <Pause size={24} />
+                <Pause size={20} className="sm:w-[24px] sm:h-[24px]" />
               ) : (
-                <Play size={24} className="ml-1" />
+                <Play size={20} className="ml-0.5 sm:ml-1 sm:w-[24px] sm:h-[24px]" />
               )}
             </button>
 
@@ -234,21 +234,21 @@ export const CombinedControls = () => {
               className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
               aria-label="Seek forward 5 seconds"
             >
-              <SkipForward size={20} />
+              <SkipForward size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>
           </div>
 
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 mr-1 border-r border-gray-200 dark:border-gray-700 pr-3">
+            <div className="flex items-center space-x-1 sm:space-x-2 mr-1 border-r border-gray-200 dark:border-gray-700 pr-2 sm:pr-3">
               <button
                 onClick={decreasePlaybackRate}
                 className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
                 aria-label="Decrease playback rate"
               >
-                <Rewind size={16} />
+                <Rewind size={14} className="sm:w-[16px] sm:h-[16px]" />
               </button>
 
-              <span className="text-sm font-medium min-w-[42px] text-center">
+              <span className="text-xs sm:text-sm font-medium min-w-[36px] sm:min-w-[42px] text-center">
                 {playbackRate.toFixed(2)}x
               </span>
 
@@ -257,7 +257,7 @@ export const CombinedControls = () => {
                 className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
                 aria-label="Increase playback rate"
               >
-                <FastForward size={16} />
+                <FastForward size={14} className="sm:w-[16px] sm:h-[16px]" />
               </button>
             </div>
 
@@ -268,7 +268,7 @@ export const CombinedControls = () => {
               className="gap-1 py-1 px-3 h-8 text-xs font-medium"
               aria-label="Toggle looping"
             >
-              <Repeat size={14} />
+              <Repeat size={13} className="sm:w-[14px] sm:h-[14px]" />
               <span className="hidden sm:inline">
                 {isLooping ? "Loop On" : "Loop"}
               </span>
@@ -281,9 +281,9 @@ export const CombinedControls = () => {
               className="gap-1 py-1 px-3 h-8 text-xs font-medium"
             >
               {showABControls ? (
-                <ChevronDown size={14} />
+                <ChevronDown size={13} className="sm:w-[14px] sm:h-[14px]" />
               ) : (
-                <ChevronUp size={14} />
+                <ChevronUp size={13} className="sm:w-[14px] sm:h-[14px]" />
               )}
               <span className="hidden sm:inline">AB Loop</span>
             </Button>
@@ -292,8 +292,8 @@ export const CombinedControls = () => {
 
         {/* AB Loop Controls (expandable) - improved layout and controls */}
         {showABControls && (
-          <div className="pt-3 pb-2 border-t border-gray-200 dark:border-gray-700 mt-2">
-            <div className="flex items-center gap-3 mb-3">
+          <div className="pt-2 sm:pt-3 pb-1 sm:pb-2 border-t border-gray-200 dark:border-gray-700 mt-1 sm:mt-2">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
               <Button
                 variant="outline"
                 size="sm"
@@ -301,8 +301,8 @@ export const CombinedControls = () => {
                 aria-label="Set loop start at current time"
                 className="py-1 px-3 h-8 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30"
               >
-                <AlignStartHorizontal size={16} />
-                <span className="ml-1 hidden sm:inline font-medium">Set A</span>
+                <AlignStartHorizontal size={14} className="sm:w-[16px] sm:h-[16px]" />
+                <span className="ml-1 text-xs font-medium">A</span>
               </Button>
 
               <Button
@@ -312,8 +312,8 @@ export const CombinedControls = () => {
                 aria-label="Set loop end at current time"
                 className="py-1 px-3 h-8 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30"
               >
-                <AlignEndHorizontal size={16} />
-                <span className="ml-1 hidden sm:inline font-medium">Set B</span>
+                <AlignEndHorizontal size={14} className="sm:w-[16px] sm:h-[16px]" />
+                <span className="ml-1 text-xs font-medium">B</span>
               </Button>
               <div className="flex-1">
                 <Slider
@@ -327,8 +327,8 @@ export const CombinedControls = () => {
               </div>
             </div>
 
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-wrap sm:flex-nowrap justify-between items-center gap-2">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Button
                   variant="outline"
                   size="sm"
@@ -336,7 +336,7 @@ export const CombinedControls = () => {
                   disabled={loopStart === null}
                   className="py-1 px-3 h-8 font-medium disabled:opacity-50"
                 >
-                  <ChevronLeft size={16} />
+                  <ChevronLeft size={14} className="sm:w-[16px] sm:h-[16px]" />
                   <span className="ml-1">
                     A: {loopStart !== null ? formatTime(loopStart) : "--:--"}
                   </span>
@@ -352,7 +352,7 @@ export const CombinedControls = () => {
                   <span className="mr-1">
                     B: {loopEnd !== null ? formatTime(loopEnd) : "--:--"}
                   </span>
-                  <ChevronRight size={16} />
+                  <ChevronRight size={14} className="sm:w-[16px] sm:h-[16px]" />
                 </Button>
               </div>
 
@@ -361,7 +361,7 @@ export const CombinedControls = () => {
                 size="sm"
                 onClick={clearLoopPoints}
                 disabled={loopStart === null && loopEnd === null}
-                className="py-1 px-3 h-8 font-medium text-red-600 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:hover:bg-transparent"
+                className="py-1 px-2 sm:px-3 h-7 sm:h-8 text-xs font-medium text-red-600 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:hover:bg-transparent"
               >
                 Clear Loop
               </Button>
@@ -374,7 +374,7 @@ export const CombinedControls = () => {
 };
 
 // Missing imports that were added
-const ChevronUp = ({ size }: { size: number }) => (
+const ChevronUp = ({ size, className }: { size: number; className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}
@@ -385,12 +385,13 @@ const ChevronUp = ({ size }: { size: number }) => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    className={className}
   >
     <path d="m18 15-6-6-6 6" />
   </svg>
 );
 
-const ChevronDown = ({ size }: { size: number }) => (
+const ChevronDown = ({ size, className }: { size: number; className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}
@@ -401,6 +402,7 @@ const ChevronDown = ({ size }: { size: number }) => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    className={className}
   >
     <path d="m6 9 6 6 6-6" />
   </svg>
