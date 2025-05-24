@@ -161,7 +161,7 @@ export const MediaHistory = () => {
       <Button
         variant="outline"
         size="icon"
-        className="fixed right-4 bottom-36 z-20 bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300"
+        className="fixed right-4 bottom-60 sm:bottom-42 sm:right-24 z-20 p-2.5 rounded-lg bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300"
         onClick={toggleDrawer}
         title={
           hasHistory
