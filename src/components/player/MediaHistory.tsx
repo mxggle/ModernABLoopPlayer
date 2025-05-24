@@ -14,6 +14,7 @@ import {
 import { Button } from '../ui/button'
 import { cn } from '../../utils/cn'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
+import { StorageUsageInfo } from './StorageUsageInfo'
 
 // History list component
 interface HistoryListProps {
@@ -259,10 +260,13 @@ export const MediaHistory = () => {
               />
             </TabsContent>
           </Tabs>
+        
+        {/* Storage usage information at the bottom of the drawer */}
+        <div className="p-4 mt-auto border-t border-gray-200 dark:border-gray-700">
+          <StorageUsageInfo />
         </div>
       </div>
-    </>
+    </div>
+  </>
   )
 }
-
-
