@@ -203,10 +203,10 @@ export const BookmarkDrawer = () => {
 
   return (
     <>
-      {/* Drawer toggle button - fixed at the bottom right */}
+      {/* Drawer toggle button - fixed at the bottom right, adjusted for mobile */}
       <button
         onClick={toggleDrawer}
-        className="fixed bottom-20 right-4 z-20 p-3 rounded-full bg-purple-600 text-white shadow-lg hover:bg-purple-700 transition-colors"
+        className="fixed bottom-28 sm:bottom-20 right-4 z-20 p-3 rounded-full bg-purple-600 text-white shadow-lg hover:bg-purple-700 transition-colors"
         aria-label={isDrawerOpen ? "Close bookmarks" : "Open bookmarks"}
       >
         <Bookmark size={20} />

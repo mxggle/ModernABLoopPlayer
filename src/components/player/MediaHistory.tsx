@@ -1,34 +1,37 @@
-import { useState } from 'react'
-import { usePlayerStore, type MediaHistoryItem } from '../../stores/playerStore'
-import { formatDistanceToNow } from 'date-fns'
-import { toast } from 'react-hot-toast'
-import { 
-  History, 
-  Play, 
-  Trash2, 
-  X, 
+import { useState } from "react";
+import {
+  usePlayerStore,
+  type MediaHistoryItem,
+} from "../../stores/playerStore";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "react-hot-toast";
+import {
+  History,
+  Play,
+  Trash2,
+  X,
   FileAudio,
   Youtube,
-  Clock
-} from 'lucide-react'
-import { Button } from '../ui/button'
-import { cn } from '../../utils/cn'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
-import { StorageUsageInfo } from './StorageUsageInfo'
+  Clock,
+} from "lucide-react";
+import { Button } from "../ui/button";
+import { cn } from "../../utils/cn";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { StorageUsageInfo } from "./StorageUsageInfo";
 
 // History list component
 interface HistoryListProps {
-  historyItems: MediaHistoryItem[]
-  onLoadItem: (id: string) => void
-  onRemoveItem: (id: string, e: React.MouseEvent) => void
-  formatDate: (timestamp: number) => string
+  historyItems: MediaHistoryItem[];
+  onLoadItem: (id: string) => void;
+  onRemoveItem: (id: string, e: React.MouseEvent) => void;
+  formatDate: (timestamp: number) => string;
 }
 
-const HistoryList = ({ 
-  historyItems, 
-  onLoadItem, 
+const HistoryList = ({
+  historyItems,
+  onLoadItem,
   onRemoveItem,
-  formatDate
+  formatDate,
 }: HistoryListProps) => {
   if (historyItems.length === 0) {
     return (
@@ -36,7 +39,7 @@ const HistoryList = ({
         <Clock size={48} className="mb-2 opacity-30" />
         <p>No history items to display</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -49,13 +52,13 @@ const HistoryList = ({
         >
           {/* Icon based on media type */}
           <div className="shrink-0">
-            {item.type === 'file' ? (
+            {item.type === "file" ? (
               <FileAudio size={24} className="text-blue-500" />
             ) : (
               <Youtube size={24} className="text-red-500" />
             )}
           </div>
-          
+
           {/* Media details */}
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-medium truncate">{item.name}</h3>
@@ -64,7 +67,7 @@ const HistoryList = ({
               {formatDate(item.accessedAt)}
             </p>
           </div>
-          
+
           {/* Actions */}
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
@@ -89,66 +92,70 @@ const HistoryList = ({
         </div>
       ))}
     </div>
-  )
-}
+  );
+};
 
 export const MediaHistory = () => {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'all' | 'files' | 'youtube'>('all')
-  
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "files" | "youtube">(
+    "all"
+  );
+
   const {
     mediaHistory,
     loadFromHistory,
     removeFromHistory,
     clearMediaHistory,
-  } = usePlayerStore()
+  } = usePlayerStore();
 
   // Toggle drawer
   const toggleDrawer = () => {
-    setIsDrawerOpen(!isDrawerOpen)
-  }
+    setIsDrawerOpen(!isDrawerOpen);
+  };
 
   // Filter history based on active tab
-  const filteredHistory = mediaHistory.filter(item => {
-    if (activeTab === 'all') return true
-    if (activeTab === 'files') return item.type === 'file'
-    if (activeTab === 'youtube') return item.type === 'youtube'
-    return true
-  })
+  const filteredHistory = mediaHistory.filter((item) => {
+    if (activeTab === "all") return true;
+    if (activeTab === "files") return item.type === "file";
+    if (activeTab === "youtube") return item.type === "youtube";
+    return true;
+  });
 
   // Load media from history
   const handleLoadFromHistory = (id: string) => {
-    loadFromHistory(id)
-    toast.success('Media loaded')
-    setIsDrawerOpen(false)
-  }
+    loadFromHistory(id);
+    toast.success("Media loaded");
+    setIsDrawerOpen(false);
+  };
 
   // Remove an item from history
   const handleRemoveFromHistory = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    removeFromHistory(id)
-    toast.success('Removed from history')
-  }
+    e.stopPropagation();
+    removeFromHistory(id);
+    toast.success("Removed from history");
+  };
 
   // Clear all history
   const handleClearHistory = () => {
-    if (confirm('Are you sure you want to clear all history?')) {
-      clearMediaHistory()
-      toast.success('History cleared')
+    if (confirm("Are you sure you want to clear all history?")) {
+      clearMediaHistory();
+      toast.success("History cleared");
     }
-  }
+  };
 
   // Format date for display
   const formatDate = (timestamp: number) => {
     try {
-      return formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
     } catch (error) {
-      return 'Unknown time'
+      return "Unknown time";
     }
-  }
+  };
 
   // For the initial screen, just use a subtle indicator if history is available
-  const hasMedia = usePlayerStore(state => state.currentFile !== null || state.currentYouTube !== null);
+  const hasMedia = usePlayerStore(
+    (state) => state.currentFile !== null || state.currentYouTube !== null
+  );
   const hasHistory = mediaHistory.length > 0;
 
   return (
@@ -164,28 +171,34 @@ export const MediaHistory = () => {
             title={`View Media History (${mediaHistory.length} items)`}
           >
             <History size={18} />
-            <span className="text-sm font-medium whitespace-nowrap">History ({mediaHistory.length})</span>
+            <span className="text-sm font-medium whitespace-nowrap">
+              History ({mediaHistory.length})
+            </span>
           </Button>
         </div>
       ) : (
         <Button
           variant="outline"
           size="icon"
-          className="fixed right-4 bottom-28 z-20 bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300"
+          className="fixed right-4 bottom-36 z-20 bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300"
           onClick={toggleDrawer}
-          title={hasHistory ? `Media History (${mediaHistory.length} items)` : "Media History"}
+          title={
+            hasHistory
+              ? `Media History (${mediaHistory.length} items)`
+              : "Media History"
+          }
         >
           <History size={20} />
           {hasHistory && (
             <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-              {mediaHistory.length > 9 ? '9+' : mediaHistory.length}
+              {mediaHistory.length > 9 ? "9+" : mediaHistory.length}
             </span>
           )}
         </Button>
       )}
 
       {/* History drawer */}
-      <div 
+      <div
         className={cn(
           "fixed inset-y-0 right-0 z-30 w-full sm:w-96 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out",
           isDrawerOpen ? "translate-x-0" : "translate-x-full"
@@ -199,8 +212,8 @@ export const MediaHistory = () => {
               Media History
             </h2>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 onClick={handleClearHistory}
                 title="Clear all history"
@@ -208,8 +221,8 @@ export const MediaHistory = () => {
               >
                 <Trash2 size={18} />
               </Button>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 onClick={toggleDrawer}
                 title="Close"
@@ -220,23 +233,31 @@ export const MediaHistory = () => {
           </div>
 
           {/* Tabs */}
-          <Tabs 
-            defaultValue="all" 
+          <Tabs
+            defaultValue="all"
             value={activeTab}
-            onValueChange={(value) => setActiveTab(value as 'all' | 'files' | 'youtube')}
+            onValueChange={(value) =>
+              setActiveTab(value as "all" | "files" | "youtube")
+            }
             className="w-full"
           >
             <div className="px-4 pt-2">
               <TabsList className="w-full">
-                <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
-                <TabsTrigger value="files" className="flex-1">Audio Files</TabsTrigger>
-                <TabsTrigger value="youtube" className="flex-1">YouTube</TabsTrigger>
+                <TabsTrigger value="all" className="flex-1">
+                  All
+                </TabsTrigger>
+                <TabsTrigger value="files" className="flex-1">
+                  Audio Files
+                </TabsTrigger>
+                <TabsTrigger value="youtube" className="flex-1">
+                  YouTube
+                </TabsTrigger>
               </TabsList>
             </div>
 
             {/* Content area - same for all tabs, just filtered differently */}
             <TabsContent value="all" className="flex-1 overflow-y-auto">
-              <HistoryList 
+              <HistoryList
                 historyItems={filteredHistory}
                 onLoadItem={handleLoadFromHistory}
                 onRemoveItem={handleRemoveFromHistory}
@@ -244,7 +265,7 @@ export const MediaHistory = () => {
               />
             </TabsContent>
             <TabsContent value="files" className="flex-1 overflow-y-auto">
-              <HistoryList 
+              <HistoryList
                 historyItems={filteredHistory}
                 onLoadItem={handleLoadFromHistory}
                 onRemoveItem={handleRemoveFromHistory}
@@ -252,7 +273,7 @@ export const MediaHistory = () => {
               />
             </TabsContent>
             <TabsContent value="youtube" className="flex-1 overflow-y-auto">
-              <HistoryList 
+              <HistoryList
                 historyItems={filteredHistory}
                 onLoadItem={handleLoadFromHistory}
                 onRemoveItem={handleRemoveFromHistory}
@@ -260,13 +281,13 @@ export const MediaHistory = () => {
               />
             </TabsContent>
           </Tabs>
-        
-        {/* Storage usage information at the bottom of the drawer */}
-        <div className="p-4 mt-auto border-t border-gray-200 dark:border-gray-700">
-          <StorageUsageInfo />
+
+          {/* Storage usage information at the bottom of the drawer */}
+          <div className="p-4 mt-auto border-t border-gray-200 dark:border-gray-700">
+            <StorageUsageInfo />
+          </div>
         </div>
       </div>
-    </div>
-  </>
-  )
-}
+    </>
+  );
+};
