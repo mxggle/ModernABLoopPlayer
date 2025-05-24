@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
 import { MediaPlayer } from '../player/MediaPlayer'
 import { YouTubePlayer } from '../player/YouTubePlayer'
@@ -15,6 +15,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 export const PlayerLayout = () => {
   const [youtubeId, setYoutubeId] = useState<string | null>(null)
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
+  const [showInputSections, setShowInputSections] = useState(true)
   
   const { 
     currentFile, 
@@ -37,6 +38,18 @@ export const PlayerLayout = () => {
   const toggleWaveform = () => {
     setShowWaveform(!showWaveform)
   }
+  
+  // Toggle input sections visibility
+  const toggleInputSections = () => {
+    setShowInputSections(!showInputSections)
+  }
+  
+  // Hide input sections when media is loaded
+  useEffect(() => {
+    if (currentFile || youtubeId) {
+      setShowInputSections(false)
+    }
+  }, [currentFile, youtubeId])
 
   return (
     <div className="flex flex-col min-h-full max-w-6xl mx-auto p-6">
@@ -118,22 +131,41 @@ export const PlayerLayout = () => {
       
       {/* Main Content */}
       <main className="space-y-8 flex-grow">
+        {/* Media Input Section - Collapsible */}
+        {(currentFile || youtubeId) && (
+          <div className="mb-4">
+            <button 
+              onClick={toggleInputSections}
+              className="flex items-center justify-between w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              <span className="font-medium">
+                {showInputSections ? "Hide Media Sources" : "Show Media Sources"}
+              </span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {currentFile ? currentFile.name : youtubeId ? `YouTube: ${youtubeId}` : ""}
+              </span>
+            </button>
+          </div>
+        )}
+        
         {/* Media Input Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="card p-6 space-y-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-3">
-              Load YouTube Video
-            </h2>
-            <YouTubeInput onVideoIdSubmit={setYoutubeId} />
+        {(showInputSections || (!currentFile && !youtubeId)) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="card p-6 space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-3">
+                Load YouTube Video
+              </h2>
+              <YouTubeInput onVideoIdSubmit={setYoutubeId} />
+            </div>
+            
+            <div className="card p-6 space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-3">
+                Load Audio/Video File
+              </h2>
+              <FileUploader />
+            </div>
           </div>
-          
-          <div className="card p-6 space-y-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700 pb-3">
-              Load Audio/Video File
-            </h2>
-            <FileUploader />
-          </div>
-        </div>
+        )}
         
         {/* Player Section */}
         {(youtubeId || currentFile) && (
@@ -147,10 +179,10 @@ export const PlayerLayout = () => {
             )}
             
             {currentFile && currentFile.type.includes('audio') && (
-              <div className="p-4 border-t border-gray-100 dark:border-gray-700">
+              <div className="flex items-center justify-end p-2 border-t border-gray-100 dark:border-gray-700">
                 <button
                   onClick={toggleWaveform}
-                  className="px-3 py-1.5 text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-md hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors font-medium"
+                  className="px-3 py-1 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-md hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors font-medium"
                 >
                   {showWaveform ? "Hide Waveform" : "Show Waveform"}
                 </button>
@@ -158,7 +190,7 @@ export const PlayerLayout = () => {
             )}
             
             {currentFile && currentFile.type.includes('audio') && showWaveform && (
-              <div className="p-4 border-t border-gray-100 dark:border-gray-700">
+              <div className="p-2 border-t border-gray-100 dark:border-gray-700">
                 <WaveformVisualizer />
               </div>
             )}
