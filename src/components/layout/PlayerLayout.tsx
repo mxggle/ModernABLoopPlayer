@@ -4,9 +4,8 @@ import { MediaPlayer } from '../player/MediaPlayer'
 import { YouTubePlayer } from '../player/YouTubePlayer'
 import { FileUploader } from '../player/FileUploader'
 import { YouTubeInput } from '../player/YouTubeInput'
-import { PlaybackControls } from '../controls/PlaybackControls'
-import { ABLoopControls } from '../controls/ABLoopControls'
-import { BookmarkManager } from '../player/BookmarkManager'
+import { CombinedControls } from '../controls/CombinedControls'
+import { BookmarkDrawer } from '../player/BookmarkDrawer'
 import { WaveformVisualizer } from '../waveform/WaveformVisualizer'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { Moon, Sun, Info } from 'lucide-react'
@@ -168,28 +167,16 @@ export const PlayerLayout = () => {
         
         {/* Controls Section */}
         {(currentFile || youtubeId) && (
-          <div className="space-y-6">
-            <div className="card p-6">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
-                Playback Controls
-              </h3>
-              <PlaybackControls />
-            </div>
+          <>
+            {/* Add padding at the bottom to account for the fixed controls */}
+            <div className="pb-32"></div>
             
-            <div className="card p-6">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
-                AB Loop Controls
-              </h3>
-              <ABLoopControls />
-            </div>
+            {/* Combined Controls (fixed at bottom) */}
+            <CombinedControls />
             
-            <div className="card p-6">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
-                Bookmarks
-              </h3>
-              <BookmarkManager />
-            </div>
-          </div>
+            {/* Bookmarks Drawer */}
+            <BookmarkDrawer />
+          </>
         )}
       </main>
       
