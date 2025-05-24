@@ -11,11 +11,21 @@
   ],
   "routes": [
     {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
+      "src": "/assets/(.*)",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
     },
     {
-      "src": "/(.*)",
+      "src": "/favicon.ico",
+      "headers": {
+        "cache-control": "public, max-age=3600"
+      },
+      "continue": true
+    },
+    {
+      "src": "/.*",
       "dest": "/index.html"
     }
   ]
