@@ -59,14 +59,14 @@ export const CombinedControls = () => {
   const handleTimelineChange = (values: number[]) => {
     // Update the time in the store, which will be picked up by the media player
     setCurrentTime(values[0]);
-    
+
     // We apply a direct class to show this was a manual user action
     // This helps distinguish manual seeking from normal playback updates
-    document.body.classList.add('user-seeking');
-    
+    document.body.classList.add("user-seeking");
+
     // Remove the class after a short delay
     setTimeout(() => {
-      document.body.classList.remove('user-seeking');
+      document.body.classList.remove("user-seeking");
     }, 100);
   };
 

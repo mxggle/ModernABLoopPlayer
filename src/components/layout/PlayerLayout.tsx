@@ -17,13 +17,13 @@ export const PlayerLayout = () => {
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showInputSections, setShowInputSections] = useState(true);
 
-  const { 
-    currentFile, 
+  const {
+    currentFile,
     currentYouTube,
-    theme, 
-    setTheme, 
-    showWaveform, 
-    setCurrentYouTube 
+    theme,
+    setTheme,
+    showWaveform,
+    setCurrentYouTube,
   } = usePlayerStore();
 
   // Initialize keyboard shortcuts
@@ -46,7 +46,7 @@ export const PlayerLayout = () => {
       setShowInputSections(false);
     }
   }, [currentFile, youtubeId]);
-  
+
   // Sync the local youtubeId with the store's currentYouTube
   useEffect(() => {
     if (currentYouTube) {
@@ -55,7 +55,7 @@ export const PlayerLayout = () => {
       setYoutubeId(null);
     }
   }, [currentYouTube]);
-  
+
   // Handle YouTube video ID submission
   const handleVideoIdSubmit = (videoId: string) => {
     setCurrentYouTube({ id: videoId });
