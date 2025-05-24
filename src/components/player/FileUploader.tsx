@@ -43,32 +43,37 @@ export const FileUploader = () => {
   })
 
   return (
-    <div 
-      {...getRootProps()} 
-      className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all duration-200
-        ${isDragActive 
-          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' 
-          : 'border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500'
-        }`}
+    <div
+      {...getRootProps()}
+      className={`p-6 border-2 ${isDragActive ? 'border-purple-500' : 'border-purple-100 dark:border-purple-900/30'} bg-white dark:bg-gray-800 rounded-xl shadow-sm text-center cursor-pointer transition-all duration-200 h-full flex flex-col justify-center items-center ${isDragActive ? 'bg-purple-50 dark:bg-purple-900/20' : 'hover:bg-purple-50/50 dark:hover:bg-purple-900/10'}`}
     >
       <input {...getInputProps()} />
-      <div className="flex justify-center space-x-3">
-        <FileAudio className="h-10 w-10 text-purple-500 dark:text-purple-400" />
-        <Music className="h-10 w-10 text-purple-400 dark:text-purple-500" />
+      <div className="relative">
+        <div className="flex justify-center items-center p-4 bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-full mb-5 shadow-inner">
+          <div className="absolute -left-2 top-1/2 transform -translate-y-1/2">
+            <FileAudio className="h-10 w-10 text-purple-500 dark:text-purple-400 drop-shadow-md" />
+          </div>
+          <div className="absolute -right-2 top-1/2 transform -translate-y-1/2">
+            <Music className="h-10 w-10 text-indigo-500 dark:text-indigo-400 drop-shadow-md" />
+          </div>
+        </div>
       </div>
       <motion.div
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1 }}
+        className="max-w-xs mx-auto"
       >
-        <p className="mt-4 text-sm font-medium text-gray-800 dark:text-gray-100">
+        <p className="text-base font-medium text-gray-800 dark:text-gray-100 mb-2">
           {isDragActive
-            ? "Drop the files here..."
-            : "Drag & drop audio/video files here, or click to select files"
-          }
+            ? "Drop to upload..."
+            : "Drag & drop audio/video files here"}
         </p>
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-300">
-          Supports MP3, WAV, OGG, FLAC, AAC, MP4, WebM
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+          or click to browse files
+        </p>
+        <p className="text-xs text-purple-500 dark:text-purple-400 font-medium">
+          MP3, WAV, OGG, FLAC, AAC, MP4, WebM
         </p>
       </motion.div>
     </div>
