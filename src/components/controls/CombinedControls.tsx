@@ -38,7 +38,7 @@ export const CombinedControls = () => {
   } = usePlayerStore();
 
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
-  const [showABControls, setShowABControls] = useState(false);
+  const [showABControls, setShowABControls] = useState(true);
 
   // Update range slider when loop points change
   useEffect(() => {
@@ -175,7 +175,9 @@ export const CombinedControls = () => {
       <div className="max-w-6xl mx-auto px-2 sm:px-4 py-1 sm:py-2">
         {/* Timeline slider - improved design and visibility */}
         <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
-          <span className="text-xs sm:text-sm font-medium min-w-[45px] text-right">{formatTime(currentTime)}</span>
+          <span className="text-xs sm:text-sm font-medium min-w-[45px] text-right">
+            {formatTime(currentTime)}
+          </span>
           <Slider
             value={[currentTime]}
             min={0}
@@ -184,7 +186,9 @@ export const CombinedControls = () => {
             onValueChange={handleTimelineChange}
             className="relative flex-1 flex items-center select-none touch-none h-6"
           />
-          <span className="text-xs sm:text-sm font-medium min-w-[45px]">{formatTime(duration)}</span>
+          <span className="text-xs sm:text-sm font-medium min-w-[45px]">
+            {formatTime(duration)}
+          </span>
         </div>
 
         {/* Main controls - improved layout and grouping */}
@@ -195,7 +199,11 @@ export const CombinedControls = () => {
               className="p-1 sm:p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
               aria-label={volume > 0 ? "Mute" : "Unmute"}
             >
-              {volume > 0 ? <Volume2 size={16} className="sm:w-[18px] sm:h-[18px]" /> : <VolumeX size={16} className="sm:w-[18px] sm:h-[18px]" />}
+              {volume > 0 ? (
+                <Volume2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+              ) : (
+                <VolumeX size={16} className="sm:w-[18px] sm:h-[18px]" />
+              )}
             </button>
 
             <Slider
@@ -225,7 +233,10 @@ export const CombinedControls = () => {
               {isPlaying ? (
                 <Pause size={20} className="sm:w-[24px] sm:h-[24px]" />
               ) : (
-                <Play size={20} className="ml-0.5 sm:ml-1 sm:w-[24px] sm:h-[24px]" />
+                <Play
+                  size={20}
+                  className="ml-0.5 sm:ml-1 sm:w-[24px] sm:h-[24px]"
+                />
               )}
             </button>
 
@@ -294,27 +305,6 @@ export const CombinedControls = () => {
         {showABControls && (
           <div className="pt-2 sm:pt-3 pb-1 sm:pb-2 border-t border-gray-200 dark:border-gray-700 mt-1 sm:mt-2">
             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={setLoopStartAtCurrentTime}
-                aria-label="Set loop start at current time"
-                className="py-1 px-3 h-8 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30"
-              >
-                <AlignStartHorizontal size={14} className="sm:w-[16px] sm:h-[16px]" />
-                <span className="ml-1 text-xs font-medium">A</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={setLoopEndAtCurrentTime}
-                aria-label="Set loop end at current time"
-                className="py-1 px-3 h-8 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30"
-              >
-                <AlignEndHorizontal size={14} className="sm:w-[16px] sm:h-[16px]" />
-                <span className="ml-1 text-xs font-medium">B</span>
-              </Button>
               <div className="flex-1">
                 <Slider
                   value={rangeValues}
@@ -325,6 +315,33 @@ export const CombinedControls = () => {
                   className="w-full"
                 />
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setLoopStartAtCurrentTime}
+                aria-label="Set loop start at current time"
+                className="py-1 px-3 h-8 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30"
+              >
+                <AlignStartHorizontal
+                  size={14}
+                  className="sm:w-[16px] sm:h-[16px]"
+                />
+                <span className="ml-1 text-xs font-medium">A</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setLoopEndAtCurrentTime}
+                aria-label="Set loop end at current time"
+                className="py-1 px-3 h-8 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30"
+              >
+                <AlignEndHorizontal
+                  size={14}
+                  className="sm:w-[16px] sm:h-[16px]"
+                />
+                <span className="ml-1 text-xs font-medium">B</span>
+              </Button>
             </div>
 
             <div className="flex flex-wrap sm:flex-nowrap justify-between items-center gap-2">
@@ -374,7 +391,13 @@ export const CombinedControls = () => {
 };
 
 // Missing imports that were added
-const ChevronUp = ({ size, className }: { size: number; className?: string }) => (
+const ChevronUp = ({
+  size,
+  className,
+}: {
+  size: number;
+  className?: string;
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}
@@ -391,7 +414,13 @@ const ChevronUp = ({ size, className }: { size: number; className?: string }) =>
   </svg>
 );
 
-const ChevronDown = ({ size, className }: { size: number; className?: string }) => (
+const ChevronDown = ({
+  size,
+  className,
+}: {
+  size: number;
+  className?: string;
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}
