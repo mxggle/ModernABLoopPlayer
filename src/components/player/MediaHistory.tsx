@@ -152,10 +152,7 @@ export const MediaHistory = () => {
     }
   };
 
-  // For the initial screen, just use a subtle indicator if history is available
-  const hasMedia = usePlayerStore(
-    (state) => state.currentFile !== null || state.currentYouTube !== null
-  );
+  // Check if there's any history to show
   const hasHistory = mediaHistory.length > 0;
 
   return (

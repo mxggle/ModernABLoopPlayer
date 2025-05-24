@@ -6,7 +6,6 @@ export const useAudioProcessor = () => {
   const processor = useRef<AudioProcessor | null>(null);
   const {
     setCurrentTime,
-    setDuration,
     currentFile,
     isPlaying,
     playbackRate,
