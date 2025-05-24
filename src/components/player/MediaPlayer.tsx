@@ -146,10 +146,34 @@ export const MediaPlayer = () => {
             onLoadedMetadata={handleLoadedMetadata}
             onEnded={handleEnded}
           />
-          <div className="w-full h-48 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-            <p className="text-xl font-medium">
-              {currentFile.name}
-            </p>
+          <div 
+            className="w-full rounded-lg flex items-center justify-center overflow-hidden relative"
+            style={{ height: 'calc(100vh - 280px)', maxHeight: '600px' }}
+          >
+            {/* Background image with gradient overlay */}
+            <div 
+              className="absolute inset-0 bg-cover bg-center z-0" 
+              style={{ 
+                backgroundImage: 'url("/audio-background.svg")', 
+                backgroundSize: 'cover'
+              }}
+            ></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-purple-500/30 to-gray-900/70 z-10"></div>
+            
+            {/* Audio file info */}
+            <div className="z-20 text-center p-6 bg-white/10 backdrop-blur-sm rounded-xl shadow-lg border border-white/20">
+              <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-purple-600 flex items-center justify-center shadow-xl">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+              </div>
+              <p className="text-xl font-medium text-white mb-2">
+                {currentFile.name}
+              </p>
+              <p className="text-sm text-white/80">
+                Audio File
+              </p>
+            </div>
           </div>
         </>
       )}

@@ -199,7 +199,7 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
   }, [player, isLooping, loopStart, loopEnd, setCurrentTime])
 
   return (
-    <div className="relative aspect-video rounded-lg overflow-hidden">
+    <div className="relative rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 280px)', maxHeight: '600px' }}>
       <div id="youtube-player" ref={playerRef} className="w-full h-full" />
     </div>
   )

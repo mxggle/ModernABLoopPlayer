@@ -189,7 +189,7 @@ export const WaveformVisualizer = () => {
   }
 
   return (
-    <div className="mt-4 h-32 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+    <div className="mt-2 h-24 bg-gray-900/50 backdrop-blur-sm rounded-lg overflow-hidden border border-purple-500/30">
       <canvas 
         ref={canvasRef} 
         className="w-full h-full"
