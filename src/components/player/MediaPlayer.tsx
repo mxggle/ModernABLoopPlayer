@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react'
-import { usePlayerStore } from '@/stores/playerStore'
+import { usePlayerStore } from '../../stores/playerStore'
+import { toast } from 'react-hot-toast'
 
 export const MediaPlayer = () => {
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -55,24 +56,64 @@ export const MediaPlayer = () => {
     if (!mediaElement) return
     
     const handleTimeUpdate = () => {
-      setCurrentTime(mediaElement.currentTime)
+      const currentTimeValue = mediaElement.currentTime
+      setCurrentTime(currentTimeValue)
       
       // Handle A-B looping
       if (isLooping && loopStart !== null && loopEnd !== null) {
-        if (mediaElement.currentTime >= loopEnd) {
+        // Add a small buffer to prevent edge case issues
+        const buffer = 0.1
+        
+        if (currentTimeValue >= loopEnd - buffer) {
+          // When we reach the end point, jump back to start
           mediaElement.currentTime = loopStart
-        } else if (mediaElement.currentTime < loopStart) {
+          console.log('Loop: Jumping back to start point', loopStart)
+        } else if (currentTimeValue < loopStart - buffer && currentTimeValue > 0) {
+          // If somehow we're before the start point (e.g., user dragged the slider)
           mediaElement.currentTime = loopStart
+          console.log('Loop: Jumping to start point', loopStart)
         }
       }
     }
     
+    // Use more frequent checking for more precise looping
+    const checkInterval = setInterval(handleTimeUpdate, 50)
+    
+    // Also keep the timeupdate event for standard time tracking
     mediaElement.addEventListener('timeupdate', handleTimeUpdate)
     
     return () => {
+      clearInterval(checkInterval)
       mediaElement.removeEventListener('timeupdate', handleTimeUpdate)
     }
   }, [currentFile, isLooping, loopStart, loopEnd, setCurrentTime])
+  
+  // Add a listener for seeking to handle manual seeking
+  useEffect(() => {
+    const mediaElement = currentFile?.type.includes('video') ? videoRef.current : audioRef.current
+    if (!mediaElement) return
+    
+    const handleSeeking = () => {
+      // When user manually seeks, check if we need to enforce loop boundaries
+      if (isLooping && loopStart !== null && loopEnd !== null) {
+        const currentTimeValue = mediaElement.currentTime
+        
+        if (currentTimeValue < loopStart) {
+          mediaElement.currentTime = loopStart
+          toast('Staying within loop bounds', { duration: 1000, icon: 'ℹ️' })
+        } else if (currentTimeValue > loopEnd) {
+          mediaElement.currentTime = loopStart
+          toast('Returning to loop start', { duration: 1000, icon: 'ℹ️' })
+        }
+      }
+    }
+    
+    mediaElement.addEventListener('seeking', handleSeeking)
+    
+    return () => {
+      mediaElement.removeEventListener('seeking', handleSeeking)
+    }
+  }, [currentFile, isLooping, loopStart, loopEnd])
 
   // Handle media metadata loaded
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLMediaElement>) => {
