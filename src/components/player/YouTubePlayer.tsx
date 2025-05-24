@@ -175,20 +175,26 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
       
       // Handle A-B looping
       if (isLooping && loopStart !== null && loopEnd !== null) {
-        if (currentTime >= loopEnd) {
+        // Add a small buffer to prevent edge case issues
+        const buffer = 0.1
+        
+        if (currentTime >= loopEnd - buffer) {
+          // When we reach the end point, jump back to start
           player.seekTo(loopStart, true)
-        } else if (currentTime < loopStart) {
+          console.log('YouTube Loop: Jumping back to start point', loopStart)
+        } else if (currentTime < loopStart - buffer && currentTime > 0) {
+          // If somehow we're before the start point (e.g., user dragged the slider)
           player.seekTo(loopStart, true)
+          console.log('YouTube Loop: Jumping to start point', loopStart)
         }
       }
-      
-      requestAnimationFrame(checkTime)
     }
     
-    const animationId = requestAnimationFrame(checkTime)
+    // Use interval for more precise checking
+    const checkInterval = setInterval(checkTime, 50)
     
     return () => {
-      cancelAnimationFrame(animationId)
+      clearInterval(checkInterval)
     }
   }, [player, isLooping, loopStart, loopEnd, setCurrentTime])
 

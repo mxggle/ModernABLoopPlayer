@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Slider } from '@radix-ui/react-slider'
-import { Toggle } from '@radix-ui/react-toggle'
 import { usePlayerStore } from '../../stores/playerStore'
 import { formatTime } from '../../utils/formatTime'
 import { 
@@ -10,6 +8,9 @@ import {
   AlignStartHorizontal, 
   AlignEndHorizontal
 } from 'lucide-react'
+import { Slider } from '../ui/slider'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
 
 export const ABLoopControls = () => {
   const {
@@ -48,6 +49,11 @@ export const ABLoopControls = () => {
     
     setRangeValues([startPercent, endPercent])
     setLoopPoints(start, end)
+    
+    // Enable looping when points are set
+    if (!isLooping) {
+      setIsLooping(true)
+    }
   }
 
   // Set loop start point at current time
@@ -55,6 +61,10 @@ export const ABLoopControls = () => {
     const end = loopEnd !== null ? loopEnd : duration
     if (currentTime < end) {
       setLoopPoints(currentTime, end)
+      // Enable looping when points are set
+      if (!isLooping) {
+        setIsLooping(true)
+      }
     }
   }
 
@@ -63,6 +73,10 @@ export const ABLoopControls = () => {
     const start = loopStart !== null ? loopStart : 0
     if (currentTime > start) {
       setLoopPoints(start, currentTime)
+      // Enable looping when points are set
+      if (!isLooping) {
+        setIsLooping(true)
+      }
     }
   }
 
@@ -142,83 +156,87 @@ export const ABLoopControls = () => {
   }
 
   return (
-    <div className="space-y-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+    <div className="space-y-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">A-B Loop Controls</h3>
-        <Toggle 
-          pressed={isLooping} 
-          onPressedChange={toggleLooping}
-          className={`p-2 rounded-md ${isLooping 
-            ? 'bg-purple-500 text-white' 
-            : 'bg-gray-200 dark:bg-gray-700'}`}
+        <Button 
+          variant={isLooping ? "default" : "outline"}
+          size="sm"
+          onClick={toggleLooping}
+          className="gap-1"
           aria-label="Toggle looping"
         >
-          <Repeat size={18} />
-        </Toggle>
+          <Repeat size={16} />
+          <span>{isLooping ? 'Looping' : 'Loop Off'}</span>
+        </Button>
       </div>
       
       <div className="flex items-center gap-2">
-        <button 
+        <Button 
+          variant="outline"
+          size="sm"
           onClick={setLoopStartAtCurrentTime}
-          className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
           aria-label="Set loop start at current time"
         >
-          <AlignStartHorizontal size={18} />
-        </button>
+          <AlignStartHorizontal size={16} />
+        </Button>
         
         <div className="flex-1">
           <Slider
+            defaultValue={rangeValues}
             value={rangeValues}
-            min={0}
             max={100}
             step={0.1}
             onValueChange={handleRangeChange}
-            className="relative flex items-center select-none touch-none w-full h-5"
+            className="w-full"
           />
         </div>
         
-        <button 
+        <Button 
+          variant="outline"
+          size="sm"
           onClick={setLoopEndAtCurrentTime}
-          className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
           aria-label="Set loop end at current time"
         >
-          <AlignEndHorizontal size={18} />
-        </button>
+          <AlignEndHorizontal size={16} />
+        </Button>
       </div>
       
       <div className="grid grid-cols-2 gap-4">
         <div className="flex items-center space-x-2">
           <span className="text-sm font-medium">A:</span>
-          <input
-            type="text"
+          <Input
             value={loopStart !== null ? formatTime(loopStart) : "--:--"}
             readOnly
-            className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-sm w-16"
+            className="w-20 text-center"
           />
-          <button 
+          <Button 
+            variant="outline"
+            size="icon"
             onClick={jumpToLoopStart}
-            className="p-1 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
             aria-label="Jump to loop start"
+            disabled={loopStart === null}
           >
             <SkipBack size={16} />
-          </button>
+          </Button>
         </div>
         
         <div className="flex items-center space-x-2">
           <span className="text-sm font-medium">B:</span>
-          <input
-            type="text"
+          <Input
             value={loopEnd !== null ? formatTime(loopEnd) : "--:--"}
             readOnly
-            className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-sm w-16"
+            className="w-20 text-center"
           />
-          <button 
+          <Button 
+            variant="outline"
+            size="icon"
             onClick={jumpToLoopEnd}
-            className="p-1 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
             aria-label="Jump to loop end"
+            disabled={loopEnd === null}
           >
             <SkipForward size={16} />
-          </button>
+          </Button>
         </div>
       </div>
       
