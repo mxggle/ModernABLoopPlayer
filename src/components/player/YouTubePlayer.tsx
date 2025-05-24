@@ -61,7 +61,9 @@ interface YouTubePlayerProps {
 export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
   const [player, setPlayer] = useState<YTPlayer | null>(null);
   const [apiLoaded, setApiLoaded] = useState(false);
+  const [isSeeking, setIsSeeking] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
+  const lastSeekTime = useRef<number>(0);
 
   const {
     isPlaying,
@@ -70,6 +72,7 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
     loopStart,
     loopEnd,
     isLooping,
+    currentTime,
     setCurrentTime,
     setDuration,
     setIsPlaying,
@@ -118,8 +121,17 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
         onStateChange: (event) => {
           if (event.data === window.YT.PlayerState.PLAYING) {
             setIsPlaying(true);
+            // User may have used YouTube controls to seek
+            const currentTime = event.target.getCurrentTime();
+            setCurrentTime(currentTime);
+            lastSeekTime.current = Date.now();
           } else if (event.data === window.YT.PlayerState.PAUSED) {
             setIsPlaying(false);
+            // User may have paused to seek
+            setIsSeeking(true);
+            // Get the current time to update our UI
+            const currentTime = event.target.getCurrentTime();
+            setCurrentTime(currentTime);
           } else if (event.data === window.YT.PlayerState.ENDED) {
             setIsPlaying(false);
             setCurrentTime(0);
@@ -144,6 +156,8 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
 
     if (isPlaying) {
       player.playVideo();
+      // Reset seeking state when playback resumes
+      setIsSeeking(false);
     } else {
       player.pauseVideo();
     }
@@ -162,6 +176,32 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
 
     player.setPlaybackRate(playbackRate);
   }, [playbackRate, player]);
+  
+  // Handle custom timeline slider changes
+  // This effect responds to when the user drags the custom timeline slider
+  const previousTimeRef = useRef(currentTime);
+  useEffect(() => {
+    if (!player) return;
+    
+    // Only seek if the time change is significant (user interaction, not just small updates)
+    // and if we're not already seeking via YouTube controls
+    const timeDifference = Math.abs(currentTime - previousTimeRef.current);
+    if (timeDifference > 0.5 && !isSeeking) {
+      // Mark that we're doing a seek and record the time
+      setIsSeeking(true);
+      lastSeekTime.current = Date.now();
+      
+      // Seek to the new time
+      player.seekTo(currentTime, true);
+      
+      // After a short delay, reset the seeking state
+      setTimeout(() => {
+        setIsSeeking(false);
+      }, 500);
+    }
+    
+    previousTimeRef.current = currentTime;
+  }, [currentTime, player, isSeeking]);
 
   // Handle A-B loop
   useEffect(() => {
@@ -173,8 +213,14 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
       const currentTime = player.getCurrentTime();
       setCurrentTime(currentTime);
 
-      // Handle A-B looping
-      if (isLooping && loopStart !== null && loopEnd !== null) {
+      // Don't enforce loop boundaries if user is currently seeking
+      // or has recently seeked (within the last 500ms)
+      const timeSinceLastSeek = Date.now() - lastSeekTime.current;
+      const seekingCooldown = 500; // ms
+      
+      // Handle A-B looping only if not in seeking cooldown
+      if (isLooping && !isSeeking && timeSinceLastSeek > seekingCooldown && 
+          loopStart !== null && loopEnd !== null) {
         // Add a small buffer to prevent edge case issues
         const buffer = 0.1;
 
@@ -196,7 +242,7 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
     return () => {
       clearInterval(checkInterval);
     };
-  }, [player, isLooping, loopStart, loopEnd, setCurrentTime]);
+  }, [player, isLooping, isSeeking, loopStart, loopEnd, setCurrentTime]);
 
   return (
     <div
