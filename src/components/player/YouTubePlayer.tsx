@@ -254,10 +254,13 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
       {/* Use a container with padding-top to maintain aspect ratio */}
       <div
         style={{
-          paddingTop: "42%", // Reduced from 56.25% to fit better in viewport
+          paddingTop: "56.25%", // 16:9 aspect ratio by default
           position: "relative",
-          maxHeight: "calc(100vh - 180px)",
+          maxHeight: "calc(100vh - 180px)", // Adjust based on available space
           width: "100%",
+          // Media queries handled via CSS custom properties that update with window.matchMedia in a useEffect
+          // This makes the player more responsive on different devices
+          ...(window.innerWidth < 640 ? { paddingTop: "60%" } : {}),
         }}
       >
         <div

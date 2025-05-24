@@ -213,7 +213,7 @@ export const MediaPlayer = () => {
         <video
           ref={videoRef}
           src={currentFile.url}
-          className="w-full rounded-lg shadow-lg"
+          className="w-full h-auto max-h-[calc(100vh-220px)] sm:max-h-[calc(100vh-200px)] rounded-lg shadow-lg"
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={handleEnded}
         />
@@ -229,8 +229,9 @@ export const MediaPlayer = () => {
             className="w-full rounded-lg flex items-center justify-center overflow-hidden relative"
             style={{
               height: showWaveform
-                ? "calc(100vh - 500px)"
-                : "calc(100vh - 300px)", // Expand height when waveform is hidden
+                ? "calc(100vh - 400px)"
+                : "min(calc(100vh - 250px), 300px)", // Responsive height
+              maxHeight: "350px",
               transition: "height 0.3s ease-in-out", // Smooth transition
             }}
           >
@@ -246,10 +247,10 @@ export const MediaPlayer = () => {
             <div className="absolute inset-0 bg-gradient-to-b from-purple-500/20 to-gray-900/60 z-10"></div>
 
             {/* Enhanced Audio file info with quick controls */}
-            <div className="z-20 text-center p-8 bg-white/15 backdrop-blur-md rounded-xl shadow-lg border border-white/20 max-w-md w-full">
-              <div className="flex items-center justify-center mb-6">
+            <div className="z-20 text-center p-4 sm:p-6 md:p-8 bg-white/15 backdrop-blur-md rounded-xl shadow-lg border border-white/20 max-w-md w-full mx-3 sm:mx-0">
+              <div className="flex flex-col sm:flex-row items-center justify-center mb-3 sm:mb-6 gap-3 sm:gap-0">
                 <div
-                  className="w-28 h-28 rounded-full bg-purple-600 flex items-center justify-center shadow-xl mr-6"
+                  className="w-20 h-20 sm:w-24 md:w-28 sm:h-24 md:h-28 rounded-full bg-purple-600 flex items-center justify-center shadow-xl sm:mr-6"
                   onClick={() => {
                     setIsPlaying(!isPlaying);
                     setLocalPlayState(!localPlayState);
@@ -257,19 +258,19 @@ export const MediaPlayer = () => {
                   style={{ cursor: "pointer" }}
                 >
                   {localPlayState ? (
-                    <Pause className="h-12 w-12 text-white" />
+                    <Pause className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-white" />
                   ) : (
-                    <Play className="h-12 w-12 text-white ml-2" />
+                    <Play className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-white ml-1 sm:ml-2" />
                   )}
                 </div>
-                <div className="text-left">
-                  <h3 className="text-2xl font-bold text-white mb-2 truncate max-w-[200px]">
+                <div className="text-center sm:text-left">
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1 sm:mb-2 truncate max-w-full sm:max-w-[200px]">
                     {currentFile.name}
                   </h3>
-                  <p className="text-sm text-white/90 font-medium">
+                  <p className="text-xs sm:text-sm text-white/90 font-medium">
                     Audio Track
                   </p>
-                  <div className="mt-2 text-white/70 text-xs">
+                  <div className="mt-1 sm:mt-2 text-white/70 text-xs hidden sm:block">
                     Click the circle to play/pause
                   </div>
                 </div>
