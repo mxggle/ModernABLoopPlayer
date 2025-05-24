@@ -161,41 +161,24 @@ export const MediaHistory = () => {
   return (
     <>
       {/* Floating button to open history - more noticeable on initial screen */}
-      {!hasMedia && hasHistory ? (
-        <div className="fixed right-4 bottom-28 z-20 animate-pulse">
-          <Button
-            variant="default"
-            size="sm"
-            className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg px-3 py-2 flex items-center gap-2 rounded-lg ring-2 ring-purple-300 dark:ring-purple-400"
-            onClick={toggleDrawer}
-            title={`View Media History (${mediaHistory.length} items)`}
-          >
-            <History size={18} />
-            <span className="text-sm font-medium whitespace-nowrap">
-              History ({mediaHistory.length})
-            </span>
-          </Button>
-        </div>
-      ) : (
-        <Button
-          variant="outline"
-          size="icon"
-          className="fixed right-4 bottom-36 z-20 bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300"
-          onClick={toggleDrawer}
-          title={
-            hasHistory
-              ? `Media History (${mediaHistory.length} items)`
-              : "Media History"
-          }
-        >
-          <History size={20} />
-          {hasHistory && (
-            <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-              {mediaHistory.length > 9 ? "9+" : mediaHistory.length}
-            </span>
-          )}
-        </Button>
-      )}
+      <Button
+        variant="outline"
+        size="icon"
+        className="fixed right-4 bottom-36 z-20 bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300"
+        onClick={toggleDrawer}
+        title={
+          hasHistory
+            ? `Media History (${mediaHistory.length} items)`
+            : "Media History"
+        }
+      >
+        <History size={20} />
+        {hasHistory && (
+          <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+            {mediaHistory.length > 9 ? "9+" : mediaHistory.length}
+          </span>
+        )}
+      </Button>
 
       {/* History drawer */}
       <div
