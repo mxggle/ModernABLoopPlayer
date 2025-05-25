@@ -5,19 +5,21 @@ import { YouTubePlayer } from "../player/YouTubePlayer";
 import { FileUploader } from "../player/FileUploader";
 import { YouTubeInput } from "../player/YouTubeInput";
 import { CombinedControls } from "../controls/CombinedControls";
+import { MobileControls } from "../controls/MobileControls";
 import { BookmarkDrawer } from "../player/BookmarkDrawer";
 import { MediaHistory } from "../player/MediaHistory";
 import { InitialHistoryDisplay } from "../player/InitialHistoryDisplay";
 import { WaveformVisualizer } from "../waveform/WaveformVisualizer";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import { useWindowSize } from "../../hooks/useWindowSize";
 import { Moon, Sun, Info } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
-// No framer-motion animations for simpler implementation
 
 export const PlayerLayout = () => {
   const [youtubeId, setYoutubeId] = useState<string | null>(null);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showInputSections, setShowInputSections] = useState(true);
+  const { isMobile } = useWindowSize();
 
   const {
     currentFile,
@@ -215,7 +217,7 @@ export const PlayerLayout = () => {
       <main
         className={`space-y-2 sm:space-y-4 flex-grow flex flex-col ${
           showInputSections ? "overflow-y-auto" : "overflow-hidden"
-        } max-h-[calc(100vh-80px)]`}
+        } ${isMobile ? "max-h-[calc(100vh-160px)]" : "max-h-[calc(100vh-80px)]"}`}
       >
         {/* Media Input Section - Collapsible (now controlled from header) */}
 
@@ -335,7 +337,7 @@ export const PlayerLayout = () => {
             <div className="pb-2"></div>
 
             {/* Combined Controls (fixed at bottom) */}
-            <CombinedControls />
+            {isMobile ? <MobileControls /> : <CombinedControls />}
 
             {/* Bookmarks Drawer */}
             <BookmarkDrawer />
