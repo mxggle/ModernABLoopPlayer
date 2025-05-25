@@ -56,9 +56,10 @@ declare global {
 
 interface YouTubePlayerProps {
   videoId: string;
+  hiddenMode?: boolean;
 }
 
-export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
+export const YouTubePlayer = ({ videoId, hiddenMode = false }: YouTubePlayerProps) => {
   const [player, setPlayer] = useState<YTPlayer | null>(null);
   const [apiLoaded, setApiLoaded] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -249,6 +250,16 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
     };
   }, [player, isLooping, isSeeking, loopStart, loopEnd, setCurrentTime]);
 
+  // For hidden mode, render a minimal container but still initialize the player
+  if (hiddenMode) {
+    return (
+      <div className="sr-only" aria-hidden="true">
+        <div id="youtube-player"></div>
+      </div>
+    );
+  }
+
+  // Normal visible mode
   return (
     <div className="relative rounded-lg overflow-hidden w-full">
       {/* Use a container with padding-top to maintain aspect ratio */}

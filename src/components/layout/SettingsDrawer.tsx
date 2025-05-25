@@ -23,8 +23,8 @@ interface LayoutSettings {
 interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  layoutSettings: LayoutSettings;
-  setLayoutSettings: React.Dispatch<React.SetStateAction<LayoutSettings>>;
+  layoutSettings?: LayoutSettings;
+  setLayoutSettings?: React.Dispatch<React.SetStateAction<LayoutSettings>>;
 }
 
 export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
@@ -85,34 +85,36 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
         {/* Drawer Content */}
         <div className="p-4 space-y-6 overflow-y-auto">
-          {/* Layout Settings Section */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 px-1">
-              Interface Layout
-            </h3>
-            <div className="space-y-1">
-              {layoutOptions.map((option) => (
-                <button
-                  key={option.key}
-                  onClick={() =>
-                    setLayoutSettings((prev) => ({
-                      ...prev,
-                      [option.key]: !prev[option.key as keyof LayoutSettings],
-                    }))
-                  }
-                  className="w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  {option.icon}
-                  <span className="flex-grow text-left">{option.label}</span>
-                  {layoutSettings[option.key as keyof LayoutSettings] ? (
-                    <Eye className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
-                  )}
-                </button>
-              ))}
+          {/* Layout Settings Section - Only show when layoutSettings and setLayoutSettings are available */}
+          {layoutSettings && setLayoutSettings && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 px-1">
+                Interface Layout
+              </h3>
+              <div className="space-y-1">
+                {layoutOptions.map((option) => (
+                  <button
+                    key={option.key}
+                    onClick={() =>
+                      setLayoutSettings((prev) => ({
+                        ...prev,
+                        [option.key]: !prev[option.key as keyof LayoutSettings],
+                      }))
+                    }
+                    className="w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    {option.icon}
+                    <span className="flex-grow text-left">{option.label}</span>
+                    {layoutSettings[option.key as keyof LayoutSettings] ? (
+                      <Eye className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <EyeOff className="h-4 w-4 text-gray-400" />
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Media History Section */}
           <div>
