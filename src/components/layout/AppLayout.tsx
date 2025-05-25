@@ -3,8 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { usePlayerStore } from "../../stores/playerStore";
 import { TranscriptToggle } from "../transcript";
 import { SettingsDrawer } from "./SettingsDrawer";
-import { Moon, Sun, Info, Settings, Bookmark } from "lucide-react";
+import {
+  Moon,
+  Sun,
+  Info,
+  Settings,
+  Bookmark,
+  Layout,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
+import * as Popover from "@radix-ui/react-popover";
 
 interface LayoutSettings {
   showPlayer: boolean;
@@ -29,6 +39,7 @@ export const AppLayout = ({
   const navigate = useNavigate();
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
+  const [isLayoutPopoverOpen, setIsLayoutPopoverOpen] = useState(false);
 
   const {
     currentFile,
@@ -114,6 +125,179 @@ export const AppLayout = ({
               )}
             </button>
           )}
+
+          {/* Layout Settings - Show when media is loaded and layout settings are available */}
+          {(currentFile || youtubeId) &&
+            layoutSettings &&
+            setLayoutSettings && (
+              <Popover.Root
+                open={isLayoutPopoverOpen}
+                onOpenChange={setIsLayoutPopoverOpen}
+              >
+                <Popover.Trigger asChild>
+                  <button
+                    className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+                    aria-label="Layout settings"
+                  >
+                    <Layout className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </button>
+                </Popover.Trigger>
+                <Popover.Portal>
+                  <Popover.Content
+                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 w-64 z-50"
+                    sideOffset={8}
+                    align="end"
+                  >
+                    <div className="space-y-3">
+                      <h3 className="font-medium text-gray-900 dark:text-white text-sm">
+                        Layout Settings
+                      </h3>
+
+                      {/* Player Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          {layoutSettings.showPlayer ? (
+                            <Eye className="h-4 w-4 text-gray-500" />
+                          ) : (
+                            <EyeOff className="h-4 w-4 text-gray-500" />
+                          )}
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            Player
+                          </span>
+                        </div>
+                        <button
+                          onClick={() =>
+                            setLayoutSettings({
+                              ...layoutSettings,
+                              showPlayer: !layoutSettings.showPlayer,
+                            })
+                          }
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            layoutSettings.showPlayer
+                              ? "bg-purple-600"
+                              : "bg-gray-200 dark:bg-gray-600"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                              layoutSettings.showPlayer
+                                ? "translate-x-5"
+                                : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Waveform Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          {layoutSettings.showWaveform ? (
+                            <Eye className="h-4 w-4 text-gray-500" />
+                          ) : (
+                            <EyeOff className="h-4 w-4 text-gray-500" />
+                          )}
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            Waveform
+                          </span>
+                        </div>
+                        <button
+                          onClick={() =>
+                            setLayoutSettings({
+                              ...layoutSettings,
+                              showWaveform: !layoutSettings.showWaveform,
+                            })
+                          }
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            layoutSettings.showWaveform
+                              ? "bg-purple-600"
+                              : "bg-gray-200 dark:bg-gray-600"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                              layoutSettings.showWaveform
+                                ? "translate-x-5"
+                                : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Transcript Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          {layoutSettings.showTranscript ? (
+                            <Eye className="h-4 w-4 text-gray-500" />
+                          ) : (
+                            <EyeOff className="h-4 w-4 text-gray-500" />
+                          )}
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            Transcript
+                          </span>
+                        </div>
+                        <button
+                          onClick={() =>
+                            setLayoutSettings({
+                              ...layoutSettings,
+                              showTranscript: !layoutSettings.showTranscript,
+                            })
+                          }
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            layoutSettings.showTranscript
+                              ? "bg-purple-600"
+                              : "bg-gray-200 dark:bg-gray-600"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                              layoutSettings.showTranscript
+                                ? "translate-x-5"
+                                : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Controls Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          {layoutSettings.showControls ? (
+                            <Eye className="h-4 w-4 text-gray-500" />
+                          ) : (
+                            <EyeOff className="h-4 w-4 text-gray-500" />
+                          )}
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            Controls
+                          </span>
+                        </div>
+                        <button
+                          onClick={() =>
+                            setLayoutSettings({
+                              ...layoutSettings,
+                              showControls: !layoutSettings.showControls,
+                            })
+                          }
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            layoutSettings.showControls
+                              ? "bg-purple-600"
+                              : "bg-gray-200 dark:bg-gray-600"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                              layoutSettings.showControls
+                                ? "translate-x-5"
+                                : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                    <Popover.Arrow className="fill-white dark:fill-gray-800" />
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
+            )}
 
           {/* Theme Toggle */}
           <button
