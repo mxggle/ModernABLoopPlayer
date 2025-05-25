@@ -40,7 +40,9 @@ export const MediaPlayer = () => {
       console.log("Attempting to play media:", currentFile?.url);
       mediaElement.play().catch((err) => {
         console.error("Error playing media:", err);
-        toast.error("Error playing media. The file may be corrupted or not supported.");
+        toast.error(
+          "Error playing media. The file may be corrupted or not supported."
+        );
         setIsPlaying(false);
       });
     } else {
@@ -83,16 +85,16 @@ export const MediaPlayer = () => {
         // Update the media element's time to the current value from the store
         const storeTime = usePlayerStore.getState().currentTime;
         mediaElement.currentTime = storeTime;
-        
+
         // For mobile devices, ensure play state is maintained
         if (isPlaying && mediaElement.paused) {
-          mediaElement.play().catch(error => {
+          mediaElement.play().catch((error) => {
             console.error("Error playing after seek:", error);
           });
         }
       }
     };
-    
+
     // Create a direct subscription to time changes for more responsive mobile seeking
     const unsubscribe = usePlayerStore.subscribe((state) => {
       const newTime = state.currentTime;
@@ -214,17 +216,20 @@ export const MediaPlayer = () => {
       mediaElement.removeEventListener("seeking", handleSeeking);
     };
   }, [currentFile, isLooping, loopStart, loopEnd]);
-  
+
   // Handle seeking from the store (for rewind/fast forward buttons)
   useEffect(() => {
     const mediaElement = currentFile?.type.includes("video")
       ? videoRef.current
       : audioRef.current;
     if (!mediaElement) return;
-    
+
     // Only update if the difference is significant (to avoid feedback loops)
     // and if we're not already seeking through the media element itself
-    if (!mediaElement.seeking && Math.abs(mediaElement.currentTime - currentTime) > 0.5) {
+    if (
+      !mediaElement.seeking &&
+      Math.abs(mediaElement.currentTime - currentTime) > 0.5
+    ) {
       mediaElement.currentTime = currentTime;
     }
   }, [currentFile, currentTime]);
@@ -234,7 +239,7 @@ export const MediaPlayer = () => {
     console.log("Media metadata loaded:", {
       duration: e.currentTarget.duration,
       src: e.currentTarget.src,
-      readyState: e.currentTarget.readyState
+      readyState: e.currentTarget.readyState,
     });
     setDuration(e.currentTarget.duration);
   };
@@ -245,11 +250,13 @@ export const MediaPlayer = () => {
     setIsPlaying(false);
     setCurrentTime(0);
   };
-  
+
   // Handle media loading errors
   const handleError = (e: React.SyntheticEvent<HTMLMediaElement>) => {
     console.error("Media loading error:", e.currentTarget.error);
-    toast.error("Failed to load media. The file may be corrupted or not supported.");
+    toast.error(
+      "Failed to load media. The file may be corrupted or not supported."
+    );
   };
 
   if (!currentFile) return null;
