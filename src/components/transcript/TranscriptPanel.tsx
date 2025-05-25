@@ -577,8 +577,12 @@ const TranscriptSegmentItem = ({
 }: {
   segment: TranscriptSegmentType;
 }) => {
-  const { setCurrentTime, createBookmarkFromTranscript, currentTime } =
-    usePlayerStore();
+  const {
+    setCurrentTime,
+    createBookmarkFromTranscript,
+    currentTime,
+    setIsPlaying,
+  } = usePlayerStore();
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -587,10 +591,11 @@ const TranscriptSegmentItem = ({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Jump to this segment's time
+  // Jump to this segment's time and start playing
   const handleJumpToTime = () => {
     setCurrentTime(segment.startTime);
-    toast.success(`Jumped to ${formatTime(segment.startTime)}`);
+    setIsPlaying(true); // Start playback immediately
+    toast.success(`Playing from ${formatTime(segment.startTime)}`);
   };
 
   // Create a bookmark from this segment
@@ -619,9 +624,9 @@ const TranscriptSegmentItem = ({
           <button
             onClick={handleJumpToTime}
             className="p-1 rounded text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-            title="Jump to this segment"
+            title="Play from this segment"
           >
-            <Play size={12} />
+            <Play size={18} />
           </button>
 
           <button
@@ -629,7 +634,7 @@ const TranscriptSegmentItem = ({
             className="p-1 rounded text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
             title="Create bookmark from this segment"
           >
-            <Bookmark size={12} />
+            <Bookmark size={18} />
           </button>
         </div>
       </div>
