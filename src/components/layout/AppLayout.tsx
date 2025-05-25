@@ -423,15 +423,13 @@ export const AppLayout = ({
         </div>
       </header>
 
-      {/* Settings Drawer */}
-      {layoutSettings && setLayoutSettings && (
-        <SettingsDrawer
-          isOpen={isSettingsDrawerOpen}
-          onClose={toggleSettingsDrawer}
-          layoutSettings={layoutSettings}
-          setLayoutSettings={setLayoutSettings}
-        />
-      )}
+      {/* Settings Drawer - Always render but only show Interface Layout when media is loaded */}
+      <SettingsDrawer
+        isOpen={isSettingsDrawerOpen}
+        onClose={toggleSettingsDrawer}
+        layoutSettings={layoutSettings}
+        setLayoutSettings={setLayoutSettings}
+      />
 
       {/* Main Content */}
       <main className="flex-1">{children}</main>

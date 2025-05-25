@@ -3,7 +3,11 @@ import { usePlayerStore } from "../../stores/playerStore";
 import { toast } from "react-hot-toast";
 import { Play, Pause } from "lucide-react";
 
-export const MediaPlayer = () => {
+interface MediaPlayerProps {
+  hiddenMode?: boolean;
+}
+
+export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   // Get showWaveform state to adjust player height
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -261,6 +265,32 @@ export const MediaPlayer = () => {
 
   if (!currentFile) return null;
 
+  // If in hidden mode, only render the media elements without UI
+  if (hiddenMode) {
+    return (
+      <div className="sr-only" aria-hidden="true">
+        {currentFile.type.includes("video") ? (
+          <video
+            ref={videoRef}
+            src={currentFile.url}
+            onLoadedMetadata={handleLoadedMetadata}
+            onEnded={handleEnded}
+            onError={handleError}
+          />
+        ) : (
+          <audio
+            ref={audioRef}
+            src={currentFile.url}
+            onLoadedMetadata={handleLoadedMetadata}
+            onEnded={handleEnded}
+            onError={handleError}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Normal visible mode
   return (
     <div className="relative">
       {currentFile.type.includes("video") ? (
