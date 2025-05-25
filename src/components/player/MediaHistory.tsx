@@ -152,13 +152,20 @@ export const MediaHistory = () => {
     }
   };
 
-  // Check if there's any history to show
-  const hasHistory = mediaHistory.length > 0;
+  // No longer need to check if there's any history to show since we're displaying count in the header
 
   return (
     <>
-      {/* Floating button to open history - more noticeable on initial screen */}
-      <Button
+      {/* Hidden button that can be triggered from the header */}
+      <button
+        id="historyDrawerToggle"
+        onClick={toggleDrawer}
+        className="hidden"
+        aria-label={isDrawerOpen ? "Close media history" : "Open media history"}
+      />
+      
+      {/* Original floating button - now hidden since we moved it to the header */}
+      {/* <Button
         variant="outline"
         size="icon"
         className="fixed right-4 bottom-60 sm:bottom-42 sm:right-24 z-20 p-2.5 rounded-lg bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300"
@@ -175,7 +182,7 @@ export const MediaHistory = () => {
             {mediaHistory.length > 9 ? "9+" : mediaHistory.length}
           </span>
         )}
-      </Button>
+      </Button> */}
 
       {/* History drawer */}
       <div

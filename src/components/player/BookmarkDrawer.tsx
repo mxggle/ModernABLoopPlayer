@@ -212,14 +212,22 @@ export const BookmarkDrawer = () => {
 
   return (
     <>
-      {/* Drawer toggle button - fixed at the bottom right, adjusted for mobile */}
+      {/* Hidden button that can be triggered from the header */}
       <button
+        id="bookmarkDrawerToggle"
+        onClick={toggleDrawer}
+        className="hidden"
+        aria-label={isDrawerOpen ? "Close bookmarks" : "Open bookmarks"}
+      />
+      
+      {/* Original drawer toggle button - now hidden since we moved it to the header */}
+      {/* <button
         onClick={toggleDrawer}
         className="fixed bottom-60 sm:bottom-42 sm:right-40 right-20 z-20 p-2.5 rounded-lg bg-purple-600 text-white shadow-lg hover:bg-purple-700 transition-colors"
         aria-label={isDrawerOpen ? "Close bookmarks" : "Open bookmarks"}
       >
         <Bookmark size={20} />
-      </button>
+      </button> */}
 
       {/* Bookmarks drawer */}
       <div
