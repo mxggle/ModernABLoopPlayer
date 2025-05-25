@@ -47,6 +47,15 @@ export interface MediaHistoryItem {
   storageId?: string; // ID for IndexedDB storage
 }
 
+export interface TranscriptSegment {
+  id: string;
+  text: string;
+  startTime: number;
+  endTime: number;
+  confidence: number;
+  isFinal: boolean;
+}
+
 export interface PlayerState {
   // Media state
   currentFile: MediaFile | null;
@@ -74,6 +83,12 @@ export interface PlayerState {
   videoSize: "sm" | "md" | "lg" | "xl";
   bookmarks: LoopBookmark[];
   selectedBookmarkId: string | null;
+
+  // Transcript state
+  transcriptSegments: TranscriptSegment[];
+  showTranscript: boolean;
+  isTranscribing: boolean;
+  transcriptLanguage: string;
 
   // History and sharing
   recentYouTubeVideos: YouTubeMedia[];
@@ -115,6 +130,22 @@ export interface PlayerActions {
   setWaveformZoom: (zoom: number) => void;
   setShowWaveform: (show: boolean) => void;
   setVideoSize: (size: "sm" | "md" | "lg" | "xl") => void;
+
+  // Transcript actions
+  startTranscribing: () => void;
+  stopTranscribing: () => void;
+  toggleTranscribing: () => void;
+  addTranscriptSegment: (segment: Omit<TranscriptSegment, "id">) => void;
+  updateTranscriptSegment: (
+    id: string,
+    changes: Partial<TranscriptSegment>
+  ) => void;
+  clearTranscript: () => void;
+  setShowTranscript: (show: boolean) => void;
+  toggleShowTranscript: () => void;
+  setTranscriptLanguage: (language: string) => void;
+  exportTranscript: (format: "txt" | "srt" | "vtt") => string;
+  createBookmarkFromTranscript: (segmentId: string) => void;
 
   // Bookmark actions
   addBookmark: (bookmark: Omit<LoopBookmark, "id" | "createdAt">) => void;
@@ -158,6 +189,10 @@ const initialState: PlayerState = {
   videoSize: "md",
   bookmarks: [],
   selectedBookmarkId: null,
+  transcriptSegments: [],
+  showTranscript: false,
+  isTranscribing: false,
+  transcriptLanguage: "en-US",
   recentYouTubeVideos: [],
   mediaHistory: [],
   historyLimit: 30,
@@ -185,36 +220,37 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
                 // Continue even if storage fails, just won't be available after refresh
               }
             }
-            
+
             // Check if this file already exists in history by name and size or storageId
             const { mediaHistory } = get();
             let existingHistoryItem = null;
-            
+
             if (storageId) {
               // First try to find by storageId (most reliable)
               existingHistoryItem = mediaHistory.find(
-                item => item.type === "file" && item.storageId === storageId
+                (item) => item.type === "file" && item.storageId === storageId
               );
             }
-            
+
             if (!existingHistoryItem) {
               // Then try by filename and size
               existingHistoryItem = mediaHistory.find(
-                item => item.type === "file" && 
-                       item.fileData?.name === file.name && 
-                       item.fileData?.size === file.size
+                (item) =>
+                  item.type === "file" &&
+                  item.fileData?.name === file.name &&
+                  item.fileData?.size === file.size
               );
             }
-            
+
             // Use existing ID if found in history, otherwise generate a new one
-            const fileId = existingHistoryItem ? 
-              existingHistoryItem.id.replace('history-', 'file-') : 
-              `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-              
+            const fileId = existingHistoryItem
+              ? existingHistoryItem.id.replace("history-", "file-")
+              : `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
             const fileWithId = {
               ...file,
               id: file.id || fileId,
-              storageId
+              storageId,
             };
 
             // Add to history with storage ID
@@ -308,7 +344,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         const newTime = Math.min(currentTime + seconds, duration);
         set({ currentTime: newTime });
       },
-      
+
       seekBackward: (seconds) => {
         const { currentTime } = get();
         const newTime = Math.max(currentTime - seconds, 0);
@@ -495,13 +531,13 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
                 (h) => h.type === "file" && h.storageId === item.storageId
               );
             }
-            
+
             // If not found by storageId, try by filename and size
             if (existingItemIndex === -1 && item.fileData.name) {
               existingItemIndex = state.mediaHistory.findIndex(
-                (h) => 
-                  h.type === "file" && 
-                  h.fileData?.name === item.fileData?.name && 
+                (h) =>
+                  h.type === "file" &&
+                  h.fileData?.name === item.fileData?.name &&
                   h.fileData?.size === item.fileData?.size
               );
             }
@@ -517,22 +553,26 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           if (existingItemIndex >= 0) {
             const updatedHistory = [...state.mediaHistory];
             const existingItem = updatedHistory.splice(existingItemIndex, 1)[0];
-            
+
             // Update the storageId if the new item has one but the existing one doesn't
             const updatedItem = {
-              ...existingItem, 
+              ...existingItem,
               accessedAt: timestamp,
               // Update storageId if the new item has one
-              ...(item.storageId && !existingItem.storageId ? { storageId: item.storageId } : {}),
+              ...(item.storageId && !existingItem.storageId
+                ? { storageId: item.storageId }
+                : {}),
               // Update fileData if needed
-              ...(item.fileData ? { fileData: { ...existingItem.fileData, ...item.fileData } } : {})
+              ...(item.fileData
+                ? { fileData: { ...existingItem.fileData, ...item.fileData } }
+                : {}),
             };
 
             return {
-              mediaHistory: [
-                updatedItem,
-                ...updatedHistory,
-              ].slice(0, state.historyLimit),
+              mediaHistory: [updatedItem, ...updatedHistory].slice(
+                0,
+                state.historyLimit
+              ),
             };
           }
 
@@ -624,8 +664,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         // Just move this item to the top of the history list
         set((state) => {
           const updatedHistory = [...state.mediaHistory];
-          const existingItemIndex = updatedHistory.findIndex(item => item.id === historyItemId);
-          
+          const existingItemIndex = updatedHistory.findIndex(
+            (item) => item.id === historyItemId
+          );
+
           if (existingItemIndex >= 0) {
             const existingItem = updatedHistory.splice(existingItemIndex, 1)[0];
             return {
@@ -635,7 +677,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
               ].slice(0, state.historyLimit),
             };
           }
-          
+
           return state; // No changes if item not found
         });
       },
@@ -681,14 +723,195 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         set({ mediaHistory: [] });
       },
 
-      setHistoryLimit: (limit) => set({ historyLimit: limit }),
+      setHistoryLimit(limit) {
+        set({ historyLimit: limit });
+      },
+
+      // Transcript actions
+      startTranscribing() {
+        set({ isTranscribing: true });
+        toast.success("Voice transcription started");
+      },
+
+      stopTranscribing() {
+        set({ isTranscribing: false });
+        toast.success("Voice transcription stopped");
+      },
+
+      toggleTranscribing() {
+        const { isTranscribing } = get();
+        set({ isTranscribing: !isTranscribing });
+        toast.success(
+          !isTranscribing
+            ? "Voice transcription started"
+            : "Voice transcription stopped"
+        );
+      },
+
+      addTranscriptSegment(segment) {
+        const id = crypto.randomUUID();
+        const newSegment = { ...segment, id };
+        const { transcriptSegments } = get();
+        set({ transcriptSegments: [...transcriptSegments, newSegment] });
+      },
+
+      updateTranscriptSegment(id, changes) {
+        const { transcriptSegments } = get();
+        const updatedSegments = transcriptSegments.map((segment) =>
+          segment.id === id ? { ...segment, ...changes } : segment
+        );
+        set({ transcriptSegments: updatedSegments });
+      },
+
+      clearTranscript() {
+        set({ transcriptSegments: [] });
+        toast.success("Transcript cleared");
+      },
+
+      setShowTranscript(show) {
+        set({ showTranscript: show });
+      },
+
+      toggleShowTranscript() {
+        const { showTranscript } = get();
+        set({ showTranscript: !showTranscript });
+      },
+
+      setTranscriptLanguage(language) {
+        set({ transcriptLanguage: language });
+        toast.success(`Transcript language set to ${language}`);
+      },
+
+      exportTranscript(format) {
+        const { transcriptSegments } = get();
+
+        if (transcriptSegments.length === 0) {
+          toast.error("No transcript data to export");
+          return "";
+        }
+
+        // We can use media info for context if needed in the future
+
+        if (format === "txt") {
+          // Simple text format
+          const text = transcriptSegments
+            .map(
+              (segment) =>
+                `[${formatTime(segment.startTime)} - ${formatTime(
+                  segment.endTime
+                )}] ${segment.text}`
+            )
+            .join("\n");
+
+          return text;
+        } else if (format === "srt") {
+          // SubRip format
+          const srt = transcriptSegments
+            .map((segment, index) => {
+              const startTime = formatSrtTime(segment.startTime);
+              const endTime = formatSrtTime(segment.endTime);
+              return `${index + 1}\n${startTime} --> ${endTime}\n${
+                segment.text
+              }\n`;
+            })
+            .join("\n");
+
+          return srt;
+        } else if (format === "vtt") {
+          // WebVTT format
+          const vtt = ["WEBVTT\n"];
+
+          transcriptSegments.forEach((segment, index) => {
+            const startTime = formatVttTime(segment.startTime);
+            const endTime = formatVttTime(segment.endTime);
+            vtt.push(
+              `${index + 1}\n${startTime} --> ${endTime}\n${segment.text}\n`
+            );
+          });
+
+          return vtt.join("\n");
+        }
+
+        return "";
+
+        // Helper functions for time formatting
+        function formatTime(seconds) {
+          const mins = Math.floor(seconds / 60);
+          const secs = Math.floor(seconds % 60);
+          return `${mins}:${secs.toString().padStart(2, "0")}`;
+        }
+
+        function formatSrtTime(seconds) {
+          const hrs = Math.floor(seconds / 3600);
+          const mins = Math.floor((seconds % 3600) / 60);
+          const secs = Math.floor(seconds % 60);
+          const ms = Math.floor((seconds - Math.floor(seconds)) * 1000);
+          return `${hrs.toString().padStart(2, "0")}:${mins
+            .toString()
+            .padStart(2, "0")}:${secs.toString().padStart(2, "0")},${ms
+            .toString()
+            .padStart(3, "0")}`;
+        }
+
+        function formatVttTime(seconds) {
+          const hrs = Math.floor(seconds / 3600);
+          const mins = Math.floor((seconds % 3600) / 60);
+          const secs = Math.floor(seconds % 60);
+          const ms = Math.floor((seconds - Math.floor(seconds)) * 1000);
+          return `${hrs.toString().padStart(2, "0")}:${mins
+            .toString()
+            .padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${ms
+            .toString()
+            .padStart(3, "0")}`;
+        }
+      },
+
+      createBookmarkFromTranscript(segmentId) {
+        const {
+          transcriptSegments,
+          addBookmark,
+          currentFile,
+          currentYouTube,
+          playbackRate,
+        } = get();
+        const segment = transcriptSegments.find((s) => s.id === segmentId);
+
+        if (!segment) {
+          toast.error("Transcript segment not found");
+          return;
+        }
+
+        // Create a bookmark from this transcript segment
+        addBookmark({
+          name:
+            segment.text.substring(0, 30) +
+            (segment.text.length > 30 ? "..." : ""),
+          start: segment.startTime,
+          end: segment.endTime,
+          mediaName: currentFile?.name,
+          mediaType: currentFile?.type,
+          youtubeId: currentYouTube?.id,
+          playbackRate,
+          annotation: segment.text,
+        });
+
+        toast.success("Bookmark created from transcript");
+      },
     }),
     {
       name: "abloop-player-storage",
       partialize: (state) => ({
         volume: state.volume,
+        muted: state.muted,
+        playbackRate: state.playbackRate,
         theme: state.theme,
+        waveformZoom: state.waveformZoom,
+        showWaveform: state.showWaveform,
+        videoSize: state.videoSize,
         bookmarks: state.bookmarks,
+        transcriptSegments: state.transcriptSegments,
+        showTranscript: state.showTranscript,
+        transcriptLanguage: state.transcriptLanguage,
         recentYouTubeVideos: state.recentYouTubeVideos,
         mediaHistory: state.mediaHistory,
         historyLimit: state.historyLimit,

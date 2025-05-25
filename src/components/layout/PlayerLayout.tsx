@@ -10,6 +10,7 @@ import { BookmarkDrawer } from "../player/BookmarkDrawer";
 import { MediaHistory } from "../player/MediaHistory";
 import { InitialHistoryDisplay } from "../player/InitialHistoryDisplay";
 import { WaveformVisualizer } from "../waveform/WaveformVisualizer";
+import { TranscriptPanel, TranscriptToggle } from "../transcript";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useWindowSize } from "../../hooks/useWindowSize";
 import { Moon, Sun, Info, Bookmark, History } from "lucide-react";
@@ -148,6 +149,9 @@ export const PlayerLayout = () => {
               </span>
             )}
           </button>
+
+          {/* Transcript Toggle Button */}
+          {(currentFile || youtubeId) && <TranscriptToggle />}
 
           <button
             onClick={toggleTheme}
@@ -387,11 +391,15 @@ export const PlayerLayout = () => {
         {/* Controls Section */}
         {(currentFile || youtubeId) && (
           <>
-            {/* Minimal padding for controls */}
-            <div className="pb-2"></div>
+            {/* Transcript panel */}
+            <div className="mt-2 sm:mt-3">
+              <TranscriptPanel />
+            </div>
 
-            {/* Combined Controls (fixed at bottom) */}
-            {isMobile ? <MobileControls /> : <CombinedControls />}
+            {/* Media controls */}
+            <div className="mt-2 sm:mt-3">
+              {isMobile ? <MobileControls /> : <CombinedControls />}
+            </div>
 
             {/* Bookmarks Drawer - now triggered from header */}
             <BookmarkDrawer />
