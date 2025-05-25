@@ -6,7 +6,7 @@ import {
   MinusIcon,
   ArrowsPointingOutIcon,
 } from "@heroicons/react/24/solid";
-import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 // Utility function to format time in mm:ss.ms format
 const formatTime = (time: number): string => {
