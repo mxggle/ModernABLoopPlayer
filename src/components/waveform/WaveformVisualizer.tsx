@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import * as Tone from "tone";
 import {
@@ -6,6 +6,7 @@ import {
   MinusIcon,
   ArrowsPointingOutIcon,
 } from "@heroicons/react/24/solid";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 
 // Utility function to format time in mm:ss.ms format
 const formatTime = (time: number): string => {
@@ -28,6 +29,12 @@ export const WaveformVisualizer = () => {
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [dragEnd, setDragEnd] = useState<number | null>(null);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
+  const [pinchStartDistance, setPinchStartDistance] = useState<number | null>(null);
+  const [pinchStartZoom, setPinchStartZoom] = useState<number>(1);
+  
+  // Detect if device is mobile
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
   const {
     currentFile,
@@ -256,12 +263,8 @@ export const WaveformVisualizer = () => {
     return result;
   };
 
-  if (!showWaveform || !currentFile || !currentFile.type.includes("audio")) {
-    return null;
-  }
-
-  // Convert canvas position to audio time
-  const positionToTime = (x: number): number => {
+  // Convert canvas position to audio time - wrapped in useCallback to stabilize references
+  const positionToTime = useCallback((x: number): number => {
     if (!canvasRef.current || !duration) return 0;
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -275,10 +278,10 @@ export const WaveformVisualizer = () => {
       Math.min(currentTime - visibleDuration / 2, duration - visibleDuration)
     );
     return startOffset + percentage * visibleDuration;
-  };
+  }, [duration, waveformZoom, currentTime]);
 
-  // Convert time to canvas position (percentage)
-  const timeToPosition = (time: number): number => {
+  // Convert time to canvas position (percentage) - wrapped in useCallback
+  const timeToPosition = useCallback((time: number): number => {
     if (!duration) return 0;
 
     // Calculate visible portion based on zoom
@@ -294,7 +297,107 @@ export const WaveformVisualizer = () => {
 
     // Calculate the percentage position within the visible window
     return ((time - startOffset) / visibleDuration) * 100;
-  };
+  }, [duration, waveformZoom, currentTime]);
+  
+  // Touch event handlers for mobile devices
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault(); // Prevent default touch behavior
+    
+    if (e.touches.length === 1) {
+      // Single touch - handle as a potential drag or tap
+      const touch = e.touches[0];
+      const time = positionToTime(touch.clientX);
+      
+      if (time >= 0 && time <= duration) {
+        setIsDragging(true);
+        setDragStart(time);
+        setDragEnd(null);
+        setTouchStartTime(time);
+      }
+    } 
+    else if (e.touches.length === 2) {
+      // Two finger touch - handle as pinch zoom
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      
+      // Calculate distance between touches
+      const distance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+      
+      setPinchStartDistance(distance);
+      setPinchStartZoom(waveformZoom);
+      setIsDragging(false); // Cancel any drag operation
+    }
+  }, [duration, positionToTime, waveformZoom, setIsDragging, setDragStart, setDragEnd, setTouchStartTime, setPinchStartDistance, setPinchStartZoom]);
+  
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault(); // Prevent default touch behavior
+    
+    if (e.touches.length === 1 && isDragging && dragStart !== null) {
+      // Single touch movement - update drag end
+      const touch = e.touches[0];
+      const time = positionToTime(touch.clientX);
+      
+      if (time >= 0 && time <= duration) {
+        setDragEnd(time);
+        setHoverTime(time);
+      }
+    } 
+    else if (e.touches.length === 2 && pinchStartDistance !== null) {
+      // Two finger movement - handle pinch zoom
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      
+      // Calculate new distance between touches
+      const distance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+      
+      // Calculate zoom ratio
+      const ratio = distance / pinchStartDistance;
+      const newZoom = Math.min(Math.max(pinchStartZoom * ratio, 1), 20);
+      
+      setWaveformZoom(newZoom);
+    }
+  }, [isDragging, dragStart, duration, positionToTime, pinchStartDistance, pinchStartZoom, setDragEnd, setHoverTime, setWaveformZoom]);
+  
+  const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault(); // Prevent default touch behavior
+    
+    // Reset pinch zoom state
+    setPinchStartDistance(null);
+    
+    // Handle drag completion
+    if (isDragging && dragStart !== null && dragEnd !== null) {
+      if (Math.abs(dragStart - dragEnd) > 0.1) {
+        // Set loop points if selection is significant
+        const start = Math.min(dragStart, dragEnd);
+        const end = Math.max(dragStart, dragEnd);
+        setLoopPoints(start, end);
+      } else if (touchStartTime !== null && Math.abs(dragStart - touchStartTime) < 0.1) {
+        // This was a tap (very little movement) - seek to this position
+        setCurrentTime(dragStart);
+        document.body.classList.add("user-seeking");
+        setTimeout(() => {
+          document.body.classList.remove("user-seeking");
+        }, 100);
+      }
+    }
+    
+    // Reset drag state
+    setIsDragging(false);
+    setDragStart(null);
+    setDragEnd(null);
+    setTouchStartTime(null);
+    setHoverTime(null);
+  }, [isDragging, dragStart, dragEnd, touchStartTime, setLoopPoints, setCurrentTime, setPinchStartDistance, setIsDragging, setDragStart, setDragEnd, setTouchStartTime, setHoverTime]);
+  
+  if (!showWaveform || !currentFile || !currentFile.type.includes("audio")) {
+    return null;
+  }
 
   // Handle zoom controls
   const handleZoomIn = () => {
@@ -328,6 +431,8 @@ export const WaveformVisualizer = () => {
       setWaveformZoom(Math.max(waveformZoom / 1.1, 1));
     }
   };
+  
+
 
   // Handle mouse down for range selection
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -426,42 +531,45 @@ export const WaveformVisualizer = () => {
 
   return (
     <div className="mt-2 backdrop-blur-sm rounded-lg overflow-hidden border border-purple-500/30 relative">
-      {/* Zoom controls */}
-      <div className="absolute top-1 right-1 z-10 flex items-center space-x-1 bg-gray-800/80 backdrop-blur-sm rounded px-1 py-0.5">
+      {/* Zoom controls - responsive sizing based on device */}
+      <div className={`absolute top-1 right-1 z-10 flex items-center ${isMobile ? 'space-x-2' : 'space-x-1'} bg-gray-800/80 backdrop-blur-sm rounded ${isMobile ? 'px-2 py-1' : 'px-1 py-0.5'}`}>
         <button
-          className="bg-gray-700 hover:bg-gray-600 text-white p-1 rounded"
+          className={`bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white rounded ${isMobile ? 'p-2' : 'p-1'}`}
           onClick={handleZoomIn}
           title="Zoom In"
         >
-          <PlusIcon className="h-3 w-3" />
+          <PlusIcon className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
         </button>
         <button
-          className="bg-gray-700 hover:bg-gray-600 text-white p-1 rounded"
+          className={`bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white rounded ${isMobile ? 'p-2' : 'p-1'}`}
           onClick={handleZoomOut}
           title="Zoom Out"
         >
-          <MinusIcon className="h-3 w-3" />
+          <MinusIcon className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
         </button>
         <button
-          className="bg-gray-700 hover:bg-gray-600 text-white p-1 rounded"
+          className={`bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white rounded ${isMobile ? 'p-2' : 'p-1'}`}
           onClick={handleResetZoom}
           title="Reset Zoom"
         >
-          <ArrowsPointingOutIcon className="h-3 w-3" />
+          <ArrowsPointingOutIcon className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
         </button>
-        <span className="text-xs text-white">{waveformZoom.toFixed(1)}x</span>
+        <span className={isMobile ? "text-sm text-white" : "text-xs text-white"}>{waveformZoom.toFixed(1)}x</span>
       </div>
 
-      {/* Waveform visualization with drag selection */}
+      {/* Waveform visualization with drag selection and touch support */}
       <div
         ref={containerRef}
-        className="h-24 overflow-hidden relative"
+        className={`${isMobile ? 'h-28' : 'h-24'} overflow-hidden relative`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         onClick={handleWaveformClick}
         onWheel={handleMouseWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <canvas ref={canvasRef} className="w-full h-full cursor-crosshair" />
 
@@ -482,13 +590,13 @@ export const WaveformVisualizer = () => {
           />
         )}
 
-        {/* Tooltip for current hover position */}
+        {/* Tooltip for current hover/touch position */}
         {hoverTime !== null && (
           <div
-            className="absolute bg-gray-800/90 text-white text-xs px-2 py-1 rounded pointer-events-none z-10"
+            className={`absolute bg-gray-800/90 text-white ${isMobile ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1'} rounded pointer-events-none z-10`}
             style={{
               left: `${timeToPosition(hoverTime)}%`,
-              top: "0px",
+              top: isMobile ? "10px" : "0px",
               transform: "translateX(-50%)",
             }}
           >
@@ -497,31 +605,32 @@ export const WaveformVisualizer = () => {
         )}
       </div>
 
-      {/* Loop controls */}
-      <div className="flex items-center justify-between p-1 bg-gray-900/50">
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-white">Loop: </span>
+      {/* Loop controls - responsive design for mobile */}
+      <div className={`flex ${isMobile ? 'flex-col' : 'items-center justify-between'} p-1 bg-gray-900/50`}>
+        <div className={`flex items-center ${isMobile ? 'mb-1 justify-between w-full' : 'space-x-2'}`}>
+          <span className={isMobile ? "text-sm text-white font-medium" : "text-xs text-white"}>Loop: </span>
           {loopStart !== null && loopEnd !== null ? (
-            <div className="flex items-center space-x-1">
-              <span className="text-xs text-white">
+            <div className={`flex items-center ${isMobile ? 'space-x-2 flex-1 justify-end' : 'space-x-1'}`}>
+              <span className={isMobile ? "text-sm text-white" : "text-xs text-white"}>
                 {formatTime(loopStart)} - {formatTime(loopEnd)}
               </span>
               <button
-                className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-2 py-0.5 rounded"
+                className={`bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded ${isMobile ? 'text-sm px-3 py-1 ml-2' : 'text-xs px-2 py-0.5'}`}
                 onClick={handleLoopSelection}
               >
                 Loop Selection
               </button>
             </div>
           ) : (
-            <span className="text-xs text-gray-400">
-              Drag on waveform to select loop region
+            <span className={isMobile ? "text-sm text-gray-400 flex-1 text-right" : "text-xs text-gray-400"}>
+              {isMobile ? "Tap and drag to select loop" : "Drag on waveform to select loop region"}
             </span>
           )}
         </div>
 
-        <span className="text-xs text-gray-400">
+        <span className={isMobile ? "text-sm text-gray-400 w-full text-right" : "text-xs text-gray-400"}>
           Current zoom: {waveformZoom.toFixed(1)}x
+          {isMobile && " (pinch to zoom)"}
         </span>
       </div>
     </div>
