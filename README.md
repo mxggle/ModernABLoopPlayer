@@ -1,4 +1,4 @@
-# ModernABLoop
+# LoopMate
 
 A modern web-based audio/video loop player with A-B repeat
 A sleek and intuitive web app for looping YouTube videos and local audio/video files with precision A-B points—perfect for language learners, musicians, and content reviewers.
@@ -48,7 +48,7 @@ A sleek and intuitive web app for looping YouTube videos and local audio/video f
 
 ### Deploy to Vercel
 
-Deploy your own instance of ModernABLoop with one click:
+Deploy your own instance of LoopMate with one click:
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyourusername%2Fmodern-ab-loop&project-name=modern-ab-loop&repository-name=modern-ab-loop)
 

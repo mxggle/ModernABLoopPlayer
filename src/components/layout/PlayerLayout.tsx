@@ -76,7 +76,7 @@ export const PlayerLayout = () => {
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 1024 1024"
             className="h-8 sm:h-9 w-auto fill-current text-purple-600"
-            aria-label="ModernABLoop Logo"
+            aria-label="LoopMate Logo"
           >
             <g transform="translate(0,1024) scale(0.1,-0.1)">
               <path d="M3246 7708 c-4 -24 -18 -92 -31 -153 -13 -60 -26 -121 -29 -135 -2 -14 -11 -56 -19 -95 -9 -38 -18 -83 -20 -100 -8 -47 -158 -811 -172 -875 -3 -14 -8 -38 -11 -55 -2 -16 -37 -187 -75 -380 -39 -192 -73 -361 -75 -375 -3 -14 -7 -32 -9 -40 -2 -8 -7 -31 -10 -50 -3 -19 -121 -609 -262 -1310 -140 -701 -257 -1284 -259 -1295 -2 -11 -15 -76 -29 -144 -14 -68 -25 -132 -25 -142 0 -18 51 -19 1813 -19 1174 0 1851 4 1922 10 712 67 1267 502 1450 1135 41 141 55 246 55 400 0 307 -81 568 -244 788 -192 260 -427 420 -703 477 l-58 12 72 28 c320 123 565 431 649 815 9 39 18 129 21 200 12 283 -76 580 -237 807 -217 305 -566 485 -1020 527 -75 7 -563 11 -1401 11 l-1286 0 -7 -42z m989 -828 c14 -5 52 -31 84 -57 206 -169 338 -278 347 -288 12 -11 25 -22 739 -620 281 -235 517 -435 525 -444 60 -63 85 -162 56 -223 -20 -42 -111 -130 -246 -240 -120 -97 -135 -110 -294 -241 -186 -154 -268 -222 -1021 -840 -148 -122 -370 -305 -493 -407 -146 -122 -240 -193 -275 -207 -64 -27 -154 -30 -203 -7 -60 29 -124 143 -124 223 0 37 35 211 164 801 24 113 54 252 66 310 12 58 24 112 25 120 19 84 50 229 85 390 44 208 70 326 75 350 2 8 31 143 65 300 72 338 104 485 130 600 10 47 21 96 24 110 43 218 67 298 98 328 48 45 120 62 173 42z" />
@@ -84,7 +84,7 @@ export const PlayerLayout = () => {
             </g>
           </svg>
           <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent whitespace-nowrap">
-            Modern AB Loop Player
+            LoopMate
           </h1>
         </div>
 
@@ -95,7 +95,13 @@ export const PlayerLayout = () => {
               onClick={toggleInputSections}
               className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-md text-gray-700 dark:text-gray-200 shadow-sm transition-colors font-medium"
             >
-              <span>{isMobile ? "Sources" : (showInputSections ? "Hide Sources" : "Show Sources")}</span>
+              <span>
+                {isMobile
+                  ? "Sources"
+                  : showInputSections
+                  ? "Hide Sources"
+                  : "Show Sources"}
+              </span>
               <span className="hidden sm:inline text-xs text-gray-500 dark:text-gray-400 ml-1">
                 {currentFile
                   ? currentFile.name.substring(0, 15) +
@@ -106,11 +112,13 @@ export const PlayerLayout = () => {
               </span>
             </button>
           )}
-          
+
           {/* Bookmark Button in Header - Always visible as requested */}
           {(currentFile || youtubeId) && (
             <button
-              onClick={() => document.getElementById('bookmarkDrawerToggle')?.click()}
+              onClick={() =>
+                document.getElementById("bookmarkDrawerToggle")?.click()
+              }
               className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm transition-colors relative"
               aria-label="Open bookmarks"
               title="Bookmarks"
@@ -123,10 +131,12 @@ export const PlayerLayout = () => {
               )}
             </button>
           )}
-          
+
           {/* History Button in Header */}
           <button
-            onClick={() => document.getElementById('historyDrawerToggle')?.click()}
+            onClick={() =>
+              document.getElementById("historyDrawerToggle")?.click()
+            }
             className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm transition-colors relative"
             aria-label="Open media history"
             title="Media History"
@@ -145,9 +155,15 @@ export const PlayerLayout = () => {
             aria-label={
               theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
             }
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
           >
-            {theme === "dark" ? <Sun size={isMobile ? 18 : 16} /> : <Moon size={isMobile ? 18 : 16} />}
+            {theme === "dark" ? (
+              <Sun size={isMobile ? 18 : 16} />
+            ) : (
+              <Moon size={isMobile ? 18 : 16} />
+            )}
           </button>
 
           <Dialog.Root
@@ -253,7 +269,9 @@ export const PlayerLayout = () => {
       <main
         className={`space-y-2 sm:space-y-4 flex-grow flex flex-col ${
           showInputSections ? "overflow-y-auto" : "overflow-hidden"
-        } ${isMobile ? "max-h-[calc(100vh-160px)]" : "max-h-[calc(100vh-80px)]"}`}
+        } ${
+          isMobile ? "max-h-[calc(100vh-160px)]" : "max-h-[calc(100vh-80px)]"
+        }`}
       >
         {/* Media Input Section - Collapsible (now controlled from header) */}
 
@@ -387,8 +405,7 @@ export const PlayerLayout = () => {
       {/* Footer - subtle improvement */}
       <footer className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 text-center text-xs text-gray-500 dark:text-gray-400">
         <p>
-          ModernABLoop - A tool for creating precise loops in audio and video
-          files
+          LoopMate - A tool for creating precise loops in audio and video files
         </p>
       </footer>
     </div>
