@@ -22,7 +22,9 @@ export const PlaybackControls = () => {
     setIsPlaying,
     setCurrentTime,
     setVolume,
-    setPlaybackRate
+    setPlaybackRate,
+    seekForward: storeSeekForward,
+    seekBackward: storeSeekBackward
   } = usePlayerStore()
 
   // Toggle play/pause
@@ -42,14 +44,12 @@ export const PlaybackControls = () => {
 
   // Seek backward 5 seconds
   const seekBackward = () => {
-    const newTime = Math.max(0, currentTime - 5)
-    setCurrentTime(newTime)
+    storeSeekBackward(5)
   }
 
   // Seek forward 5 seconds
   const seekForward = () => {
-    const newTime = Math.min(duration, currentTime + 5)
-    setCurrentTime(newTime)
+    storeSeekForward(5)
   }
 
   // Toggle mute
