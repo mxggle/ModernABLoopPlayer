@@ -46,7 +46,7 @@ export const BookmarkDrawer = () => {
     loopStart,
     loopEnd,
     playbackRate,
-    bookmarks,
+    getCurrentMediaBookmarks,
     selectedBookmarkId,
     addBookmark: storeAddBookmark,
     updateBookmark,
@@ -54,6 +54,9 @@ export const BookmarkDrawer = () => {
     loadBookmark: storeLoadBookmark,
     importBookmarks: storeImportBookmarks,
   } = usePlayerStore();
+
+  // Get current media bookmarks
+  const bookmarks = getCurrentMediaBookmarks();
 
   // Add a new bookmark
   const handleAddBookmark = () => {
@@ -219,7 +222,7 @@ export const BookmarkDrawer = () => {
         className="hidden"
         aria-label={isDrawerOpen ? "Close bookmarks" : "Open bookmarks"}
       />
-      
+
       {/* Original drawer toggle button - now hidden since we moved it to the header */}
       {/* <button
         onClick={toggleDrawer}

@@ -18,11 +18,12 @@ import { Button } from "../ui/button";
 import { cn } from "../../utils/cn";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { StorageUsageInfo } from "./StorageUsageInfo";
+import { useNavigate } from "react-router-dom";
 
 // History list component
 interface HistoryListProps {
   historyItems: MediaHistoryItem[];
-  onLoadItem: (id: string) => void;
+  onLoadItem: (item: MediaHistoryItem) => void;
   onRemoveItem: (id: string, e: React.MouseEvent) => void;
   formatDate: (timestamp: number) => string;
 }
@@ -47,7 +48,7 @@ const HistoryList = ({
       {historyItems.map((item) => (
         <div
           key={item.id}
-          onClick={() => onLoadItem(item.id)}
+          onClick={() => onLoadItem(item)}
           className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 mb-2 group"
         >
           {/* Icon based on media type */}
@@ -74,7 +75,7 @@ const HistoryList = ({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-green-600"
-              onClick={() => onLoadItem(item.id)}
+              onClick={() => onLoadItem(item)}
               title="Play media"
             >
               <Play size={16} />
@@ -101,12 +102,10 @@ export const MediaHistory = () => {
     "all"
   );
 
-  const {
-    mediaHistory,
-    loadFromHistory,
-    removeFromHistory,
-    clearMediaHistory,
-  } = usePlayerStore();
+  const { mediaHistory, removeFromHistory, clearMediaHistory } =
+    usePlayerStore();
+
+  const navigate = useNavigate();
 
   // Toggle drawer
   const toggleDrawer = () => {
@@ -121,11 +120,21 @@ export const MediaHistory = () => {
     return true;
   });
 
-  // Load media from history
-  const handleLoadFromHistory = (id: string) => {
-    loadFromHistory(id);
-    toast.success("Media loaded");
-    setIsDrawerOpen(false);
+  // Load media from history and navigate
+  const handleLoadFromHistory = async (item: MediaHistoryItem) => {
+    try {
+      // First load the media into the store
+      const { loadFromHistory } = usePlayerStore.getState();
+      await loadFromHistory(item.id);
+
+      // Navigate to player
+      navigate("/player");
+      toast.success("Media loaded");
+      setIsDrawerOpen(false);
+    } catch (error) {
+      console.error("Failed to load media:", error);
+      toast.error("Failed to load media");
+    }
   };
 
   // Remove an item from history
@@ -163,7 +172,7 @@ export const MediaHistory = () => {
         className="hidden"
         aria-label={isDrawerOpen ? "Close media history" : "Open media history"}
       />
-      
+
       {/* Original floating button - now hidden since we moved it to the header */}
       {/* <Button
         variant="outline"

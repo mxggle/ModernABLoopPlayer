@@ -157,3 +157,19 @@ npm run build
 ## License
 
 MIT
+
+## Navigation System
+
+The application uses a simplified two-route navigation system:
+
+- **Home Route (`/`)**: File upload, YouTube input, and media history
+- **Player Route (`/player`)**: Media player with all controls and features
+
+### Navigation Flow
+
+1. **Loading Media**: When a file is uploaded or YouTube URL is entered on the home page, the app automatically navigates to `/player`
+2. **No Media**: If the player page is accessed without any media loaded, it automatically redirects to home
+3. **History Navigation**: Clicking on any item in media history loads the media and navigates to `/player`
+4. **Home Button**: The LoopMate logo in the header clears current media and returns to home
+
+This simplified approach eliminates complex URL parameter handling and navigation loops that were causing issues in the previous implementation.

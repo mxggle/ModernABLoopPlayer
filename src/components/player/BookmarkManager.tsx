@@ -45,7 +45,7 @@ export const BookmarkManager = () => {
     loopStart,
     loopEnd,
     playbackRate,
-    bookmarks,
+    getCurrentMediaBookmarks,
     selectedBookmarkId,
     addBookmark: storeAddBookmark,
     updateBookmark,
@@ -54,6 +54,9 @@ export const BookmarkManager = () => {
     // setSelectedBookmarkId, // Unused variable
     importBookmarks: storeImportBookmarks,
   } = usePlayerStore();
+
+  // Get current media bookmarks
+  const bookmarks = getCurrentMediaBookmarks();
 
   // Add a new bookmark
   const handleAddBookmark = () => {
