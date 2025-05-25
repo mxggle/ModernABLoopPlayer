@@ -82,8 +82,25 @@ export const MediaPlayer = () => {
         // Update the media element's time to the current value from the store
         const storeTime = usePlayerStore.getState().currentTime;
         mediaElement.currentTime = storeTime;
+        
+        // For mobile devices, ensure play state is maintained
+        if (isPlaying && mediaElement.paused) {
+          mediaElement.play().catch(error => {
+            console.error("Error playing after seek:", error);
+          });
+        }
       }
     };
+    
+    // Create a direct subscription to time changes for more responsive mobile seeking
+    const unsubscribe = usePlayerStore.subscribe((state) => {
+      const newTime = state.currentTime;
+      if (document.body.classList.contains("user-seeking")) {
+        if (Math.abs(mediaElement.currentTime - newTime) > 0.5) {
+          mediaElement.currentTime = newTime;
+        }
+      }
+    });
 
     // Listen for manual seek class changes
     const observer = new MutationObserver((mutations) => {
@@ -98,8 +115,9 @@ export const MediaPlayer = () => {
 
     return () => {
       observer.disconnect();
+      unsubscribe();
     };
-  }, [currentFile]);
+  }, [currentFile, isPlaying]);
 
   // Handle A-B loop
   useEffect(() => {
