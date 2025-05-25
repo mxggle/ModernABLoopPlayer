@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-05-25
+
+### Added
+- Transcript file upload support with SRT, VTT, and TXT formats
+- Settings drawer to control UI component visibility
+- Layout settings for customizable UI component visibility
+- OpenAI Whisper transcription with UI controls and export options
+- Enhanced navigation system with simplified routing and media history integration
+- Hidden mode for media players to maintain functionality without UI
+- Auto-play when jumping to transcript segments
+
+### Changed
+- Increased icon sizes for better visibility
+- Refactored transcript management to support media-scoped transcripts
+- Updated related components to work with the new transcript system
+
+
 ## [0.2.0] - 2025-05-25
 
 ### Added
@@ -32,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Layout optimizations for desktop view
   - TypeScript and React component structure
 
-[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/USERNAME/loopmate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/USERNAME/loopmate/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/USERNAME/loopmate/releases/tag/v0.1.0
