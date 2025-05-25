@@ -12,6 +12,7 @@ export const MediaPlayer = () => {
   const {
     currentFile,
     isPlaying,
+    currentTime,
     volume,
     playbackRate,
     loopStart,
@@ -213,6 +214,20 @@ export const MediaPlayer = () => {
       mediaElement.removeEventListener("seeking", handleSeeking);
     };
   }, [currentFile, isLooping, loopStart, loopEnd]);
+  
+  // Handle seeking from the store (for rewind/fast forward buttons)
+  useEffect(() => {
+    const mediaElement = currentFile?.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+    
+    // Only update if the difference is significant (to avoid feedback loops)
+    // and if we're not already seeking through the media element itself
+    if (!mediaElement.seeking && Math.abs(mediaElement.currentTime - currentTime) > 0.5) {
+      mediaElement.currentTime = currentTime;
+    }
+  }, [currentFile, currentTime]);
 
   // Handle media metadata loaded
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLMediaElement>) => {

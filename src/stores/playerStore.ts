@@ -93,6 +93,8 @@ export interface PlayerActions {
   setMuted: (muted: boolean) => void;
   togglePlay: () => void;
   toggleMute: () => void;
+  seekForward: (seconds: number) => void;
+  seekBackward: (seconds: number) => void;
 
   // Loop actions
   setLoopPoints: (start: number | null, end: number | null) => void;
@@ -299,6 +301,19 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setMuted: (muted) => set({ muted }),
       togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
       toggleMute: () => set((state) => ({ muted: !state.muted })),
+
+      // Seek forward/backward
+      seekForward: (seconds) => {
+        const { currentTime, duration } = get();
+        const newTime = Math.min(currentTime + seconds, duration);
+        set({ currentTime: newTime });
+      },
+      
+      seekBackward: (seconds) => {
+        const { currentTime } = get();
+        const newTime = Math.max(currentTime - seconds, 0);
+        set({ currentTime: newTime });
+      },
 
       // Loop actions
       setLoopPoints: (loopStart, loopEnd) => set({ loopStart, loopEnd }),

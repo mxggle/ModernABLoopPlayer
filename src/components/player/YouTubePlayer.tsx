@@ -177,14 +177,13 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
     player.setPlaybackRate(playbackRate);
   }, [playbackRate, player]);
 
-  // Handle custom timeline slider changes
-  // This effect responds to when the user drags the custom timeline slider
+  // Handle custom timeline slider changes and seeking operations (rewind/fast forward)
+  // This effect responds to when the user drags the custom timeline slider or uses seek buttons
   const previousTimeRef = useRef(currentTime);
   useEffect(() => {
     if (!player) return;
 
     // Only seek if the time change is significant (user interaction, not just small updates)
-    // and if we're not already seeking via YouTube controls
     const timeDifference = Math.abs(currentTime - previousTimeRef.current);
     if (timeDifference > 0.5 && !isSeeking) {
       // Mark that we're doing a seek and record the time
@@ -200,6 +199,7 @@ export const YouTubePlayer = ({ videoId }: YouTubePlayerProps) => {
       }, 500);
     }
 
+    // Update our reference for the next comparison
     previousTimeRef.current = currentTime;
   }, [currentTime, player, isSeeking]);
 

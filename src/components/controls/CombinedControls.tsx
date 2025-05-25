@@ -25,6 +25,7 @@ export const CombinedControls = () => {
     currentTime,
     duration,
     volume,
+    muted,
     playbackRate,
     loopStart,
     loopEnd,
@@ -32,9 +33,12 @@ export const CombinedControls = () => {
     setIsPlaying,
     setCurrentTime,
     setVolume,
+    setMuted,
     setPlaybackRate,
     setLoopPoints,
     setIsLooping,
+    seekForward: storeSeekForward,
+    seekBackward: storeSeekBackward,
   } = usePlayerStore();
 
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
@@ -70,26 +74,14 @@ export const CombinedControls = () => {
     }, 100);
   };
 
-  // Handle volume slider change
-  const handleVolumeChange = (values: number[]) => {
-    setVolume(values[0]);
+  // Seek forward 5 seconds
+  const seekForward = () => {
+    storeSeekForward(5);
   };
 
   // Seek backward 5 seconds
   const seekBackward = () => {
-    const newTime = Math.max(0, currentTime - 5);
-    setCurrentTime(newTime);
-  };
-
-  // Seek forward 5 seconds
-  const seekForward = () => {
-    const newTime = Math.min(duration, currentTime + 5);
-    setCurrentTime(newTime);
-  };
-
-  // Toggle mute
-  const toggleMute = () => {
-    setVolume(volume > 0 ? 0 : 1);
+    storeSeekBackward(5);
   };
 
   // Decrease playback rate
@@ -102,6 +94,16 @@ export const CombinedControls = () => {
   const increasePlaybackRate = () => {
     const newRate = Math.min(2, playbackRate + 0.25);
     setPlaybackRate(newRate);
+  };
+
+  // Toggle mute
+  const toggleMute = () => {
+    setMuted(!muted);
+  };
+
+  // Handle volume slider change
+  const handleVolumeChange = (values: number[]) => {
+    setVolume(values[0]);
   };
 
   // Handle range slider change for AB loop
