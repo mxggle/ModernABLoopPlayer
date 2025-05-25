@@ -71,11 +71,11 @@ export const PlayerLayout = () => {
     <div className="flex flex-col h-screen max-h-screen w-full max-w-5xl mx-auto px-3 sm:px-4 py-2 sm:py-4 overflow-hidden">
       {/* Header - improved layout with bookmark and history buttons */}
       <header className="flex items-center justify-between mb-2 sm:mb-4 py-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 1024 1024"
-            className="h-12 sm:h-9 w-auto fill-current text-purple-600"
+            className="h-8 sm:h-9 w-auto fill-current text-purple-600"
             aria-label="ModernABLoop Logo"
           >
             <g transform="translate(0,1024) scale(0.1,-0.1)">
@@ -83,19 +83,19 @@ export const PlayerLayout = () => {
               <path d="M4725 5688 c-263 -211 -602 -508 -615 -537 -9 -23 -8 -35 3 -62 8 -19 105 -132 216 -251 166 -180 208 -219 241 -229 44 -13 94 0 105 29 6 16 68 346 80 427 3 22 14 87 24 145 10 58 24 139 31 180 14 81 17 102 25 140 15 71 17 160 5 175 -21 25 -71 18 -115 -17z" />
             </g>
           </svg>
-          <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent whitespace-nowrap">
+          <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent whitespace-nowrap">
             Modern AB Loop Player
           </h1>
         </div>
 
-        <div className="flex items-center space-x-2 sm:space-x-3">
+        <div className="flex items-center space-x-1 sm:space-x-3">
           {/* Media Sources Button in Header */}
           {(currentFile || youtubeId) && (
             <button
               onClick={toggleInputSections}
-              className="flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-md text-gray-700 dark:text-gray-200 shadow-sm transition-colors font-medium"
+              className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-md text-gray-700 dark:text-gray-200 shadow-sm transition-colors font-medium"
             >
-              <span>{showInputSections ? "Hide Sources" : "Show Sources"}</span>
+              <span>{isMobile ? "Sources" : (showInputSections ? "Hide Sources" : "Show Sources")}</span>
               <span className="hidden sm:inline text-xs text-gray-500 dark:text-gray-400 ml-1">
                 {currentFile
                   ? currentFile.name.substring(0, 15) +
@@ -107,7 +107,7 @@ export const PlayerLayout = () => {
             </button>
           )}
           
-          {/* Bookmark Button in Header */}
+          {/* Bookmark Button in Header - Always visible as requested */}
           {(currentFile || youtubeId) && (
             <button
               onClick={() => document.getElementById('bookmarkDrawerToggle')?.click()}
@@ -115,7 +115,7 @@ export const PlayerLayout = () => {
               aria-label="Open bookmarks"
               title="Bookmarks"
             >
-              <Bookmark size={16} />
+              <Bookmark size={isMobile ? 18 : 16} />
               {bookmarks.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                   {bookmarks.length > 9 ? "9+" : bookmarks.length}
@@ -131,7 +131,7 @@ export const PlayerLayout = () => {
             aria-label="Open media history"
             title="Media History"
           >
-            <History size={16} />
+            <History size={isMobile ? 18 : 16} />
             {mediaHistory.length > 0 && (
               <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                 {mediaHistory.length > 9 ? "9+" : mediaHistory.length}
@@ -147,7 +147,7 @@ export const PlayerLayout = () => {
             }
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            {theme === "dark" ? <Sun size={isMobile ? 18 : 16} /> : <Moon size={isMobile ? 18 : 16} />}
           </button>
 
           <Dialog.Root
@@ -160,7 +160,7 @@ export const PlayerLayout = () => {
                 aria-label="Show keyboard shortcuts"
                 title="Keyboard Shortcuts"
               >
-                <Info size={16} />
+                <Info size={isMobile ? 18 : 16} />
               </button>
             </Dialog.Trigger>
 
