@@ -1,11 +1,16 @@
-import { usePlayerStore } from "../../stores/playerStore";
+import {
+  usePlayerStore,
+  type MediaHistoryItem,
+} from "../../stores/playerStore";
 import { formatDistanceToNow } from "date-fns";
 import { FileAudio, Youtube, Clock, History, Play } from "lucide-react";
 import { Button } from "../ui/button";
 import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 export const InitialHistoryDisplay = () => {
-  const { mediaHistory, loadFromHistory } = usePlayerStore();
+  const { mediaHistory } = usePlayerStore();
+  const navigate = useNavigate();
 
   // If no history, don't display anything
   if (mediaHistory.length === 0) {
@@ -21,10 +26,20 @@ export const InitialHistoryDisplay = () => {
     }
   };
 
-  // Load media from history
-  const handleLoadFromHistory = (id: string) => {
-    loadFromHistory(id);
-    toast.success("Media loaded");
+  // Load media from history and navigate
+  const handleLoadFromHistory = async (item: MediaHistoryItem) => {
+    try {
+      // First load the media into the store
+      const { loadFromHistory } = usePlayerStore.getState();
+      await loadFromHistory(item.id);
+
+      // Navigate to player
+      navigate("/player");
+      toast.success("Media loaded");
+    } catch (error) {
+      console.error("Failed to load media:", error);
+      toast.error("Failed to load media");
+    }
   };
 
   return (
@@ -43,7 +58,7 @@ export const InitialHistoryDisplay = () => {
         {mediaHistory.slice(0, 6).map((item) => (
           <div
             key={item.id}
-            onClick={() => handleLoadFromHistory(item.id)}
+            onClick={() => handleLoadFromHistory(item)}
             className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-100 dark:border-gray-700 
                       hover:shadow-md hover:border-purple-200 dark:hover:border-purple-800 cursor-pointer transition-all group"
           >
@@ -71,7 +86,7 @@ export const InitialHistoryDisplay = () => {
                 className="opacity-0 group-hover:opacity-100 transition-opacity text-purple-600 hover:text-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900/30 h-8 w-8 p-0"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleLoadFromHistory(item.id);
+                  handleLoadFromHistory(item);
                 }}
               >
                 <Play size={16} />

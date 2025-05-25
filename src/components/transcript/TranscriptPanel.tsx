@@ -226,16 +226,18 @@ export const TranscriptPanel = () => {
       if (whisperResponse && whisperResponse.segments) {
         whisperResponse.segments.forEach((segment, index) => {
           addTranscriptSegment({
-            text: segment.text,
+            text: segment.text.trim(),
             startTime: segment.start,
             endTime: segment.end,
-            confidence: 0.95, // Whisper doesn't provide confidence scores
+            confidence: Math.exp(segment.avg_logprob),
             isFinal: true,
           });
 
           // Update progress
           const progress =
-            Math.round(((index + 1) / response.segments.length) * 20) + 80;
+            Math.round(
+              ((index + 1) / (whisperResponse.segments.length || 1)) * 20
+            ) + 80;
           setProcessingProgress(Math.min(progress, 100));
         });
 

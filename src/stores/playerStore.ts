@@ -34,6 +34,11 @@ export interface LoopBookmark {
   annotation?: string;
 }
 
+// New interface for media-scoped bookmarks
+export interface MediaBookmarks {
+  [mediaId: string]: LoopBookmark[];
+}
+
 export interface MediaHistoryItem {
   id: string;
   type: "file" | "youtube";
@@ -66,6 +71,7 @@ export interface PlayerState {
   volume: number;
   playbackRate: number;
   muted: boolean;
+  isLoadingMedia: boolean; // Add loading state
 
   // Loop state
   loopStart: number | null;
@@ -81,7 +87,7 @@ export interface PlayerState {
   waveformZoom: number;
   showWaveform: boolean;
   videoSize: "sm" | "md" | "lg" | "xl";
-  bookmarks: LoopBookmark[];
+  mediaBookmarks: MediaBookmarks; // Changed from bookmarks array to media-scoped object
   selectedBookmarkId: string | null;
 
   // Transcript state
@@ -110,6 +116,7 @@ export interface PlayerActions {
   toggleMute: () => void;
   seekForward: (seconds: number) => void;
   seekBackward: (seconds: number) => void;
+  setIsLoadingMedia: (loading: boolean) => void; // Add loading action
 
   // Loop actions
   setLoopPoints: (start: number | null, end: number | null) => void;
@@ -155,6 +162,10 @@ export interface PlayerActions {
   setSelectedBookmarkId: (id: string | null) => void;
   importBookmarks: (bookmarks: LoopBookmark[]) => void;
 
+  // Helper functions for media-scoped bookmarks
+  getCurrentMediaId: () => string | null;
+  getCurrentMediaBookmarks: () => LoopBookmark[];
+
   // History actions
   addRecentYouTubeVideo: (video: YouTubeMedia) => void;
   clearRecentYouTubeVideos: () => void;
@@ -187,7 +198,7 @@ const initialState: PlayerState = {
   waveformZoom: 1,
   showWaveform: true,
   videoSize: "md",
-  bookmarks: [],
+  mediaBookmarks: {},
   selectedBookmarkId: null,
   transcriptSegments: [],
   showTranscript: false,
@@ -196,6 +207,7 @@ const initialState: PlayerState = {
   recentYouTubeVideos: [],
   mediaHistory: [],
   historyLimit: 30,
+  isLoadingMedia: false,
 };
 
 export const usePlayerStore = create<PlayerState & PlayerActions>()(
@@ -440,31 +452,58 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setVideoSize: (videoSize) => set({ videoSize }),
 
       // Bookmark actions
-      addBookmark: (bookmark) =>
+      addBookmark: (bookmark) => {
+        const { getCurrentMediaId } = get();
+        const mediaId = getCurrentMediaId();
+        if (!mediaId) return;
+
         set((state) => ({
-          bookmarks: [
-            ...state.bookmarks,
-            {
-              ...bookmark,
-              id: Date.now().toString(),
-              createdAt: Date.now(),
-            },
-          ],
-        })),
-      updateBookmark: (id, changes) =>
+          mediaBookmarks: {
+            ...state.mediaBookmarks,
+            [mediaId]: [
+              ...(state.mediaBookmarks[mediaId] || []),
+              {
+                ...bookmark,
+                id: Date.now().toString(),
+                createdAt: Date.now(),
+              },
+            ],
+          },
+        }));
+      },
+      updateBookmark: (id, changes) => {
+        const { getCurrentMediaId } = get();
+        const mediaId = getCurrentMediaId();
+        if (!mediaId) return;
+
         set((state) => ({
-          bookmarks: state.bookmarks.map((bookmark) =>
-            bookmark.id === id ? { ...bookmark, ...changes } : bookmark
-          ),
-        })),
-      deleteBookmark: (id) =>
+          mediaBookmarks: {
+            ...state.mediaBookmarks,
+            [mediaId]: (state.mediaBookmarks[mediaId] || []).map((bookmark) =>
+              bookmark.id === id ? { ...bookmark, ...changes } : bookmark
+            ),
+          },
+        }));
+      },
+      deleteBookmark: (id) => {
+        const { getCurrentMediaId } = get();
+        const mediaId = getCurrentMediaId();
+        if (!mediaId) return;
+
         set((state) => ({
-          bookmarks: state.bookmarks.filter((bookmark) => bookmark.id !== id),
+          mediaBookmarks: {
+            ...state.mediaBookmarks,
+            [mediaId]: (state.mediaBookmarks[mediaId] || []).filter(
+              (bookmark) => bookmark.id !== id
+            ),
+          },
           selectedBookmarkId:
             state.selectedBookmarkId === id ? null : state.selectedBookmarkId,
-        })),
+        }));
+      },
       loadBookmark: (id) => {
-        const { bookmarks } = get();
+        const { getCurrentMediaBookmarks } = get();
+        const bookmarks = getCurrentMediaBookmarks();
         const bookmark = bookmarks.find((b) => b.id === id);
 
         if (bookmark) {
@@ -481,10 +520,18 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       },
       setSelectedBookmarkId: (selectedBookmarkId) =>
         set({ selectedBookmarkId }),
-      importBookmarks: (bookmarks) =>
+      importBookmarks: (bookmarks) => {
+        const { getCurrentMediaId } = get();
+        const mediaId = getCurrentMediaId();
+        if (!mediaId) return;
+
         set((state) => ({
-          bookmarks: [...state.bookmarks, ...bookmarks],
-        })),
+          mediaBookmarks: {
+            ...state.mediaBookmarks,
+            [mediaId]: [...(state.mediaBookmarks[mediaId] || []), ...bookmarks],
+          },
+        }));
+      },
 
       // History actions
       addRecentYouTubeVideo: (video) =>
@@ -586,100 +633,123 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         }),
 
       loadFromHistory: async (historyItemId) => {
+        // Set loading state at the beginning
+        set({ isLoadingMedia: true });
+
         const { mediaHistory } = get();
         const historyItem = mediaHistory.find(
           (item) => item.id === historyItemId
         );
 
-        if (!historyItem) return;
-
-        if (historyItem.type === "file" && historyItem.fileData) {
-          // Check if we have this file stored in IndexedDB
-          if (historyItem.storageId) {
-            try {
-              // Try to retrieve the file from IndexedDB
-              const file = await retrieveMediaFile(historyItem.storageId);
-
-              if (file) {
-                // Create a URL for the file
-                const url = URL.createObjectURL(file);
-                console.log(
-                  "Retrieved file from IndexedDB:",
-                  file,
-                  "Created URL:",
-                  url
-                );
-
-                const fileData: MediaFile = {
-                  name: historyItem.fileData.name,
-                  type: historyItem.fileData.type,
-                  size: historyItem.fileData.size,
-                  url: url,
-                  id: `file-${Date.now()}-${Math.random()
-                    .toString(36)
-                    .substr(2, 9)}`,
-                  storageId: historyItem.storageId,
-                };
-
-                get().setCurrentFile(fileData);
-                return;
-              }
-            } catch (error) {
-              console.error("Failed to load file from storage:", error);
-              // Fall back to using the URL if available
-            }
-          }
-
-          // If we don't have it in storage or retrieval failed, try using the URL
-          // (this will likely fail after page refresh for local files)
-          const fileData: MediaFile = {
-            ...historyItem.fileData,
-            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          };
-
-          get().setCurrentFile(fileData);
-
-          // If we couldn't retrieve from storage and the URL doesn't work, show an error
-          if (historyItem.storageId) {
-            setTimeout(() => {
-              const { currentFile } = get();
-              if (!currentFile || !currentFile.url) {
-                toast.error("Could not retrieve media file");
-              }
-            }, 1000);
-          }
-        } else if (historyItem.type === "youtube" && historyItem.youtubeData) {
-          // Get the YouTube ID from the history item
-          const youtubeId = historyItem.youtubeData.youtubeId;
-          if (!youtubeId) return;
-
-          const youtubeData: YouTubeMedia = {
-            id: youtubeId,
-            title: historyItem.youtubeData.title,
-          };
-          get().setCurrentYouTube(youtubeData);
+        if (!historyItem) {
+          set({ isLoadingMedia: false });
+          return;
         }
 
-        // Update the access timestamp but don't create a new entry
-        // Just move this item to the top of the history list
-        set((state) => {
-          const updatedHistory = [...state.mediaHistory];
-          const existingItemIndex = updatedHistory.findIndex(
-            (item) => item.id === historyItemId
-          );
+        try {
+          if (historyItem.type === "file" && historyItem.fileData) {
+            // Check if we have this file stored in IndexedDB
+            if (historyItem.storageId) {
+              try {
+                // Try to retrieve the file from IndexedDB
+                const file = await retrieveMediaFile(historyItem.storageId);
 
-          if (existingItemIndex >= 0) {
-            const existingItem = updatedHistory.splice(existingItemIndex, 1)[0];
-            return {
-              mediaHistory: [
-                { ...existingItem, accessedAt: Date.now() },
-                ...updatedHistory,
-              ].slice(0, state.historyLimit),
+                if (file) {
+                  // Create a URL for the file
+                  const url = URL.createObjectURL(file);
+                  console.log(
+                    "Retrieved file from IndexedDB:",
+                    file,
+                    "Created URL:",
+                    url
+                  );
+
+                  const fileData: MediaFile = {
+                    name: historyItem.fileData.name,
+                    type: historyItem.fileData.type,
+                    size: historyItem.fileData.size,
+                    url: url,
+                    id: `file-${Date.now()}-${Math.random()
+                      .toString(36)
+                      .substr(2, 9)}`,
+                    storageId: historyItem.storageId,
+                  };
+
+                  get().setCurrentFile(fileData);
+                  set({ isLoadingMedia: false });
+                  return;
+                }
+              } catch (error) {
+                console.error("Failed to load file from storage:", error);
+                // Fall back to using the URL if available
+              }
+            }
+
+            // If we don't have it in storage or retrieval failed, try using the URL
+            // (this will likely fail after page refresh for local files)
+            const fileData: MediaFile = {
+              ...historyItem.fileData,
+              id: `file-${Date.now()}-${Math.random()
+                .toString(36)
+                .substr(2, 9)}`,
             };
+
+            get().setCurrentFile(fileData);
+
+            // If we couldn't retrieve from storage and the URL doesn't work, show an error
+            if (historyItem.storageId) {
+              setTimeout(() => {
+                const { currentFile } = get();
+                if (!currentFile || !currentFile.url) {
+                  toast.error("Could not retrieve media file");
+                }
+              }, 1000);
+            }
+          } else if (
+            historyItem.type === "youtube" &&
+            historyItem.youtubeData
+          ) {
+            // Get the YouTube ID from the history item
+            const youtubeId = historyItem.youtubeData.youtubeId;
+            if (!youtubeId) {
+              set({ isLoadingMedia: false });
+              return;
+            }
+
+            const youtubeData: YouTubeMedia = {
+              id: youtubeId,
+              title: historyItem.youtubeData.title,
+            };
+            get().setCurrentYouTube(youtubeData);
           }
 
-          return state; // No changes if item not found
-        });
+          // Update the access timestamp but don't create a new entry
+          // Just move this item to the top of the history list
+          set((state) => {
+            const updatedHistory = [...state.mediaHistory];
+            const existingItemIndex = updatedHistory.findIndex(
+              (item) => item.id === historyItemId
+            );
+
+            if (existingItemIndex >= 0) {
+              const existingItem = updatedHistory.splice(
+                existingItemIndex,
+                1
+              )[0];
+              return {
+                mediaHistory: [
+                  { ...existingItem, accessedAt: Date.now() },
+                  ...updatedHistory,
+                ].slice(0, state.historyLimit),
+              };
+            }
+
+            return state; // No changes if item not found
+          });
+        } finally {
+          // Always clear loading state when done
+          set({ isLoadingMedia: false });
+        }
       },
 
       removeFromHistory: async (historyItemId) => {
@@ -790,6 +860,37 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           return "";
         }
 
+        // Helper functions for time formatting
+        function formatTime(seconds: number): string {
+          const mins = Math.floor(seconds / 60);
+          const secs = Math.floor(seconds % 60);
+          return `${mins}:${secs.toString().padStart(2, "0")}`;
+        }
+
+        function formatSrtTime(seconds: number): string {
+          const hrs = Math.floor(seconds / 3600);
+          const mins = Math.floor((seconds % 3600) / 60);
+          const secs = Math.floor(seconds % 60);
+          const ms = Math.floor((seconds - Math.floor(seconds)) * 1000);
+          return `${hrs.toString().padStart(2, "0")}:${mins
+            .toString()
+            .padStart(2, "0")}:${secs.toString().padStart(2, "0")},${ms
+            .toString()
+            .padStart(3, "0")}`;
+        }
+
+        function formatVttTime(seconds: number): string {
+          const hrs = Math.floor(seconds / 3600);
+          const mins = Math.floor((seconds % 3600) / 60);
+          const secs = Math.floor(seconds % 60);
+          const ms = Math.floor((seconds - Math.floor(seconds)) * 1000);
+          return `${hrs.toString().padStart(2, "0")}:${mins
+            .toString()
+            .padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${ms
+            .toString()
+            .padStart(3, "0")}`;
+        }
+
         // We can use media info for context if needed in the future
 
         if (format === "txt") {
@@ -833,37 +934,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         }
 
         return "";
-
-        // Helper functions for time formatting
-        function formatTime(seconds) {
-          const mins = Math.floor(seconds / 60);
-          const secs = Math.floor(seconds % 60);
-          return `${mins}:${secs.toString().padStart(2, "0")}`;
-        }
-
-        function formatSrtTime(seconds) {
-          const hrs = Math.floor(seconds / 3600);
-          const mins = Math.floor((seconds % 3600) / 60);
-          const secs = Math.floor(seconds % 60);
-          const ms = Math.floor((seconds - Math.floor(seconds)) * 1000);
-          return `${hrs.toString().padStart(2, "0")}:${mins
-            .toString()
-            .padStart(2, "0")}:${secs.toString().padStart(2, "0")},${ms
-            .toString()
-            .padStart(3, "0")}`;
-        }
-
-        function formatVttTime(seconds) {
-          const hrs = Math.floor(seconds / 3600);
-          const mins = Math.floor((seconds % 3600) / 60);
-          const secs = Math.floor(seconds % 60);
-          const ms = Math.floor((seconds - Math.floor(seconds)) * 1000);
-          return `${hrs.toString().padStart(2, "0")}:${mins
-            .toString()
-            .padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${ms
-            .toString()
-            .padStart(3, "0")}`;
-        }
       },
 
       createBookmarkFromTranscript(segmentId) {
@@ -897,6 +967,30 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
         toast.success("Bookmark created from transcript");
       },
+
+      // New loading action
+      setIsLoadingMedia: (loading) => set({ isLoadingMedia: loading }),
+
+      // Helper functions for media-scoped bookmarks
+      getCurrentMediaId: () => {
+        const { currentFile, currentYouTube } = get();
+        if (currentFile) {
+          return (
+            currentFile.storageId ||
+            currentFile.id ||
+            `file-${currentFile.name}-${currentFile.size}`
+          );
+        }
+        if (currentYouTube) {
+          return `youtube-${currentYouTube.id}`;
+        }
+        return null;
+      },
+      getCurrentMediaBookmarks: () => {
+        const { mediaBookmarks, getCurrentMediaId } = get();
+        const mediaId = getCurrentMediaId();
+        return mediaId ? mediaBookmarks[mediaId] || [] : [];
+      },
     }),
     {
       name: "abloop-player-storage",
@@ -908,7 +1002,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         waveformZoom: state.waveformZoom,
         showWaveform: state.showWaveform,
         videoSize: state.videoSize,
-        bookmarks: state.bookmarks,
+        mediaBookmarks: state.mediaBookmarks,
         transcriptSegments: state.transcriptSegments,
         showTranscript: state.showTranscript,
         transcriptLanguage: state.transcriptLanguage,

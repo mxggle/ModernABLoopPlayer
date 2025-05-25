@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Theme } from "@radix-ui/themes";
 import { Toaster } from "react-hot-toast";
 import { usePlayerStore } from "./stores/playerStore";
-import { PlayerLayout } from "./components/layout/PlayerLayout";
+import { AppRouter } from "./router/AppRouter";
 import "@radix-ui/themes/styles.css";
 import "./index.css";
 
@@ -31,7 +31,7 @@ function App() {
   return (
     <Theme appearance={theme} accentColor="purple">
       <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
-        <PlayerLayout />
+        <AppRouter />
       </div>
       <Toaster
         position="bottom-right"
