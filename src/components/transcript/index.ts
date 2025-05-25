@@ -1,4 +1,5 @@
-export * from './TranscriptPanel';
-export * from './TranscriptSegment';
-export * from './TranscriptControls';
-export * from './TranscriptToggle';
+export { TranscriptPanel } from "./TranscriptPanel";
+export { TranscriptToggle } from "./TranscriptToggle";
+export { TranscriptSegment } from "./TranscriptSegment";
+export { TranscriptControls } from "./TranscriptControls";
+export { TranscriptUploader } from "./TranscriptUploader";

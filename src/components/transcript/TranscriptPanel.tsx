@@ -12,6 +12,7 @@ import {
 import { toast } from "react-hot-toast";
 import { OpenAI } from "openai";
 import FormData from "form-data";
+import { TranscriptUploader } from "./TranscriptUploader";
 
 // Import types from store
 import { TranscriptSegment as TranscriptSegmentType } from "../../stores/playerStore";
@@ -540,10 +541,23 @@ export const TranscriptPanel = () => {
         {transcriptSegments.length === 0 &&
           !isProcessing &&
           !showApiKeyInput && (
-            <div className="text-gray-500 dark:text-gray-400 text-center py-4">
-              {!currentFile && !currentYouTube
-                ? "Load media first to generate a transcript"
-                : "Click the transcribe button to generate a transcript of this media using OpenAI Whisper"}
+            <div className="text-gray-500 dark:text-gray-400 text-center py-6 space-y-4">
+              <div>
+                {!currentFile && !currentYouTube
+                  ? "Load media first to generate a transcript"
+                  : "Click the transcribe button to generate a transcript of this media using OpenAI Whisper"}
+              </div>
+              {(currentFile || currentYouTube) && (
+                <div className="space-y-2">
+                  <div className="text-sm">or</div>
+                  <div className="flex justify-center">
+                    <TranscriptUploader variant="prominent" />
+                  </div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500">
+                    Upload an existing transcript file (.srt, .vtt, .txt)
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
