@@ -67,9 +67,15 @@ export const PlayerPage = () => {
         </div>
       )}
 
-      {/* Player Section */}
-      {(youtubeId || currentFile) && layoutSettings.showPlayer && (
-        <div className="relative rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 bg-black/5 dark:bg-white/5">
+      {/* Player Section - Always render media elements for functionality, but hide UI when needed */}
+      {(youtubeId || currentFile) && (
+        <div
+          className={`relative rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 bg-black/5 dark:bg-white/5 ${
+            layoutSettings.showPlayer
+              ? ""
+              : "absolute -top-[9999px] left-0 opacity-0 pointer-events-none"
+          }`}
+        >
           {youtubeId && !currentFile && <YouTubePlayer videoId={youtubeId} />}
           {currentFile && <MediaPlayer />}
         </div>
