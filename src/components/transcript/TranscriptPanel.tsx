@@ -394,7 +394,7 @@ export const TranscriptPanel = () => {
   };
 
   return (
-    <div className="flex flex-col w-full bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="flex flex-col w-full h-full bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center">
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -462,7 +462,7 @@ export const TranscriptPanel = () => {
 
       <div
         ref={transcriptRef}
-        className="flex-1 overflow-y-auto p-3 space-y-2 text-sm max-h-60"
+        className="flex-1 overflow-y-auto p-3 space-y-2 text-sm"
       >
         {showApiKeyInput && (
           <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-md mb-3">
