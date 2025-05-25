@@ -2,8 +2,10 @@ import { usePlayerStore } from "../../stores/playerStore";
 import { Subtitles } from "lucide-react";
 
 export const TranscriptToggle = () => {
-  const { showTranscript, toggleShowTranscript, transcriptSegments } = usePlayerStore();
-  
+  const { showTranscript, toggleShowTranscript, getCurrentMediaTranscripts } =
+    usePlayerStore();
+  const transcriptSegments = getCurrentMediaTranscripts();
+
   return (
     <button
       onClick={toggleShowTranscript}

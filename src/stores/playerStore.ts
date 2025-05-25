@@ -61,6 +61,11 @@ export interface TranscriptSegment {
   isFinal: boolean;
 }
 
+// New interface for media-scoped transcripts
+export interface MediaTranscripts {
+  [mediaId: string]: TranscriptSegment[];
+}
+
 export interface PlayerState {
   // Media state
   currentFile: MediaFile | null;
@@ -91,7 +96,7 @@ export interface PlayerState {
   selectedBookmarkId: string | null;
 
   // Transcript state
-  transcriptSegments: TranscriptSegment[];
+  mediaTranscripts: MediaTranscripts; // Changed from transcriptSegments array to media-scoped object
   showTranscript: boolean;
   isTranscribing: boolean;
   transcriptLanguage: string;
@@ -166,6 +171,9 @@ export interface PlayerActions {
   getCurrentMediaId: () => string | null;
   getCurrentMediaBookmarks: () => LoopBookmark[];
 
+  // Helper functions for media-scoped transcripts
+  getCurrentMediaTranscripts: () => TranscriptSegment[];
+
   // History actions
   addRecentYouTubeVideo: (video: YouTubeMedia) => void;
   clearRecentYouTubeVideos: () => void;
@@ -200,7 +208,7 @@ const initialState: PlayerState = {
   videoSize: "md",
   mediaBookmarks: {},
   selectedBookmarkId: null,
-  transcriptSegments: [],
+  mediaTranscripts: {},
   showTranscript: false,
   isTranscribing: false,
   transcriptLanguage: "en-US",
@@ -821,20 +829,44 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       addTranscriptSegment(segment) {
         const id = crypto.randomUUID();
         const newSegment = { ...segment, id };
-        const { transcriptSegments } = get();
-        set({ transcriptSegments: [...transcriptSegments, newSegment] });
+        const { getCurrentMediaId } = get();
+        const mediaId = getCurrentMediaId();
+        if (!mediaId) return;
+
+        set((state) => ({
+          mediaTranscripts: {
+            ...state.mediaTranscripts,
+            [mediaId]: [...(state.mediaTranscripts[mediaId] || []), newSegment],
+          },
+        }));
       },
 
       updateTranscriptSegment(id, changes) {
-        const { transcriptSegments } = get();
-        const updatedSegments = transcriptSegments.map((segment) =>
-          segment.id === id ? { ...segment, ...changes } : segment
-        );
-        set({ transcriptSegments: updatedSegments });
+        const { getCurrentMediaId } = get();
+        const mediaId = getCurrentMediaId();
+        if (!mediaId) return;
+
+        set((state) => ({
+          mediaTranscripts: {
+            ...state.mediaTranscripts,
+            [mediaId]: (state.mediaTranscripts[mediaId] || []).map((segment) =>
+              segment.id === id ? { ...segment, ...changes } : segment
+            ),
+          },
+        }));
       },
 
       clearTranscript() {
-        set({ transcriptSegments: [] });
+        const { getCurrentMediaId } = get();
+        const mediaId = getCurrentMediaId();
+        if (!mediaId) return;
+
+        set((state) => ({
+          mediaTranscripts: {
+            ...state.mediaTranscripts,
+            [mediaId]: [],
+          },
+        }));
         toast.success("Transcript cleared");
       },
 
@@ -853,7 +885,11 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       },
 
       exportTranscript(format) {
-        const { transcriptSegments } = get();
+        const { mediaTranscripts, getCurrentMediaId } = get();
+        const mediaId = getCurrentMediaId();
+        const transcriptSegments = mediaId
+          ? mediaTranscripts[mediaId] || []
+          : [];
 
         if (transcriptSegments.length === 0) {
           toast.error("No transcript data to export");
@@ -938,13 +974,19 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
       createBookmarkFromTranscript(segmentId) {
         const {
-          transcriptSegments,
+          mediaTranscripts,
           addBookmark,
           currentFile,
           currentYouTube,
           playbackRate,
+          getCurrentMediaId,
         } = get();
-        const segment = transcriptSegments.find((s) => s.id === segmentId);
+        const mediaId = getCurrentMediaId();
+        if (!mediaId) return;
+
+        const segment = (mediaTranscripts[mediaId] || []).find(
+          (s) => s.id === segmentId
+        );
 
         if (!segment) {
           toast.error("Transcript segment not found");
@@ -991,6 +1033,13 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         const mediaId = getCurrentMediaId();
         return mediaId ? mediaBookmarks[mediaId] || [] : [];
       },
+
+      // Helper functions for media-scoped transcripts
+      getCurrentMediaTranscripts: () => {
+        const { mediaTranscripts, getCurrentMediaId } = get();
+        const mediaId = getCurrentMediaId();
+        return mediaId ? mediaTranscripts[mediaId] || [] : [];
+      },
     }),
     {
       name: "abloop-player-storage",
@@ -1003,7 +1052,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         showWaveform: state.showWaveform,
         videoSize: state.videoSize,
         mediaBookmarks: state.mediaBookmarks,
-        transcriptSegments: state.transcriptSegments,
+        mediaTranscripts: state.mediaTranscripts,
         showTranscript: state.showTranscript,
         transcriptLanguage: state.transcriptLanguage,
         recentYouTubeVideos: state.recentYouTubeVideos,

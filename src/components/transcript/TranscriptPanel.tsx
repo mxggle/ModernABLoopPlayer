@@ -40,7 +40,7 @@ interface WhisperResponse {
 
 export const TranscriptPanel = () => {
   const {
-    transcriptSegments,
+    getCurrentMediaTranscripts,
     showTranscript,
     isTranscribing,
     currentFile,
@@ -50,6 +50,8 @@ export const TranscriptPanel = () => {
     clearTranscript,
     exportTranscript,
   } = usePlayerStore();
+
+  const transcriptSegments = getCurrentMediaTranscripts();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
