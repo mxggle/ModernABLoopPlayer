@@ -12,7 +12,7 @@ import { InitialHistoryDisplay } from "../player/InitialHistoryDisplay";
 import { WaveformVisualizer } from "../waveform/WaveformVisualizer";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useWindowSize } from "../../hooks/useWindowSize";
-import { Moon, Sun, Info } from "lucide-react";
+import { Moon, Sun, Info, Bookmark, History } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 
 export const PlayerLayout = () => {
@@ -28,6 +28,8 @@ export const PlayerLayout = () => {
     setTheme,
     showWaveform,
     setCurrentYouTube,
+    bookmarks,
+    mediaHistory,
   } = usePlayerStore();
 
   // Initialize keyboard shortcuts
@@ -67,7 +69,7 @@ export const PlayerLayout = () => {
 
   return (
     <div className="flex flex-col h-screen max-h-screen w-full max-w-5xl mx-auto px-3 sm:px-4 py-2 sm:py-4 overflow-hidden">
-      {/* Header - improved layout */}
+      {/* Header - improved layout with bookmark and history buttons */}
       <header className="flex items-center justify-between mb-2 sm:mb-4 py-2 border-b border-gray-200 dark:border-gray-700 pb-2">
         <div className="flex items-center gap-2">
           <svg
@@ -86,7 +88,7 @@ export const PlayerLayout = () => {
           </h1>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           {/* Media Sources Button in Header */}
           {(currentFile || youtubeId) && (
             <button
@@ -104,6 +106,38 @@ export const PlayerLayout = () => {
               </span>
             </button>
           )}
+          
+          {/* Bookmark Button in Header */}
+          {(currentFile || youtubeId) && (
+            <button
+              onClick={() => document.getElementById('bookmarkDrawerToggle')?.click()}
+              className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm transition-colors relative"
+              aria-label="Open bookmarks"
+              title="Bookmarks"
+            >
+              <Bookmark size={16} />
+              {bookmarks.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                  {bookmarks.length > 9 ? "9+" : bookmarks.length}
+                </span>
+              )}
+            </button>
+          )}
+          
+          {/* History Button in Header */}
+          <button
+            onClick={() => document.getElementById('historyDrawerToggle')?.click()}
+            className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm transition-colors relative"
+            aria-label="Open media history"
+            title="Media History"
+          >
+            <History size={16} />
+            {mediaHistory.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                {mediaHistory.length > 9 ? "9+" : mediaHistory.length}
+              </span>
+            )}
+          </button>
 
           <button
             onClick={toggleTheme}
@@ -111,6 +145,7 @@ export const PlayerLayout = () => {
             aria-label={
               theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
             }
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </button>
@@ -123,6 +158,7 @@ export const PlayerLayout = () => {
               <button
                 className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm transition-colors"
                 aria-label="Show keyboard shortcuts"
+                title="Keyboard Shortcuts"
               >
                 <Info size={16} />
               </button>
@@ -339,12 +375,12 @@ export const PlayerLayout = () => {
             {/* Combined Controls (fixed at bottom) */}
             {isMobile ? <MobileControls /> : <CombinedControls />}
 
-            {/* Bookmarks Drawer */}
+            {/* Bookmarks Drawer - now triggered from header */}
             <BookmarkDrawer />
           </>
         )}
 
-        {/* Media History - Always visible */}
+        {/* Media History - Now triggered from header */}
         <MediaHistory />
       </main>
 
