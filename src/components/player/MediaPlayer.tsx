@@ -282,7 +282,7 @@ export const MediaPlayer = () => {
             onError={handleError}
           />
           <div
-            className="w-full rounded-lg flex items-center justify-center overflow-hidden relative"
+            className="w-full rounded-lg flex items-center justify-center relative"
             style={{
               height: showWaveform
                 ? "calc(100vh - 400px)"
