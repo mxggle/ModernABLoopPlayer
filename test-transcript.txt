@@ -1,0 +1,5 @@
+[0:00 - 0:05] Welcome to the modern AB loop player.
+[0:05 - 0:10] This is a sample transcript segment for testing.
+[0:10 - 0:15] You can upload transcript files in SRT, VTT, or TXT formats.
+[0:15 - 0:20] The transcript will be synchronized with your media playback.
+[0:20 - 0:25] You can also create bookmarks from transcript segments. 

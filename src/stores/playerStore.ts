@@ -157,6 +157,7 @@ export interface PlayerActions {
   toggleShowTranscript: () => void;
   setTranscriptLanguage: (language: string) => void;
   exportTranscript: (format: "txt" | "srt" | "vtt") => string;
+  importTranscript: (file: File) => Promise<void>;
   createBookmarkFromTranscript: (segmentId: string) => void;
 
   // Bookmark actions
@@ -970,6 +971,240 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         }
 
         return "";
+      },
+
+      async importTranscript(file) {
+        try {
+          const { getCurrentMediaId, clearTranscript, addTranscriptSegment } =
+            get();
+          const mediaId = getCurrentMediaId();
+
+          if (!mediaId) {
+            toast.error("No media loaded");
+            return;
+          }
+
+          // Read file content
+          const content = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsText(file);
+          });
+
+          // Clear existing transcript
+          clearTranscript();
+
+          // Parse based on file extension
+          const fileName = file.name.toLowerCase();
+          let segments: Omit<TranscriptSegment, "id">[] = [];
+
+          if (fileName.endsWith(".srt")) {
+            segments = parseSrtContent(content);
+          } else if (fileName.endsWith(".vtt")) {
+            segments = parseVttContent(content);
+          } else if (fileName.endsWith(".txt")) {
+            segments = parseTxtContent(content);
+          } else {
+            // Try to auto-detect format
+            if (content.includes("WEBVTT")) {
+              segments = parseVttContent(content);
+            } else if (
+              content.includes("-->") &&
+              /^\d+$/.test(content.split("\n")[0]?.trim())
+            ) {
+              segments = parseSrtContent(content);
+            } else {
+              segments = parseTxtContent(content);
+            }
+          }
+
+          // Add segments to transcript
+          segments.forEach((segment) => {
+            addTranscriptSegment(segment);
+          });
+
+          toast.success(`Imported ${segments.length} transcript segments`);
+        } catch (error) {
+          console.error("Error importing transcript:", error);
+          toast.error("Failed to import transcript file");
+        }
+
+        // Helper functions for parsing different formats
+        function parseSrtContent(
+          content: string
+        ): Omit<TranscriptSegment, "id">[] {
+          const segments: Omit<TranscriptSegment, "id">[] = [];
+          const blocks = content.split("\n\n").filter((block) => block.trim());
+
+          blocks.forEach((block) => {
+            const lines = block.split("\n");
+            if (lines.length >= 3) {
+              const timeLine = lines[1];
+              const textLines = lines.slice(2);
+
+              const timeMatch = timeLine.match(
+                /(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})/
+              );
+              if (timeMatch) {
+                const startTime = parseTimeToSeconds(
+                  timeMatch[1],
+                  timeMatch[2],
+                  timeMatch[3],
+                  timeMatch[4]
+                );
+                const endTime = parseTimeToSeconds(
+                  timeMatch[5],
+                  timeMatch[6],
+                  timeMatch[7],
+                  timeMatch[8]
+                );
+
+                segments.push({
+                  text: textLines.join(" ").trim(),
+                  startTime,
+                  endTime,
+                  confidence: 1.0,
+                  isFinal: true,
+                });
+              }
+            }
+          });
+
+          return segments;
+        }
+
+        function parseVttContent(
+          content: string
+        ): Omit<TranscriptSegment, "id">[] {
+          const segments: Omit<TranscriptSegment, "id">[] = [];
+          const lines = content.split("\n");
+          let i = 0;
+
+          // Skip WEBVTT header
+          while (i < lines.length && !lines[i].includes("-->")) {
+            i++;
+          }
+
+          while (i < lines.length) {
+            const line = lines[i].trim();
+
+            if (line.includes("-->")) {
+              const timeMatch = line.match(
+                /(\d{2}):(\d{2}):(\d{2})\.(\d{3}) --> (\d{2}):(\d{2}):(\d{2})\.(\d{3})/
+              );
+              if (timeMatch) {
+                const startTime = parseTimeToSeconds(
+                  timeMatch[1],
+                  timeMatch[2],
+                  timeMatch[3],
+                  timeMatch[4]
+                );
+                const endTime = parseTimeToSeconds(
+                  timeMatch[5],
+                  timeMatch[6],
+                  timeMatch[7],
+                  timeMatch[8]
+                );
+
+                i++;
+                const textLines = [];
+                while (i < lines.length && lines[i].trim() !== "") {
+                  textLines.push(lines[i].trim());
+                  i++;
+                }
+
+                if (textLines.length > 0) {
+                  segments.push({
+                    text: textLines.join(" ").trim(),
+                    startTime,
+                    endTime,
+                    confidence: 1.0,
+                    isFinal: true,
+                  });
+                }
+              }
+            }
+            i++;
+          }
+
+          return segments;
+        }
+
+        function parseTxtContent(
+          content: string
+        ): Omit<TranscriptSegment, "id">[] {
+          const segments: Omit<TranscriptSegment, "id">[] = [];
+          const lines = content.split("\n").filter((line) => line.trim());
+
+          lines.forEach((line, index) => {
+            const trimmedLine = line.trim();
+            if (trimmedLine) {
+              // Try to extract timestamps if they exist in format [MM:SS - MM:SS] or [HH:MM:SS - HH:MM:SS]
+              const timeMatch = trimmedLine.match(
+                /\[(\d{1,2}):(\d{2})(?::(\d{2}))?\s*-\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\]\s*(.+)/
+              );
+
+              if (timeMatch) {
+                const startHours = timeMatch[3] ? parseInt(timeMatch[1]) : 0;
+                const startMinutes = timeMatch[3]
+                  ? parseInt(timeMatch[2])
+                  : parseInt(timeMatch[1]);
+                const startSeconds = timeMatch[3]
+                  ? parseInt(timeMatch[3])
+                  : parseInt(timeMatch[2]);
+
+                const endHours = timeMatch[6] ? parseInt(timeMatch[4]) : 0;
+                const endMinutes = timeMatch[6]
+                  ? parseInt(timeMatch[5])
+                  : parseInt(timeMatch[4]);
+                const endSeconds = timeMatch[6]
+                  ? parseInt(timeMatch[6])
+                  : parseInt(timeMatch[5]);
+
+                const startTime =
+                  startHours * 3600 + startMinutes * 60 + startSeconds;
+                const endTime = endHours * 3600 + endMinutes * 60 + endSeconds;
+
+                segments.push({
+                  text: timeMatch[7].trim(),
+                  startTime,
+                  endTime,
+                  confidence: 1.0,
+                  isFinal: true,
+                });
+              } else {
+                // No timestamps, create segments with estimated timing (5 seconds each)
+                const startTime = index * 5;
+                const endTime = (index + 1) * 5;
+
+                segments.push({
+                  text: trimmedLine,
+                  startTime,
+                  endTime,
+                  confidence: 1.0,
+                  isFinal: true,
+                });
+              }
+            }
+          });
+
+          return segments;
+        }
+
+        function parseTimeToSeconds(
+          hours: string,
+          minutes: string,
+          seconds: string,
+          milliseconds: string
+        ): number {
+          return (
+            parseInt(hours) * 3600 +
+            parseInt(minutes) * 60 +
+            parseInt(seconds) +
+            parseInt(milliseconds) / 1000
+          );
+        }
       },
 
       createBookmarkFromTranscript(segmentId) {
