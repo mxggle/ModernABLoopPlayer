@@ -2,7 +2,7 @@ import {
   usePlayerStore,
   TranscriptSegment as TranscriptSegmentType,
 } from "../../stores/playerStore";
-import { Bookmark, Play, Repeat } from "lucide-react";
+import { Bookmark, Play, Repeat, Pause } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 interface TranscriptSegmentProps {
@@ -19,6 +19,7 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
     setIsLooping,
     setLoopPoints,
     isLooping,
+    isPlaying,
   } = usePlayerStore();
 
   // Get current media bookmarks to check if this segment is bookmarked
@@ -39,6 +40,12 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
     setCurrentTime(segment.startTime);
     setIsPlaying(true); // Start playback immediately
     toast.success(`Playing from ${formatTime(segment.startTime)}`);
+  };
+
+  // Pause playback
+  const handlePausePlayback = () => {
+    setIsPlaying(false);
+    toast.success("Playback paused");
   };
 
   // Toggle looping for this segment
@@ -117,6 +124,9 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
   const isActive =
     currentTime >= segment.startTime && currentTime <= segment.endTime;
 
+  // Determine if we should show pause button (when segment is active and audio is playing)
+  const shouldShowPauseButton = isActive && isPlaying;
+
   return (
     <div
       className={`p-2 rounded-md ${
@@ -132,15 +142,25 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
 
         <div className="flex space-x-1">
           <button
-            onClick={handleJumpToTime}
+            onClick={
+              shouldShowPauseButton ? handlePausePlayback : handleJumpToTime
+            }
             className={`p-1 rounded transition-colors ${
               isActive
                 ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
                 : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
             }`}
-            title="Play from this segment"
+            title={
+              shouldShowPauseButton
+                ? "Pause playback"
+                : "Play from this segment"
+            }
           >
-            <Play size={12} fill={isActive ? "currentColor" : "none"} />
+            {shouldShowPauseButton ? (
+              <Pause size={12} fill="currentColor" />
+            ) : (
+              <Play size={12} fill={isActive ? "currentColor" : "none"} />
+            )}
           </button>
 
           <button

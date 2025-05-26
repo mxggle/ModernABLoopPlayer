@@ -9,6 +9,7 @@ import {
   FileAudio,
   Key,
   Repeat,
+  Pause,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { OpenAI } from "openai";
@@ -583,6 +584,7 @@ const TranscriptSegmentItem = ({
     setIsLooping,
     setLoopPoints,
     isLooping,
+    isPlaying,
   } = usePlayerStore();
 
   // Get current media bookmarks to check if this segment is bookmarked
@@ -603,6 +605,12 @@ const TranscriptSegmentItem = ({
     setCurrentTime(segment.startTime);
     setIsPlaying(true); // Start playback immediately
     toast.success(`Playing from ${formatTime(segment.startTime)}`);
+  };
+
+  // Pause playback
+  const handlePausePlayback = () => {
+    setIsPlaying(false);
+    toast.success("Playback paused");
   };
 
   // Get player state for checking loop status
@@ -678,6 +686,9 @@ const TranscriptSegmentItem = ({
   const isActive =
     currentTime >= segment.startTime && currentTime <= segment.endTime;
 
+  // Determine if we should show pause button (when segment is active and audio is playing)
+  const shouldShowPauseButton = isActive && isPlaying;
+
   return (
     <div
       className={`p-2 rounded-md ${
@@ -693,15 +704,25 @@ const TranscriptSegmentItem = ({
 
         <div className="flex space-x-1">
           <button
-            onClick={handleJumpToTime}
+            onClick={
+              shouldShowPauseButton ? handlePausePlayback : handleJumpToTime
+            }
             className={`p-1 rounded transition-colors ${
               isActive
                 ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
                 : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
             }`}
-            title="Play from this segment"
+            title={
+              shouldShowPauseButton
+                ? "Pause playback"
+                : "Play from this segment"
+            }
           >
-            <Play size={18} fill={isActive ? "currentColor" : "none"} />
+            {shouldShowPauseButton ? (
+              <Pause size={18} fill="currentColor" />
+            ) : (
+              <Play size={18} fill={isActive ? "currentColor" : "none"} />
+            )}
           </button>
 
           <button
