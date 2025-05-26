@@ -330,16 +330,16 @@ export const BookmarkManager = () => {
                 )}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center">
+                  <div className="flex items-center min-w-0">
                     <button
                       onClick={() => handleLoadBookmark(bookmark.id)}
-                      className="flex items-center group text-left"
+                      className="flex items-center group text-left min-w-0 flex-1"
                     >
                       <PlayCircle
                         size={16}
-                        className="mr-2 text-gray-500 group-hover:text-primary"
+                        className="mr-2 text-gray-500 group-hover:text-primary flex-shrink-0"
                       />
-                      <span className="font-medium truncate group-hover:text-primary">
+                      <span className="font-medium truncate group-hover:text-primary block">
                         {bookmark.name}
                       </span>
                     </button>
@@ -350,12 +350,17 @@ export const BookmarkManager = () => {
                       {formatTime(bookmark.start)} - {formatTime(bookmark.end)}
                     </span>
                     {bookmark.annotation && (
-                      <div className="mt-1 italic">{bookmark.annotation}</div>
+                      <div
+                        className="mt-1 italic truncate"
+                        title={bookmark.annotation}
+                      >
+                        {bookmark.annotation}
+                      </div>
                     )}
                   </div>
                 </div>
 
-                <div className="flex space-x-1 ml-2">
+                <div className="flex space-x-1 ml-2 flex-shrink-0">
                   <Button
                     variant="ghost"
                     size="icon"

@@ -170,7 +170,7 @@ export const MediaHistory = () => {
         id="historyDrawerToggle"
         onClick={toggleDrawer}
         className="hidden"
-        aria-label={isDrawerOpen ? "Close media history" : "Open media history"}
+        aria-label={isDrawerOpen ? "Close recent media" : "Open recent media"}
       />
 
       {/* Original floating button - now hidden since we moved it to the header */}
@@ -196,7 +196,7 @@ export const MediaHistory = () => {
       {/* History drawer */}
       <div
         className={cn(
-          "fixed inset-y-0 right-0 z-30 w-full sm:w-96 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 right-0 z-[60] w-full sm:w-96 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out",
           isDrawerOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -205,7 +205,7 @@ export const MediaHistory = () => {
           <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <History size={20} />
-              Media History
+              Recent Media
             </h2>
             <div className="flex items-center gap-2">
               <Button
@@ -221,7 +221,7 @@ export const MediaHistory = () => {
                 variant="ghost"
                 size="icon"
                 onClick={toggleDrawer}
-                title="Close"
+                title="Close recent media"
               >
                 <X size={20} />
               </Button>

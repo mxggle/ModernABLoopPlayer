@@ -1228,18 +1228,38 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           return;
         }
 
+        // Clean and format the text for a better bookmark title
+        const cleanText = segment.text
+          .trim()
+          .replace(/\s+/g, " ") // Replace multiple spaces with single space
+          .replace(/\n+/g, " "); // Replace line breaks with spaces
+
+        // Create a smart title that doesn't cut words in the middle
+        let title = cleanText;
+        const maxLength = 40; // Increased from 30 for better readability
+
+        if (cleanText.length > maxLength) {
+          // Find the last space before the max length to avoid cutting words
+          const truncateAt = cleanText.lastIndexOf(" ", maxLength);
+          if (truncateAt > 20) {
+            // Only use word boundary if it's not too short
+            title = cleanText.substring(0, truncateAt) + "...";
+          } else {
+            // Fallback to character limit if no good word boundary found
+            title = cleanText.substring(0, maxLength - 3) + "...";
+          }
+        }
+
         // Create a bookmark from this transcript segment
         addBookmark({
-          name:
-            segment.text.substring(0, 30) +
-            (segment.text.length > 30 ? "..." : ""),
+          name: title,
           start: segment.startTime,
           end: segment.endTime,
           mediaName: currentFile?.name,
           mediaType: currentFile?.type,
           youtubeId: currentYouTube?.id,
           playbackRate,
-          annotation: segment.text,
+          annotation: segment.text, // Keep the full text as annotation
         });
 
         toast.success("Bookmark created from transcript");
