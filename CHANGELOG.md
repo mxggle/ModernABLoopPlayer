@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- AI-powered text explanation feature for transcript segments:
+  - Explain button on each transcript segment for language learning
+  - Support for OpenAI GPT, Google Gemini, and xAI Grok AI services
+  - Translation, explanation, difficulty assessment, and key vocabulary extraction
+  - Configurable target language and preferred AI service
+  - Secure API key storage in browser localStorage
+  - Fallback between AI services for reliability
+
 ## [0.4.0] - 2025-05-26
 
 ### Added
+
 - Comprehensive transcript management system:
   - Advanced parsing for SRT, VTT, and TXT transcript formats
   - Detailed error handling with user feedback
@@ -24,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bookmark creation directly from transcript segments
 
 ### Enhanced
+
 - OpenAI Whisper integration:
   - Improved transcription workflow with progress indicators
   - Secure API key management with local storage
@@ -34,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Simplified user flow between components
 
 ### Technical
+
 - Refactored store architecture:
   - Media-scoped data structures for transcripts and bookmarks
   - Centralized seeking logic
@@ -46,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2025-05-25
 
 ### Added
+
 - Transcript file upload support with SRT, VTT, and TXT formats
 - Settings drawer to control UI component visibility
 - Layout settings for customizable UI component visibility
@@ -55,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-play when jumping to transcript segments
 
 ### Changed
+
 - Increased icon sizes for better visibility
 - Refactored transcript management to support media-scoped transcripts
 - Updated related components to work with the new transcript system
