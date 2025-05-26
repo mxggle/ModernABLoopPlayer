@@ -2,14 +2,18 @@ import {
   usePlayerStore,
   TranscriptSegment as TranscriptSegmentType,
 } from "../../stores/playerStore";
-import { Bookmark, Play, Repeat, Pause } from "lucide-react";
+import { Bookmark, Play, Repeat, Pause, Brain } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { useState } from "react";
+import { ExplanationDrawer } from "./ExplanationDrawer";
 
 interface TranscriptSegmentProps {
   segment: TranscriptSegmentType;
 }
 
 export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
+  const [showExplanation, setShowExplanation] = useState(false);
+
   const {
     setCurrentTime,
     createBookmarkFromTranscript,
@@ -101,6 +105,11 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
     }
   };
 
+  // Handle explain button click
+  const handleExplain = () => {
+    setShowExplanation(true);
+  };
+
   // Check if this segment has an associated bookmark
   const isBookmarked = bookmarks.some(
     (bookmark) =>
@@ -128,79 +137,98 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
   const shouldShowPauseButton = isActive && isPlaying;
 
   return (
-    <div
-      className={`p-2 rounded-md ${
-        isActive
-          ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
-          : "bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/50"
-      } transition-colors`}
-    >
-      <div className="flex justify-between items-start mb-1">
-        <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-          {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
-        </span>
+    <>
+      <div
+        className={`p-2 rounded-md ${
+          isActive
+            ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
+            : "bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/50"
+        } transition-colors`}
+      >
+        <div className="flex justify-between items-start mb-1">
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+            {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
+          </span>
 
-        <div className="flex space-x-1">
-          <button
-            onClick={
-              shouldShowPauseButton ? handlePausePlayback : handleJumpToTime
-            }
-            className={`p-1 rounded transition-colors ${
-              isActive
-                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
-                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-            }`}
-            title={
-              shouldShowPauseButton
-                ? "Pause playback"
-                : "Play from this segment"
-            }
-          >
-            {shouldShowPauseButton ? (
-              <Pause size={12} fill="currentColor" />
-            ) : (
-              <Play size={12} fill={isActive ? "currentColor" : "none"} />
-            )}
-          </button>
+          <div className="flex space-x-1">
+            <button
+              onClick={
+                shouldShowPauseButton ? handlePausePlayback : handleJumpToTime
+              }
+              className={`p-1 rounded transition-colors ${
+                isActive
+                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+              }`}
+              title={
+                shouldShowPauseButton
+                  ? "Pause playback"
+                  : "Play from this segment"
+              }
+            >
+              {shouldShowPauseButton ? (
+                <Pause size={12} fill="currentColor" />
+              ) : (
+                <Play size={12} fill={isActive ? "currentColor" : "none"} />
+              )}
+            </button>
 
-          <button
-            onClick={handleToggleLoop}
-            className={`p-1 rounded transition-colors ${
-              isCurrentlyLooping
-                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
-                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-            }`}
-            title={
-              isCurrentlyLooping
-                ? "Stop looping this segment"
-                : "Loop this segment"
-            }
-          >
-            <Repeat
-              size={12}
-              fill={isCurrentlyLooping ? "currentColor" : "none"}
-            />
-          </button>
+            <button
+              onClick={handleToggleLoop}
+              className={`p-1 rounded transition-colors ${
+                isCurrentlyLooping
+                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+              }`}
+              title={
+                isCurrentlyLooping
+                  ? "Stop looping this segment"
+                  : "Loop this segment"
+              }
+            >
+              <Repeat
+                size={12}
+                fill={isCurrentlyLooping ? "currentColor" : "none"}
+              />
+            </button>
 
-          <button
-            onClick={handleToggleBookmark}
-            className={`p-1 rounded transition-colors ${
-              isBookmarked
-                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
-                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-            }`}
-            title={
-              isBookmarked
-                ? "Remove bookmark for this segment"
-                : "Create bookmark from this segment"
-            }
-          >
-            <Bookmark size={12} fill={isBookmarked ? "currentColor" : "none"} />
-          </button>
+            <button
+              onClick={handleToggleBookmark}
+              className={`p-1 rounded transition-colors ${
+                isBookmarked
+                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+              }`}
+              title={
+                isBookmarked
+                  ? "Remove bookmark for this segment"
+                  : "Create bookmark from this segment"
+              }
+            >
+              <Bookmark
+                size={12}
+                fill={isBookmarked ? "currentColor" : "none"}
+              />
+            </button>
+
+            <button
+              onClick={handleExplain}
+              className="p-1 rounded transition-colors text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+              title="Explain this text with AI"
+            >
+              <Brain size={12} />
+            </button>
+          </div>
         </div>
+
+        <p className="text-gray-800 dark:text-gray-200">{segment.text}</p>
       </div>
 
-      <p className="text-gray-800 dark:text-gray-200">{segment.text}</p>
-    </div>
+      <ExplanationDrawer
+        isOpen={showExplanation}
+        onClose={() => setShowExplanation(false)}
+        text={segment.text}
+      />
+    </>
   );
 };
