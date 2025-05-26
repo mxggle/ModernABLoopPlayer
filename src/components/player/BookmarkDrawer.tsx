@@ -220,7 +220,9 @@ export const BookmarkDrawer = () => {
         id="bookmarkDrawerToggle"
         onClick={toggleDrawer}
         className="hidden"
-        aria-label={isDrawerOpen ? "Close bookmarks" : "Open bookmarks"}
+        aria-label={
+          isDrawerOpen ? "Close loop bookmarks" : "Open loop bookmarks"
+        }
       />
 
       {/* Original drawer toggle button - now hidden since we moved it to the header */}
@@ -235,19 +237,19 @@ export const BookmarkDrawer = () => {
       {/* Bookmarks drawer */}
       <div
         className={cn(
-          "fixed right-0 top-0 h-full bg-white dark:bg-gray-800 shadow-xl z-30 transition-all duration-300 ease-in-out overflow-y-auto",
+          "fixed right-0 top-0 h-full bg-white dark:bg-gray-800 shadow-xl z-[60] transition-all duration-300 ease-in-out overflow-y-auto",
           isDrawerOpen ? "w-80 translate-x-0" : "w-80 translate-x-full"
         )}
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <Bookmark size={20} />
-            <span>Bookmarks</span>
+            <span>Loop Bookmarks</span>
           </h2>
           <button
             onClick={toggleDrawer}
             className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-            aria-label="Close bookmarks"
+            aria-label="Close loop bookmarks"
           >
             <X size={20} />
           </button>
@@ -380,16 +382,16 @@ export const BookmarkDrawer = () => {
                   )}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center">
+                    <div className="flex items-center min-w-0">
                       <button
                         onClick={() => handleLoadBookmark(bookmark.id)}
-                        className="flex items-center group text-left"
+                        className="flex items-center group text-left min-w-0 flex-1"
                       >
                         <PlayCircle
                           size={16}
-                          className="mr-2 text-gray-500 group-hover:text-primary"
+                          className="mr-2 text-gray-500 group-hover:text-primary flex-shrink-0"
                         />
-                        <span className="font-medium truncate group-hover:text-primary">
+                        <span className="font-medium truncate group-hover:text-primary block">
                           {bookmark.name}
                         </span>
                       </button>
@@ -401,12 +403,17 @@ export const BookmarkDrawer = () => {
                         {formatTime(bookmark.end)}
                       </span>
                       {bookmark.annotation && (
-                        <div className="mt-1 italic">{bookmark.annotation}</div>
+                        <div
+                          className="mt-1 italic truncate"
+                          title={bookmark.annotation}
+                        >
+                          {bookmark.annotation}
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex space-x-1 ml-2">
+                  <div className="flex space-x-1 ml-2 flex-shrink-0">
                     <Button
                       variant="ghost"
                       size="icon"
