@@ -26,7 +26,7 @@ export const HomePage = () => {
   return (
     <AppLayout>
       {/* Input Sections: File Uploader and YouTube Input */}
-      <div className="relative bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 p-3 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm mb-3 sm:mb-6 border border-purple-100/50 dark:border-purple-800/20 overflow-hidden flex-shrink-0">
+      <div className="relative bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 p-3 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm mb-3 sm:mb-6 border border-purple-100/50 dark:border-purple-800/20 overflow-hidden flex-shrink-0 mt-0 sm:mt-8">
         {/* Background decorative elements */}
         <div className="absolute -top-10 -left-10 w-40 h-40 bg-gradient-to-br from-purple-200/30 to-indigo-200/30 dark:from-purple-700/10 dark:to-indigo-700/10 rounded-full blur-xl"></div>
         <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-gradient-to-tl from-purple-200/30 to-indigo-200/30 dark:from-purple-700/10 dark:to-indigo-700/10 rounded-full blur-xl"></div>

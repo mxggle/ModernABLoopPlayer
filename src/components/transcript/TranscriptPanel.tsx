@@ -8,6 +8,7 @@ import {
   Bookmark,
   FileAudio,
   Key,
+  Repeat,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { OpenAI } from "openai";
@@ -582,7 +583,14 @@ const TranscriptSegmentItem = ({
     createBookmarkFromTranscript,
     currentTime,
     setIsPlaying,
+    getCurrentMediaBookmarks,
+    setIsLooping,
+    setLoopPoints,
+    isLooping,
   } = usePlayerStore();
+
+  // Get current media bookmarks to check if this segment is bookmarked
+  const bookmarks = getCurrentMediaBookmarks();
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -593,15 +601,82 @@ const TranscriptSegmentItem = ({
 
   // Jump to this segment's time and start playing
   const handleJumpToTime = () => {
+    // Cancel any active A-B loop to allow the selected line to play with highest priority
+    setIsLooping(false);
+
     setCurrentTime(segment.startTime);
     setIsPlaying(true); // Start playback immediately
     toast.success(`Playing from ${formatTime(segment.startTime)}`);
   };
 
-  // Create a bookmark from this segment
-  const handleCreateBookmark = () => {
-    createBookmarkFromTranscript(segment.id);
+  // Get player state for checking loop status
+  const playerState = usePlayerStore.getState();
+  const currentLoopStart = playerState.loopStart;
+  const currentLoopEnd = playerState.loopEnd;
+
+  // Toggle looping for this segment
+  const handleToggleLoop = () => {
+    // If we're already looping this segment, turn off looping
+    if (
+      isLooping &&
+      currentLoopStart !== null &&
+      currentLoopEnd !== null &&
+      Math.abs(currentLoopStart - segment.startTime) < 0.1 &&
+      Math.abs(currentLoopEnd - segment.endTime) < 0.1
+    ) {
+      setIsLooping(false);
+      toast.success("Loop disabled");
+    } else {
+      // Set loop points to this segment's start and end times
+      setLoopPoints(segment.startTime, segment.endTime);
+      setIsLooping(true);
+      // Jump to start of the segment
+      setCurrentTime(segment.startTime);
+      setIsPlaying(true);
+      toast.success(
+        `Looping: ${formatTime(segment.startTime)} - ${formatTime(
+          segment.endTime
+        )}`
+      );
+    }
   };
+
+  // Toggle bookmark for this segment
+  const handleToggleBookmark = () => {
+    // If already bookmarked, find and delete the bookmark
+    if (isBookmarked) {
+      // Find the bookmark ID that matches this segment
+      const bookmarkToDelete = bookmarks.find(
+        (bookmark) =>
+          Math.abs(bookmark.start - segment.startTime) < 0.5 &&
+          Math.abs(bookmark.end - segment.endTime) < 0.5
+      );
+
+      if (bookmarkToDelete) {
+        // Use the deleteBookmark function from the store
+        usePlayerStore.getState().deleteBookmark(bookmarkToDelete.id);
+        toast.success("Bookmark removed");
+      }
+    } else {
+      // Create a new bookmark
+      createBookmarkFromTranscript(segment.id);
+    }
+  };
+
+  // Check if this segment has an associated bookmark
+  const isBookmarked = bookmarks.some(
+    (bookmark) =>
+      Math.abs(bookmark.start - segment.startTime) < 0.5 &&
+      Math.abs(bookmark.end - segment.endTime) < 0.5
+  );
+
+  // Check if this segment is currently being looped
+  const isCurrentlyLooping =
+    isLooping &&
+    currentLoopStart !== null &&
+    currentLoopEnd !== null &&
+    Math.abs(currentLoopStart - segment.startTime) < 0.1 &&
+    Math.abs(currentLoopEnd - segment.endTime) < 0.1;
 
   // Determine if this segment is currently active
   const isActive =
@@ -623,18 +698,49 @@ const TranscriptSegmentItem = ({
         <div className="flex space-x-1">
           <button
             onClick={handleJumpToTime}
-            className="p-1 rounded text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+            className={`p-1 rounded transition-colors ${
+              isActive
+                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+            }`}
             title="Play from this segment"
           >
-            <Play size={18} />
+            <Play size={18} fill={isActive ? "currentColor" : "none"} />
           </button>
 
           <button
-            onClick={handleCreateBookmark}
-            className="p-1 rounded text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-            title="Create bookmark from this segment"
+            onClick={handleToggleLoop}
+            className={`p-1 rounded transition-colors ${
+              isCurrentlyLooping
+                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+            }`}
+            title={
+              isCurrentlyLooping
+                ? "Stop looping this segment"
+                : "Loop this segment"
+            }
           >
-            <Bookmark size={18} />
+            <Repeat
+              size={18}
+              fill={isCurrentlyLooping ? "currentColor" : "none"}
+            />
+          </button>
+
+          <button
+            onClick={handleToggleBookmark}
+            className={`p-1 rounded transition-colors ${
+              isBookmarked
+                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+            }`}
+            title={
+              isBookmarked
+                ? "Remove bookmark for this segment"
+                : "Create bookmark from this segment"
+            }
+          >
+            <Bookmark size={18} fill={isBookmarked ? "currentColor" : "none"} />
           </button>
         </div>
       </div>

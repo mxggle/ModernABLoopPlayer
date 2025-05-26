@@ -1,18 +1,8 @@
 import { useState, Dispatch, SetStateAction } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlayerStore } from "../../stores/playerStore";
-import { TranscriptToggle } from "../transcript";
 import { SettingsDrawer } from "./SettingsDrawer";
-import {
-  Moon,
-  Sun,
-  Info,
-  Settings,
-  Bookmark,
-  Layout,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { Moon, Sun, Info, Settings, Layout, Eye, EyeOff } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
 
@@ -25,14 +15,12 @@ interface LayoutSettings {
 
 interface AppLayoutProps {
   children: React.ReactNode;
-  showTranscriptToggle?: boolean;
   layoutSettings?: LayoutSettings;
   setLayoutSettings?: Dispatch<SetStateAction<LayoutSettings>>;
 }
 
 export const AppLayout = ({
   children,
-  showTranscriptToggle = false,
   layoutSettings,
   setLayoutSettings,
 }: AppLayoutProps) => {
@@ -41,16 +29,7 @@ export const AppLayout = ({
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [isLayoutPopoverOpen, setIsLayoutPopoverOpen] = useState(false);
 
-  const {
-    currentFile,
-    currentYouTube,
-    theme,
-    setTheme,
-    getCurrentMediaBookmarks,
-  } = usePlayerStore();
-
-  // Get current media bookmarks
-  const bookmarks = getCurrentMediaBookmarks();
+  const { currentFile, currentYouTube, theme, setTheme } = usePlayerStore();
 
   // Toggle theme
   const toggleTheme = () => {
@@ -77,8 +56,10 @@ export const AppLayout = ({
 
   return (
     <div className="flex flex-col min-h-screen w-full max-w-5xl mx-auto overflow-x-hidden pb-40">
+      {/* Spacer to prevent content from being hidden behind fixed header */}
+      <div className="h-[52px] sm:h-[56px]"></div>
       {/* Header - fixed at the top */}
-      <header className="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-10">
+      <header className="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 fixed top-0 left-0 right-0 z-50">
         <button
           onClick={navigateToHome}
           className="flex items-center gap-1 sm:gap-2 focus:outline-none"
@@ -100,32 +81,6 @@ export const AppLayout = ({
         </button>
 
         <div className="flex items-center space-x-1 sm:space-x-3 shrink-0">
-          {/* Transcript Toggle - Only show when media is loaded and transcript is enabled */}
-          {showTranscriptToggle &&
-            (currentFile || youtubeId) &&
-            layoutSettings?.showTranscript && <TranscriptToggle />}
-
-          {/* Bookmark Drawer Trigger - Show when media is loaded */}
-          {(currentFile || youtubeId) && (
-            <button
-              onClick={() => {
-                const bookmarkToggle = document.getElementById(
-                  "bookmarkDrawerToggle"
-                );
-                bookmarkToggle?.click();
-              }}
-              className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors relative"
-              aria-label="Open bookmarks"
-            >
-              <Bookmark className="h-4 w-4 sm:h-5 sm:w-5" />
-              {bookmarks.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                  {bookmarks.length > 9 ? "9+" : bookmarks.length}
-                </span>
-              )}
-            </button>
-          )}
-
           {/* Layout Settings - Show when media is loaded and layout settings are available */}
           {(currentFile || youtubeId) &&
             layoutSettings &&

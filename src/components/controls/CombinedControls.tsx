@@ -15,6 +15,7 @@ import {
   AlignEndHorizontal,
   ChevronLeft,
   ChevronRight,
+  Bookmark,
 } from "lucide-react";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
@@ -39,10 +40,14 @@ export const CombinedControls = () => {
     setIsLooping,
     seekForward: storeSeekForward,
     seekBackward: storeSeekBackward,
+    getCurrentMediaBookmarks,
   } = usePlayerStore();
 
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
   const [showABControls, setShowABControls] = useState(true);
+
+  // Get current media bookmarks for the bookmark button
+  const bookmarks = getCurrentMediaBookmarks();
 
   // Update range slider when loop points change
   useEffect(() => {
@@ -172,6 +177,12 @@ export const CombinedControls = () => {
     }
   };
 
+  // Toggle bookmark drawer
+  const toggleBookmarkDrawer = () => {
+    const bookmarkToggle = document.getElementById("bookmarkDrawerToggle");
+    bookmarkToggle?.click();
+  };
+
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-10">
       <div className="max-w-6xl mx-auto px-2 sm:px-4 py-1 sm:py-2">
@@ -285,6 +296,22 @@ export const CombinedControls = () => {
               <span className="hidden sm:inline">
                 {isLooping ? "Loop On" : "Loop"}
               </span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleBookmarkDrawer}
+              className="gap-1 py-1 px-3 h-8 text-xs font-medium relative"
+              aria-label="Open bookmarks"
+            >
+              <Bookmark size={13} className="sm:w-[14px] sm:h-[14px]" />
+              <span className="hidden sm:inline">Bookmarks</span>
+              {bookmarks.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                  {bookmarks.length > 9 ? "9+" : bookmarks.length}
+                </span>
+              )}
             </Button>
 
             <Button

@@ -139,15 +139,21 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
 
       // Handle A-B looping
       if (isLooping && loopStart !== null && loopEnd !== null) {
-        // Add a small buffer to prevent edge case issues
-        const buffer = 0.1;
+        const startBuffer = 0.02; // 20ms buffer for start boundary only
 
-        if (currentTimeValue >= loopEnd - buffer) {
-          // When we reach the end point, jump back to start
+        // Only jump back when we actually exceed the end time
+        // Use a small tolerance to account for timing precision
+        if (currentTimeValue >= loopEnd + 0.005) {
           mediaElement.currentTime = loopStart;
-          console.log("Loop: Jumping back to start point", loopStart);
+          console.log(
+            `Loop: Audio reached ${currentTimeValue.toFixed(
+              3
+            )}s, end was ${loopEnd.toFixed(
+              3
+            )}s, jumping back to ${loopStart.toFixed(3)}s`
+          );
         } else if (
-          currentTimeValue < loopStart - buffer &&
+          currentTimeValue < loopStart - startBuffer &&
           currentTimeValue > 0
         ) {
           // If somehow we're before the start point (e.g., user dragged the slider)
@@ -157,8 +163,8 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
       }
     };
 
-    // Use more frequent checking for more precise looping
-    const checkInterval = setInterval(handleTimeUpdate, 50);
+    // Use less frequent checking to rely more on native timeupdate
+    const checkInterval = setInterval(handleTimeUpdate, 100);
 
     // Also keep the timeupdate event for standard time tracking
     mediaElement.addEventListener("timeupdate", handleTimeUpdate);

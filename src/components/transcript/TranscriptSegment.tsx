@@ -2,7 +2,7 @@ import {
   usePlayerStore,
   TranscriptSegment as TranscriptSegmentType,
 } from "../../stores/playerStore";
-import { Bookmark, Play } from "lucide-react";
+import { Bookmark, Play, Repeat } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 interface TranscriptSegmentProps {
@@ -10,8 +10,19 @@ interface TranscriptSegmentProps {
 }
 
 export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
-  const { setCurrentTime, createBookmarkFromTranscript, currentTime } =
-    usePlayerStore();
+  const {
+    setCurrentTime,
+    createBookmarkFromTranscript,
+    currentTime,
+    getCurrentMediaBookmarks,
+    setIsPlaying,
+    setIsLooping,
+    setLoopPoints,
+    isLooping,
+  } = usePlayerStore();
+
+  // Get current media bookmarks to check if this segment is bookmarked
+  const bookmarks = getCurrentMediaBookmarks();
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -20,16 +31,87 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Jump to this segment's time
+  // Jump to this segment's time and start playing
   const handleJumpToTime = () => {
+    // Cancel any active A-B loop to allow the selected line to play with highest priority
+    setIsLooping(false);
+
     setCurrentTime(segment.startTime);
-    toast.success(`Jumped to ${formatTime(segment.startTime)}`);
+    setIsPlaying(true); // Start playback immediately
+    toast.success(`Playing from ${formatTime(segment.startTime)}`);
   };
 
-  // Create a bookmark from this segment
-  const handleCreateBookmark = () => {
-    createBookmarkFromTranscript(segment.id);
+  // Toggle looping for this segment
+  const handleToggleLoop = () => {
+    const playerState = usePlayerStore.getState();
+    const loopStart = playerState.loopStart;
+    const loopEnd = playerState.loopEnd;
+
+    // If we're already looping this segment, turn off looping
+    if (
+      isLooping &&
+      loopStart !== null &&
+      loopEnd !== null &&
+      Math.abs(loopStart - segment.startTime) < 0.1 &&
+      Math.abs(loopEnd - segment.endTime) < 0.1
+    ) {
+      setIsLooping(false);
+      toast.success("Loop disabled");
+    } else {
+      // Set loop points to this segment's start and end times
+      setLoopPoints(segment.startTime, segment.endTime);
+      setIsLooping(true);
+      // Jump to start of the segment
+      setCurrentTime(segment.startTime);
+      setIsPlaying(true);
+      toast.success(
+        `Looping: ${formatTime(segment.startTime)} - ${formatTime(
+          segment.endTime
+        )}`
+      );
+    }
   };
+
+  // Toggle bookmark for this segment
+  const handleToggleBookmark = () => {
+    // If already bookmarked, find and delete the bookmark
+    if (isBookmarked) {
+      // Find the bookmark ID that matches this segment
+      const bookmarkToDelete = bookmarks.find(
+        (bookmark) =>
+          Math.abs(bookmark.start - segment.startTime) < 0.5 &&
+          Math.abs(bookmark.end - segment.endTime) < 0.5
+      );
+
+      if (bookmarkToDelete) {
+        // Use the deleteBookmark function from the store
+        usePlayerStore.getState().deleteBookmark(bookmarkToDelete.id);
+        toast.success("Bookmark removed");
+      }
+    } else {
+      // Create a new bookmark
+      createBookmarkFromTranscript(segment.id);
+    }
+  };
+
+  // Check if this segment has an associated bookmark
+  const isBookmarked = bookmarks.some(
+    (bookmark) =>
+      Math.abs(bookmark.start - segment.startTime) < 0.5 &&
+      Math.abs(bookmark.end - segment.endTime) < 0.5
+  );
+
+  // Check if this segment is currently being looped
+  const playerState = usePlayerStore.getState();
+  const loopStart = playerState.loopStart;
+  const loopEnd = playerState.loopEnd;
+
+  const isCurrentlyLooping =
+    isLooping &&
+    loopStart !== null &&
+    loopEnd !== null &&
+    Math.abs(loopStart - segment.startTime) < 0.1 &&
+    Math.abs(loopEnd - segment.endTime) < 0.1;
 
   // Determine if this segment is currently active
   const isActive =
@@ -51,18 +133,49 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
         <div className="flex space-x-1">
           <button
             onClick={handleJumpToTime}
-            className="p-1 rounded text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-            title="Jump to this segment"
+            className={`p-1 rounded transition-colors ${
+              isActive
+                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+            }`}
+            title="Play from this segment"
           >
-            <Play size={12} />
+            <Play size={12} fill={isActive ? "currentColor" : "none"} />
           </button>
 
           <button
-            onClick={handleCreateBookmark}
-            className="p-1 rounded text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-            title="Create bookmark from this segment"
+            onClick={handleToggleLoop}
+            className={`p-1 rounded transition-colors ${
+              isCurrentlyLooping
+                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+            }`}
+            title={
+              isCurrentlyLooping
+                ? "Stop looping this segment"
+                : "Loop this segment"
+            }
           >
-            <Bookmark size={12} />
+            <Repeat
+              size={12}
+              fill={isCurrentlyLooping ? "currentColor" : "none"}
+            />
+          </button>
+
+          <button
+            onClick={handleToggleBookmark}
+            className={`p-1 rounded transition-colors ${
+              isBookmarked
+                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+            }`}
+            title={
+              isBookmarked
+                ? "Remove bookmark for this segment"
+                : "Create bookmark from this segment"
+            }
+          >
+            <Bookmark size={12} fill={isBookmarked ? "currentColor" : "none"} />
           </button>
         </div>
       </div>

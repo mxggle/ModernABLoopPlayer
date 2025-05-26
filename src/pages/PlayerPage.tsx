@@ -40,7 +40,6 @@ export const PlayerPage = () => {
 
   return (
     <AppLayout
-      showTranscriptToggle={true}
       layoutSettings={layoutSettings}
       setLayoutSettings={setLayoutSettings}
     >
@@ -80,7 +79,9 @@ export const PlayerPage = () => {
           ) : (
             /* When player is visible, render the full UI */
             <div className="relative rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 bg-black/5 dark:bg-white/5">
-              {youtubeId && !currentFile && <YouTubePlayer videoId={youtubeId} />}
+              {youtubeId && !currentFile && (
+                <YouTubePlayer videoId={youtubeId} />
+              )}
               {currentFile && <MediaPlayer />}
             </div>
           )}
