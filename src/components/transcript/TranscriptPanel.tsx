@@ -43,7 +43,6 @@ interface WhisperResponse {
 export const TranscriptPanel = () => {
   const {
     getCurrentMediaTranscripts,
-    showTranscript,
     isTranscribing,
     currentFile,
     currentYouTube,
@@ -376,9 +375,6 @@ export const TranscriptPanel = () => {
       transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
     }
   }, [transcriptSegments]);
-
-  // Don't render if transcript is not shown
-  if (!showTranscript) return null;
 
   // Handle export
   const handleExport = (format: "txt" | "srt" | "vtt") => {
