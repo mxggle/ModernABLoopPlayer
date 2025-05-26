@@ -59,7 +59,10 @@ interface YouTubePlayerProps {
   hiddenMode?: boolean;
 }
 
-export const YouTubePlayer = ({ videoId, hiddenMode = false }: YouTubePlayerProps) => {
+export const YouTubePlayer = ({
+  videoId,
+  hiddenMode = false,
+}: YouTubePlayerProps) => {
   const [player, setPlayer] = useState<YTPlayer | null>(null);
   const [apiLoaded, setApiLoaded] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -227,14 +230,20 @@ export const YouTubePlayer = ({ videoId, hiddenMode = false }: YouTubePlayerProp
         loopStart !== null &&
         loopEnd !== null
       ) {
-        // Add a small buffer to prevent edge case issues
-        const buffer = 0.1;
+        const startBuffer = 0.02; // 20ms buffer for start boundary only
 
-        if (currentTime >= loopEnd - buffer) {
-          // When we reach the end point, jump back to start
+        // Only jump back when we reach or exceed the end time
+        // Use a small tolerance to account for timing precision
+        if (currentTime >= loopEnd + 0.005) {
           player.seekTo(loopStart, true);
-          console.log("YouTube Loop: Jumping back to start point", loopStart);
-        } else if (currentTime < loopStart - buffer && currentTime > 0) {
+          console.log(
+            `YouTube Loop: Audio reached ${currentTime.toFixed(
+              3
+            )}s, end was ${loopEnd.toFixed(
+              3
+            )}s, jumping back to ${loopStart.toFixed(3)}s`
+          );
+        } else if (currentTime < loopStart - startBuffer && currentTime > 0) {
           // If somehow we're before the start point (e.g., user dragged the slider)
           player.seekTo(loopStart, true);
           console.log("YouTube Loop: Jumping to start point", loopStart);
@@ -242,8 +251,8 @@ export const YouTubePlayer = ({ videoId, hiddenMode = false }: YouTubePlayerProp
       }
     };
 
-    // Use interval for more precise checking
-    const checkInterval = setInterval(checkTime, 50);
+    // Use less frequent checking to rely more on native events
+    const checkInterval = setInterval(checkTime, 100);
 
     return () => {
       clearInterval(checkInterval);

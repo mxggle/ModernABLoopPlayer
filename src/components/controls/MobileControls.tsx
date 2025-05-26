@@ -12,6 +12,7 @@ import {
   AlignStartHorizontal,
   AlignEndHorizontal,
   X,
+  Bookmark,
 } from "lucide-react";
 import { Button } from "../ui/button";
 
@@ -31,11 +32,15 @@ export const MobileControls = () => {
     setPlaybackRate,
     setLoopPoints,
     setIsLooping,
+    getCurrentMediaBookmarks,
   } = usePlayerStore();
 
   const [showABControls, setShowABControls] = useState(false);
   const [showSpeedControls, setShowSpeedControls] = useState(false);
   const [showVolumeDrawer, setShowVolumeDrawer] = useState(false);
+
+  // Get current media bookmarks for the bookmark button
+  const bookmarks = getCurrentMediaBookmarks();
 
   // Toggle play/pause
   const togglePlayPause = () => {
@@ -46,11 +51,11 @@ export const MobileControls = () => {
   const handleTimelineChange = (value: number) => {
     // Update the time in the store, which will be picked up by the media player
     setCurrentTime(value);
-    
+
     // We apply a direct class to show this was a manual user action
     // This helps distinguish manual seeking from normal playback updates
     document.body.classList.add("user-seeking");
-    
+
     // Remove the class after a short delay
     setTimeout(() => {
       document.body.classList.remove("user-seeking");
@@ -85,7 +90,11 @@ export const MobileControls = () => {
     setShowSpeedControls(false);
   };
 
-
+  // Toggle bookmark drawer
+  const toggleBookmarkDrawer = () => {
+    const bookmarkToggle = document.getElementById("bookmarkDrawerToggle");
+    bookmarkToggle?.click();
+  };
 
   // Set loop start point at current time
   const setLoopStartAtCurrentTime = () => {
@@ -144,7 +153,7 @@ export const MobileControls = () => {
           <span className="text-xs font-medium min-w-[45px] text-right">
             {formatTime(currentTime)}
           </span>
-          <input 
+          <input
             type="range"
             value={currentTime}
             min={0}
@@ -154,15 +163,20 @@ export const MobileControls = () => {
             onTouchStart={() => document.body.classList.add("user-seeking")}
             onTouchEnd={() => {
               // Short delay before removing class to ensure the seeking event is processed
-              setTimeout(() => document.body.classList.remove("user-seeking"), 100);
+              setTimeout(
+                () => document.body.classList.remove("user-seeking"),
+                100
+              );
             }}
             className="mx-2 flex-1 h-12 appearance-none bg-gradient-to-r from-purple-200 to-purple-500 rounded-full focus:outline-none"
             style={{
               // Improve touch area for mobile users
-              WebkitAppearance: 'none',
-              background: `linear-gradient(to right, #9333ea ${(currentTime/(duration || 100))*100}%, #e2e8f0 ${(currentTime/(duration || 100))*100}%)`,
+              WebkitAppearance: "none",
+              background: `linear-gradient(to right, #9333ea ${
+                (currentTime / (duration || 100)) * 100
+              }%, #e2e8f0 ${(currentTime / (duration || 100)) * 100}%)`,
               // Enhanced touch targeting
-              touchAction: 'none',
+              touchAction: "none",
             }}
           />
           <span className="text-xs font-medium min-w-[45px]">
@@ -179,11 +193,7 @@ export const MobileControls = () => {
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
               aria-label={volume > 0 ? "Mute" : "Unmute"}
             >
-              {volume > 0 ? (
-                <Volume2 size={22} />
-              ) : (
-                <VolumeX size={22} />
-              )}
+              {volume > 0 ? <Volume2 size={22} /> : <VolumeX size={22} />}
             </button>
           </div>
 
@@ -221,6 +231,19 @@ export const MobileControls = () => {
           {/* Right controls */}
           <div className="flex items-center">
             <button
+              onClick={toggleBookmarkDrawer}
+              className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 relative mr-2"
+              aria-label="Open bookmarks"
+            >
+              <Bookmark size={22} />
+              {bookmarks.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {bookmarks.length > 9 ? "9+" : bookmarks.length}
+                </span>
+              )}
+            </button>
+
+            <button
               onClick={() => setShowABControls(!showABControls)}
               className={`p-3 rounded-full ${
                 isLooping
@@ -247,7 +270,7 @@ export const MobileControls = () => {
               <X size={18} />
             </button>
           </div>
-          
+
           {/* A-B Control Buttons */}
           <div className="flex justify-between mb-4">
             <Button
@@ -259,7 +282,7 @@ export const MobileControls = () => {
               <AlignStartHorizontal size={18} className="mr-1" />
               <span className="font-medium">Set A Point</span>
             </Button>
-            
+
             <Button
               variant="outline"
               size="lg"
@@ -270,7 +293,7 @@ export const MobileControls = () => {
               <AlignEndHorizontal size={18} className="ml-1" />
             </Button>
           </div>
-          
+
           {/* A-B Navigation and Status */}
           <div className="flex justify-between mb-4">
             <Button
@@ -280,9 +303,11 @@ export const MobileControls = () => {
               disabled={loopStart === null}
               className="flex-1 mr-2"
             >
-              <span>A: {loopStart !== null ? formatTime(loopStart) : "--:--"}</span>
+              <span>
+                A: {loopStart !== null ? formatTime(loopStart) : "--:--"}
+              </span>
             </Button>
-            
+
             <Button
               variant="outline"
               size="default"
@@ -293,7 +318,7 @@ export const MobileControls = () => {
               <span>B: {loopEnd !== null ? formatTime(loopEnd) : "--:--"}</span>
             </Button>
           </div>
-          
+
           {/* Loop Controls */}
           <div className="flex justify-between">
             <Button
@@ -305,7 +330,7 @@ export const MobileControls = () => {
               <Repeat size={18} className="mr-1" />
               <span>{isLooping ? "Loop On" : "Loop Off"}</span>
             </Button>
-            
+
             <Button
               variant="outline"
               size="default"
@@ -318,25 +343,29 @@ export const MobileControls = () => {
           </div>
         </div>
       )}
-      
+
       {/* Volume Controls Panel */}
       {showVolumeDrawer && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setShowVolumeDrawer(false)}>
-          <div className="fixed bottom-0 left-0 right-0 max-h-[80vh] bg-white dark:bg-gray-800 rounded-t-xl shadow-xl p-4"
-               onClick={(e) => e.stopPropagation()}
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowVolumeDrawer(false)}
+        >
+          <div
+            className="fixed bottom-0 left-0 right-0 max-h-[80vh] bg-white dark:bg-gray-800 rounded-t-xl shadow-xl p-4"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="h-1.5 w-12 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto my-2" />
-            
+
             <div className="px-4 py-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold">Volume</h2>
-              <button 
+              <button
                 onClick={() => setShowVolumeDrawer(false)}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-4 flex flex-col items-center">
               <div className="flex items-center justify-center mb-4">
                 <button
@@ -345,9 +374,11 @@ export const MobileControls = () => {
                 >
                   {volume > 0 ? <Volume2 size={24} /> : <VolumeX size={24} />}
                 </button>
-                <span className="text-lg font-medium">{Math.round(volume * 100)}%</span>
+                <span className="text-lg font-medium">
+                  {Math.round(volume * 100)}%
+                </span>
               </div>
-              
+
               <input
                 type="range"
                 value={volume}
@@ -357,33 +388,39 @@ export const MobileControls = () => {
                 onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
                 className="w-full h-12 appearance-none bg-gradient-to-r from-purple-200 to-purple-500 rounded-full"
                 style={{
-                  WebkitAppearance: 'none',
-                  background: `linear-gradient(to right, #9333ea ${volume*100}%, #e2e8f0 ${volume*100}%)`
+                  WebkitAppearance: "none",
+                  background: `linear-gradient(to right, #9333ea ${
+                    volume * 100
+                  }%, #e2e8f0 ${volume * 100}%)`,
                 }}
               />
             </div>
           </div>
         </div>
       )}
-      
+
       {/* Playback Speed Panel */}
       {showSpeedControls && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setShowSpeedControls(false)}>
-          <div className="fixed bottom-0 left-0 right-0 max-h-[80vh] bg-white dark:bg-gray-800 rounded-t-xl shadow-xl p-4"
-               onClick={(e) => e.stopPropagation()}
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowSpeedControls(false)}
+        >
+          <div
+            className="fixed bottom-0 left-0 right-0 max-h-[80vh] bg-white dark:bg-gray-800 rounded-t-xl shadow-xl p-4"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="h-1.5 w-12 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto my-2" />
-            
+
             <div className="px-4 py-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold">Playback Speed</h2>
-              <button 
+              <button
                 onClick={() => setShowSpeedControls(false)}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-4 grid grid-cols-3 gap-3">
               {[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((rate) => (
                 <Button
