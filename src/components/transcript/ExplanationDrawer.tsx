@@ -5,7 +5,15 @@ import {
   ExplanationResult,
   AIServiceConfig,
 } from "../../utils/aiService";
-import { Loader, Brain, Globe, BookOpen, Key, Settings } from "lucide-react";
+import {
+  Loader,
+  Brain,
+  Globe,
+  BookOpen,
+  Key,
+  Settings,
+  FileText,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 
 interface ExplanationDrawerProps {
@@ -421,6 +429,19 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
                 {explanation.explanation}
               </p>
             </div>
+
+            {/* Grammar */}
+            {explanation.grammar && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
+                  <FileText size={16} />
+                  Grammar
+                </h4>
+                <p className="text-blue-700 dark:text-blue-300">
+                  {explanation.grammar}
+                </p>
+              </div>
+            )}
 
             {/* Metadata */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

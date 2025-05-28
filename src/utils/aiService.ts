@@ -6,6 +6,7 @@ import { generateText } from "ai";
 export interface ExplanationResult {
   translation?: string;
   explanation: string;
+  grammar?: string;
   language?: string;
   difficulty?: string;
   keyWords?: string[];
@@ -137,6 +138,7 @@ Please respond in this exact JSON format:
 {
   "translation": "translation to ${targetLanguage} if needed, or null if already in ${targetLanguage}",
   "explanation": "detailed explanation of meaning and context in ${targetLanguage}",
+  "grammar": "explanation of grammar structures, tenses, and linguistic patterns used in the text in ${targetLanguage}",
   "language": "detected language of original text (in English)",
   "difficulty": "beginner/intermediate/advanced",
   "keyWords": ["key vocabulary words in original language"]
