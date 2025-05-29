@@ -11,18 +11,16 @@ interface MarkdownRendererProps {
   className?: string;
 }
 
-interface CodeBlockProps {
-  inline?: boolean;
-  className?: string;
-  children?: React.ReactNode;
-  [key: string]: unknown;
-}
-
-const CodeBlock: React.FC<CodeBlockProps> = ({
+const CodeBlock = ({
   inline,
   className,
   children,
   ...props
+}: {
+  inline?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+  [key: string]: unknown;
 }) => {
   const [copied, setCopied] = useState(false);
   const match = /language-(\w+)/.exec(className || "");
@@ -173,7 +171,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           ),
 
           // Code - using our custom CodeBlock component
-          code: CodeBlock,
+          code: CodeBlock as any,
 
           // Blockquotes
           blockquote: ({ children }) => (
