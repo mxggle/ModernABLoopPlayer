@@ -183,39 +183,15 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
     if (!mediaElement) return;
 
     // Create a variable to track the last time we showed a toast
-    let lastToastTime = 0;
-    const toastCooldown = 2000; // 2 seconds cooldown between toasts
-
     const handleSeeking = () => {
       // When user manually seeks, check if we need to enforce loop boundaries
       if (isLooping && loopStart !== null && loopEnd !== null) {
         const currentTimeValue = mediaElement.currentTime;
-        const now = Date.now();
 
         if (currentTimeValue < loopStart) {
           mediaElement.currentTime = loopStart;
-
-          // Only show toast if enough time has passed since the last one
-          if (now - lastToastTime > toastCooldown) {
-            toast("Staying within loop bounds", {
-              duration: 1000,
-              icon: "ℹ️",
-              id: "loop-bounds-toast",
-            });
-            lastToastTime = now;
-          }
         } else if (currentTimeValue > loopEnd) {
           mediaElement.currentTime = loopStart;
-
-          // Only show toast if enough time has passed since the last one
-          if (now - lastToastTime > toastCooldown) {
-            toast("Returning to loop start", {
-              duration: 1000,
-              icon: "ℹ️",
-              id: "loop-start-toast",
-            });
-            lastToastTime = now;
-          }
         }
       }
     };

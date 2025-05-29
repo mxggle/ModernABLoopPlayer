@@ -50,7 +50,6 @@ export const YouTubeInput = ({ onVideoIdSubmit }: YouTubeInputProps) => {
     }
 
     onVideoIdSubmit(videoId);
-    toast.success("YouTube video loaded");
   };
 
   return (

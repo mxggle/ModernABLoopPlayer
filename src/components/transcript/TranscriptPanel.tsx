@@ -11,12 +11,14 @@ import {
   Repeat,
   Pause,
   Brain,
+  Settings,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { OpenAI } from "openai";
-import FormData from "form-data";
 import { TranscriptUploader } from "./TranscriptUploader";
 import { ExplanationDrawer } from "./ExplanationDrawer";
+import { useNavigate } from "react-router-dom";
+import { breakIntoSentences as utilBreakIntoSentences } from "../../utils/sentenceBreaker";
 
 // Import types from store
 import { TranscriptSegment as TranscriptSegmentType } from "../../stores/playerStore";
@@ -43,7 +45,351 @@ interface WhisperResponse {
   segments: WhisperSegment[];
 }
 
+// TranscriptSegmentItem component
+const TranscriptSegmentItem = ({
+  segment,
+}: {
+  segment: TranscriptSegmentType;
+}) => {
+  const [showExplanation, setShowExplanation] = useState(false);
+
+  const {
+    setCurrentTime,
+    createBookmarkFromTranscript,
+    currentTime,
+    setIsPlaying,
+    getCurrentMediaBookmarks,
+    setIsLooping,
+    setLoopPoints,
+    isLooping,
+    isPlaying,
+  } = usePlayerStore();
+
+  // Get current media bookmarks to check if this segment is bookmarked
+  const bookmarks = getCurrentMediaBookmarks();
+
+  // Format time as MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Jump to this segment's time and start playing
+  const handleJumpToTime = () => {
+    // Cancel any active A-B loop to allow the selected line to play with highest priority
+    setIsLooping(false);
+
+    // Add a small buffer before the segment start to prevent cutoff
+    const bufferTime = 0.15; // 150ms buffer to catch any lead-in audio
+    const startTime = Math.max(0, segment.startTime - bufferTime);
+
+    setCurrentTime(startTime);
+    setIsPlaying(true); // Start playback immediately
+  };
+
+  // Pause playback
+  const handlePausePlayback = () => {
+    setIsPlaying(false);
+  };
+
+  // Get player state for checking loop status
+  const playerState = usePlayerStore.getState();
+  const currentLoopStart = playerState.loopStart;
+  const currentLoopEnd = playerState.loopEnd;
+
+  // Check if this segment is currently being looped
+  const bufferTime = 0.15; // Same buffer as used in loop creation
+  const expectedLoopStart = Math.max(0, segment.startTime - bufferTime);
+
+  const isCurrentlyLooping =
+    isLooping &&
+    currentLoopStart !== null &&
+    currentLoopEnd !== null &&
+    Math.abs(currentLoopStart - expectedLoopStart) < 0.1 &&
+    Math.abs(currentLoopEnd - segment.endTime) < 0.1;
+
+  // Determine if this segment is currently active
+  // For looped segments, consider the buffer zone as part of the active range
+  // But ensure only the looped segment gets priority when looping is active
+  const isActive = isCurrentlyLooping
+    ? currentTime >= expectedLoopStart && currentTime <= segment.endTime
+    : !isLooping &&
+      currentTime >= segment.startTime &&
+      currentTime <= segment.endTime;
+
+  // Determine if we should show pause button (when segment is active and audio is playing)
+  const shouldShowPauseButton = isActive && isPlaying;
+
+  // Toggle looping for this segment
+  const handleToggleLoop = () => {
+    // If we're already looping this segment, turn off looping
+    if (
+      isLooping &&
+      currentLoopStart !== null &&
+      currentLoopEnd !== null &&
+      Math.abs(currentLoopStart - expectedLoopStart) < 0.1 &&
+      Math.abs(currentLoopEnd - segment.endTime) < 0.1
+    ) {
+      setIsLooping(false);
+    } else {
+      // Add a small buffer before the segment start to prevent cutoff
+      const bufferTime = 0.15; // 150ms buffer to catch any lead-in audio
+      const loopStartTime = Math.max(0, segment.startTime - bufferTime);
+
+      // Set loop points to this segment's start and end times
+      setLoopPoints(loopStartTime, segment.endTime);
+      setIsLooping(true);
+      // Jump to start of the segment (with buffer)
+      setCurrentTime(loopStartTime);
+      setIsPlaying(true);
+    }
+  };
+
+  // Toggle bookmark for this segment
+  const handleToggleBookmark = () => {
+    // If already bookmarked, find and delete the bookmark
+    if (isBookmarked) {
+      // Find the bookmark ID that matches this segment
+      const bookmarkToDelete = bookmarks.find(
+        (bookmark) =>
+          Math.abs(bookmark.start - segment.startTime) < 0.5 &&
+          Math.abs(bookmark.end - segment.endTime) < 0.5
+      );
+
+      if (bookmarkToDelete) {
+        // Use the deleteBookmark function from the store
+        usePlayerStore.getState().deleteBookmark(bookmarkToDelete.id);
+      }
+    } else {
+      // Create a new bookmark
+      createBookmarkFromTranscript(segment.id);
+    }
+  };
+
+  // Handle explain button click
+  const handleExplain = () => {
+    setShowExplanation(true);
+  };
+
+  // Check if this segment has an associated bookmark
+  const isBookmarked = bookmarks.some(
+    (bookmark) =>
+      Math.abs(bookmark.start - segment.startTime) < 0.5 &&
+      Math.abs(bookmark.end - segment.endTime) < 0.5
+  );
+
+  return (
+    <>
+      <div
+        className={`p-2 rounded-md ${
+          isActive
+            ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
+            : "bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/50"
+        } transition-colors`}
+      >
+        <div className="flex justify-between items-start mb-1">
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+            {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
+          </span>
+
+          <div className="flex space-x-1">
+            <button
+              onClick={
+                shouldShowPauseButton ? handlePausePlayback : handleJumpToTime
+              }
+              className={`p-1 rounded transition-colors ${
+                isActive
+                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+              }`}
+              title={
+                shouldShowPauseButton
+                  ? "Pause playback"
+                  : "Play from this segment"
+              }
+            >
+              {shouldShowPauseButton ? (
+                <Pause size={18} fill="currentColor" />
+              ) : (
+                <Play size={18} fill={isActive ? "currentColor" : "none"} />
+              )}
+            </button>
+
+            <button
+              onClick={handleToggleLoop}
+              className={`p-1 rounded transition-colors ${
+                isCurrentlyLooping
+                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+              }`}
+              title={
+                isCurrentlyLooping
+                  ? "Stop looping this segment"
+                  : "Loop this segment"
+              }
+            >
+              <Repeat
+                size={18}
+                fill={isCurrentlyLooping ? "currentColor" : "none"}
+              />
+            </button>
+
+            <button
+              onClick={handleToggleBookmark}
+              className={`p-1 rounded transition-colors ${
+                isBookmarked
+                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+              }`}
+              title={
+                isBookmarked
+                  ? "Remove bookmark for this segment"
+                  : "Create bookmark from this segment"
+              }
+            >
+              <Bookmark
+                size={18}
+                fill={isBookmarked ? "currentColor" : "none"}
+              />
+            </button>
+
+            <button
+              onClick={handleExplain}
+              className="p-1 rounded transition-colors text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+              title="Explain this text with AI"
+            >
+              <Brain size={18} />
+            </button>
+          </div>
+        </div>
+
+        <p className="text-gray-800 dark:text-gray-200">{segment.text}</p>
+      </div>
+
+      <ExplanationDrawer
+        isOpen={showExplanation}
+        onClose={() => setShowExplanation(false)}
+        text={segment.text}
+      />
+    </>
+  );
+};
+
+// TranscriptControlsPanel component
+const TranscriptControlsPanel = () => {
+  const { transcriptLanguage, setTranscriptLanguage, exportTranscript } =
+    usePlayerStore();
+
+  const LANGUAGE_OPTIONS = [
+    { value: "en-US", label: "English (US)" },
+    { value: "en-GB", label: "English (UK)" },
+    { value: "es-ES", label: "Spanish" },
+    { value: "fr-FR", label: "French" },
+    { value: "de-DE", label: "German" },
+    { value: "ja-JP", label: "Japanese" },
+    { value: "ko-KR", label: "Korean" },
+    { value: "zh-CN", label: "Chinese (Simplified)" },
+    { value: "ru-RU", label: "Russian" },
+  ];
+
+  return (
+    <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center">
+        <label
+          htmlFor="transcript-language"
+          className="text-xs text-gray-600 dark:text-gray-400 mr-2"
+        >
+          Language:
+        </label>
+        <select
+          id="transcript-language"
+          value={transcriptLanguage}
+          onChange={(e) => setTranscriptLanguage(e.target.value)}
+          className="text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-gray-700 dark:text-gray-300"
+        >
+          {LANGUAGE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex items-center space-x-1 text-xs">
+        <button
+          onClick={() => {
+            const content = exportTranscript("txt");
+            if (!content) return;
+
+            // Create a blob and download link
+            const blob = new Blob([content], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `transcript.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast.success(`Transcript exported as TXT`);
+          }}
+          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-gray-300"
+        >
+          TXT
+        </button>
+        <button
+          onClick={() => {
+            const content = exportTranscript("srt");
+            if (!content) return;
+
+            // Create a blob and download link
+            const blob = new Blob([content], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `transcript.srt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast.success(`Transcript exported as SRT`);
+          }}
+          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-gray-300"
+        >
+          SRT
+        </button>
+        <button
+          onClick={() => {
+            const content = exportTranscript("vtt");
+            if (!content) return;
+
+            // Create a blob and download link
+            const blob = new Blob([content], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `transcript.vtt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast.success(`Transcript exported as VTT`);
+          }}
+          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-gray-300"
+        >
+          VTT
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const TranscriptPanel = () => {
+  const navigate = useNavigate();
   const {
     getCurrentMediaTranscripts,
     isTranscribing,
@@ -82,6 +428,9 @@ export const TranscriptPanel = () => {
       localStorage.setItem("openai_api_key", apiKey);
       setShowApiKeyInput(false);
       toast.success("API key saved");
+
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent("ai-settings-updated"));
     }
   };
 
@@ -91,7 +440,27 @@ export const TranscriptPanel = () => {
     if (savedApiKey) {
       setApiKey(savedApiKey);
     }
+
+    // Listen for AI settings updates from the AI Settings page
+    const handleSettingsUpdate = () => {
+      const updatedApiKey = localStorage.getItem("openai_api_key");
+      if (updatedApiKey) {
+        setApiKey(updatedApiKey);
+      } else {
+        setApiKey("");
+      }
+    };
+
+    window.addEventListener("ai-settings-updated", handleSettingsUpdate);
+
+    return () => {
+      window.removeEventListener("ai-settings-updated", handleSettingsUpdate);
+    };
   }, []);
+
+  const handleOpenAISettings = () => {
+    navigate("/ai-settings");
+  };
 
   // Function to extract audio from the media file
   const extractAudioFromMedia = async (): Promise<Blob> => {
@@ -207,67 +576,128 @@ export const TranscriptPanel = () => {
         type: "audio/wav",
       });
 
-      // Create a FormData object to send to the OpenAI API
-      const formData = new FormData();
-      formData.append("file", audioFile);
-      formData.append("model", "whisper-1");
-      formData.append("response_format", "verbose_json");
-      formData.append("timestamp_granularities", ["segment"]);
-
       setProcessingProgress(50);
-      toast.success("Sending audio to OpenAI for transcription...");
 
-      // Send the audio to the OpenAI API
-      const response = await openaiRef.current.audio.transcriptions.create({
-        file: audioFile,
-        model: "whisper-1",
-        response_format: "verbose_json",
-        timestamp_granularities: ["segment"],
-      });
+      // Enhanced Whisper API call with better sentence segmentation parameters
+      let response;
+      try {
+        // Try with advanced parameters first - request both word and segment timestamps
+        response = await openaiRef.current.audio.transcriptions.create({
+          file: audioFile,
+          model: "whisper-1",
+          response_format: "verbose_json",
+          timestamp_granularities: ["word", "segment"],
+          prompt:
+            "Please transcribe this audio with proper sentence breaks and punctuation. Break long sentences into shorter, more natural segments.", // Prompt to encourage better sentence breaking
+          temperature: 0.0, // Lower temperature for more consistent results
+        });
+      } catch (advancedError) {
+        console.warn(
+          "Advanced Whisper parameters failed, falling back to basic:",
+          advancedError
+        );
+
+        // Fallback to basic parameters
+        response = await openaiRef.current.audio.transcriptions.create({
+          file: audioFile,
+          model: "whisper-1",
+          response_format: "verbose_json",
+          temperature: 0.0,
+        });
+      }
 
       setProcessingProgress(80);
 
-      // Process the response and add segments to the store
-      const whisperResponse = response as unknown as WhisperResponse;
+      // Process the response with enhanced continuous segment creation
+      const whisperResponse = response as unknown as WhisperResponse & {
+        words?: Array<{
+          word: string;
+          start: number;
+          end: number;
+        }>;
+      };
+
       if (whisperResponse && whisperResponse.segments) {
-        whisperResponse.segments.forEach((segment, index) => {
-          addTranscriptSegment({
-            text: segment.text.trim(),
+        // Use the enhanced continuous segments approach
+        const continuousSegments = createContinuousSegments(whisperResponse);
+
+        continuousSegments.forEach((segment, index) => {
+          console.log(`Adding continuous segment ${index + 1}:`, {
+            text: segment.text,
             startTime: segment.start,
             endTime: segment.end,
+            duration: segment.end - segment.start,
+          });
+
+          addTranscriptSegment({
+            text: segment.text.trim(),
+            startTime: Math.max(0, segment.start),
+            endTime: Math.max(segment.start, segment.end),
             confidence: Math.exp(segment.avg_logprob),
             isFinal: true,
           });
 
           // Update progress
           const progress =
-            Math.round(
-              ((index + 1) / (whisperResponse.segments.length || 1)) * 20
-            ) + 80;
+            Math.round(((index + 1) / continuousSegments.length) * 20) + 80;
           setProcessingProgress(Math.min(progress, 100));
         });
-
-        toast.success("Transcription completed");
       } else {
-        // If no segments are returned, use the full transcript
-        addTranscriptSegment({
-          text: response.text,
-          startTime: 0,
-          endTime: 30, // Arbitrary end time
-          confidence: 0.95,
-          isFinal: true,
-        });
+        // If no segments are returned, use the full transcript with basic sentence breaking
+        const sentences = await utilBreakIntoSentences(response.text);
+        sentences.forEach((sentence, index) => {
+          const startTime = (index * 30) / sentences.length; // Estimate timing
+          const endTime = ((index + 1) * 30) / sentences.length;
 
-        toast.success("Transcription completed (without timestamps)");
+          addTranscriptSegment({
+            text: sentence.trim(),
+            startTime: Math.max(0, startTime),
+            endTime: Math.max(startTime, endTime), // Ensure at least 1s duration
+            confidence: 0.95,
+            isFinal: true,
+          });
+        });
       }
 
       setProcessingProgress(100);
     } catch (error) {
       console.error("Error transcribing media:", error);
-      setErrorMessage(
-        "Failed to transcribe media. Please check your API key and try again."
-      );
-      toast.error("Transcription failed");
+
+      // More detailed error handling
+      let errorMessage = "Failed to transcribe media. ";
+
+      if (error instanceof Error) {
+        if (
+          error.message.includes("401") ||
+          error.message.includes("Unauthorized")
+        ) {
+          errorMessage += "Invalid API key. Please check your OpenAI API key.";
+        } else if (
+          error.message.includes("429") ||
+          error.message.includes("rate limit")
+        ) {
+          errorMessage += "Rate limit exceeded. Please try again later.";
+        } else if (
+          error.message.includes("413") ||
+          error.message.includes("too large")
+        ) {
+          errorMessage +=
+            "Audio file is too large. Please use a shorter audio file.";
+        } else if (
+          error.message.includes("network") ||
+          error.message.includes("fetch")
+        ) {
+          errorMessage +=
+            "Network error. Please check your internet connection.";
+        } else {
+          errorMessage += `Error: ${error.message}`;
+        }
+      } else {
+        errorMessage += "Unknown error occurred.";
+      }
+
+      setErrorMessage(errorMessage);
+      toast.error(errorMessage);
 
       // Fall back to simulation for demo purposes
       await simulateTranscription();
@@ -276,71 +706,478 @@ export const TranscriptPanel = () => {
     }
   };
 
+  // Helper function to create intelligent segments from word-level timestamps
+  // TEMPORARILY DISABLED
+  /*
+  const createIntelligentSegments = async (
+    words: Array<{ word: string; start: number; end: number }>,
+    fullText: string
+  ) => {
+    console.log("Creating intelligent segments from", words.length, "words");
+    console.log("Full text:", fullText);
+
+    // Instead of trying to match sentences to words, let's use a simpler approach:
+    // 1. Create segments based on natural pauses in the word timestamps
+    // 2. Then apply sentence breaking to the text within reasonable time boundaries
+    // 3. Bridge gaps to create continuous timing for better loop functionality
+
+    const segments = [];
+    const pauseThreshold = 0.8; // If there's more than 0.8s gap between words, consider it a segment break
+
+    let currentSegmentWords = [];
+    let currentSegmentText = "";
+    let lastSegmentEndTime = 0; // Track the end time of the last segment to ensure continuity
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const nextWord = words[i + 1];
+
+      currentSegmentWords.push(word);
+      currentSegmentText += word.word + " ";
+
+      // Check if this should be the end of a segment
+      const shouldEndSegment =
+        !nextWord || // Last word
+        nextWord.start - word.end > pauseThreshold || // Long pause
+        currentSegmentText.length > 200; // Segment getting too long
+
+      if (shouldEndSegment && currentSegmentWords.length > 0) {
+        // Use continuous timing - start where last segment ended, or at the first word's start time
+        const segmentStart =
+          lastSegmentEndTime > 0
+            ? lastSegmentEndTime
+            : currentSegmentWords[0].start;
+        const naturalSegmentEnd =
+          currentSegmentWords[currentSegmentWords.length - 1].end;
+
+        // If there's a next word, extend this segment to bridge the gap
+        const segmentEnd = nextWord ? nextWord.start : naturalSegmentEnd;
+
+        // Apply sentence breaking to this segment's text
+        const sentences = utilBreakIntoSentences(currentSegmentText.trim());
+
+        if (sentences.length > 1) {
+          // Multiple sentences in this segment - split the timing proportionally
+          const totalDuration = segmentEnd - segmentStart;
+          const totalLength = currentSegmentText.trim().length;
+
+          let currentTime = segmentStart;
+
+          sentences.forEach((sentence, sentenceIndex) => {
+            const sentenceLength = sentence.length;
+            const sentenceDuration = Math.max(
+              0.5,
+              (sentenceLength / totalLength) * totalDuration
+            );
+            let endTime =
+              sentenceIndex === sentences.length - 1
+                ? segmentEnd
+                : currentTime + sentenceDuration;
+
+            // Ensure minimum duration of 0.3 seconds but don't create gaps
+            const minDuration = 0.3;
+            const actualDuration = endTime - currentTime;
+            if (actualDuration < minDuration) {
+              endTime = currentTime + minDuration;
+            }
+
+            segments.push({
+              text: sentence,
+              startTime: currentTime,
+              endTime: endTime,
+              confidence: 0.9,
+            });
+
+            console.log(
+              `Created sentence segment: "${sentence}" (${currentTime}s - ${endTime}s)`
+            );
+            currentTime = endTime; // No gap - next sentence starts exactly where this one ends
+          });
+
+          lastSegmentEndTime = segmentEnd;
+        } else {
+          // Single sentence - use the full segment timing
+          segments.push({
+            text: currentSegmentText.trim(),
+            startTime: segmentStart,
+            endTime: segmentEnd,
+            confidence: 0.9,
+          });
+
+          console.log(
+            `Created single segment: "${currentSegmentText.trim()}" (${segmentStart}s - ${segmentEnd}s)`
+          );
+
+          lastSegmentEndTime = segmentEnd;
+        }
+
+        // Reset for next segment
+        currentSegmentWords = [];
+        currentSegmentText = "";
+      }
+    }
+
+    console.log("Final segments:", segments);
+    return segments;
+  };
+  */
+
+  // Helper function to post-process segments for better sentence breaking
+  // TEMPORARILY DISABLED
+  /*
+  const postProcessSegments = async (segments: WhisperSegment[]) => {
+    const processedSegments = [];
+
+    for (const segment of segments) {
+      // If segment is too long, try to break it into sentences
+      if (segment.text.length > 100) {
+        const sentences = await utilBreakIntoSentences(segment.text);
+
+        if (sentences.length > 1) {
+          const duration = segment.end - segment.start;
+          const timePerSentence = duration / sentences.length;
+
+          sentences.forEach((sentence, index) => {
+            const segmentStart = segment.start + index * timePerSentence;
+            const segmentEnd = segment.start + (index + 1) * timePerSentence;
+
+            // Ensure minimum duration of 0.3 seconds but don't create gaps
+            const minDuration = 0.3;
+            const actualDuration = segmentEnd - segmentStart;
+            const finalEnd =
+              actualDuration < minDuration
+                ? segmentStart + minDuration
+                : segmentEnd;
+
+            processedSegments.push({
+              ...segment,
+              text: sentence,
+              start: segmentStart,
+              end: finalEnd,
+            });
+          });
+        } else {
+          processedSegments.push(segment);
+        }
+      } else {
+        processedSegments.push(segment);
+      }
+    }
+
+    return processedSegments;
+  };
+  */
+
+  // Enhanced function to create continuous segments from Whisper response
+  const createContinuousSegments = (
+    whisperResponse: WhisperResponse & {
+      words?: Array<{
+        word: string;
+        start: number;
+        end: number;
+      }>;
+    }
+  ) => {
+    console.log("Creating continuous segments from Whisper response");
+
+    // Strategy 1: Use word-level timestamps if available (most accurate)
+    if (whisperResponse.words && whisperResponse.words.length > 0) {
+      console.log("Using word-level timestamps for better accuracy");
+      return createSegmentsFromWords(
+        whisperResponse.words,
+        whisperResponse.segments
+      );
+    }
+
+    // Strategy 2: Fill gaps in segment-level timestamps
+    console.log("Using segment-level timestamps with gap filling");
+    return fillSegmentGaps(whisperResponse.segments);
+  };
+
+  // Create segments from word-level timestamps (most accurate approach)
+  const createSegmentsFromWords = (
+    words: Array<{ word: string; start: number; end: number }>,
+    originalSegments: WhisperSegment[]
+  ) => {
+    const segments: WhisperSegment[] = [];
+    const maxSegmentDuration = 10; // Maximum 10 seconds per segment
+    const minSegmentDuration = 1; // Minimum 1 second per segment
+
+    let wordIndex = 0;
+
+    for (const originalSegment of originalSegments) {
+      // Find words that belong to this segment based on timing overlap
+      const segmentWords = [];
+      const segmentStartTime = originalSegment.start;
+      const segmentEndTime = originalSegment.end;
+
+      // Collect words that fall within this segment's timeframe
+      while (wordIndex < words.length) {
+        const word = words[wordIndex];
+
+        // Check if word overlaps with current segment
+        if (word.start >= segmentStartTime && word.start <= segmentEndTime) {
+          segmentWords.push(word);
+          wordIndex++;
+        } else if (word.start > segmentEndTime) {
+          // Word is beyond current segment, break to next segment
+          break;
+        } else {
+          // Word is before current segment, skip it
+          wordIndex++;
+        }
+      }
+
+      if (segmentWords.length === 0) {
+        // No words found, use original segment with gap filling
+        const adjustedStart: number =
+          segments.length > 0
+            ? segments[segments.length - 1].end
+            : originalSegment.start;
+        segments.push({
+          ...originalSegment,
+          start: adjustedStart,
+          end: Math.max(
+            adjustedStart + minSegmentDuration,
+            originalSegment.end
+          ),
+        });
+        continue;
+      }
+
+      // Create continuous segments from words
+      let segmentStart = segmentWords[0].start;
+      const segmentEnd = segmentWords[segmentWords.length - 1].end;
+
+      // Ensure continuity with previous segment (aggressive anti-cutoff approach)
+      if (segments.length > 0) {
+        const lastSegment = segments[segments.length - 1];
+        const gap = segmentStart - lastSegment.end;
+
+        if (gap > 0) {
+          if (gap <= 1.0) {
+            // Small to medium gaps - fill almost completely
+            lastSegment.end = segmentStart - 0.05;
+          } else if (gap <= 2.5) {
+            // Large gaps - fill most of it
+            const extension = gap * 0.8;
+            lastSegment.end = lastSegment.end + extension;
+            segmentStart = lastSegment.end + 0.05;
+          } else {
+            // Very large gaps - still extend significantly to prevent cutoff
+            const extension = Math.min(1.2, gap * 0.5);
+            lastSegment.end = lastSegment.end + extension;
+          }
+        } else if (gap < 0) {
+          // Overlap - adjust current segment start
+          segmentStart = lastSegment.end + 0.05;
+        }
+      }
+
+      // Split long segments if necessary
+      if (segmentEnd - segmentStart > maxSegmentDuration) {
+        // Split into multiple segments
+        const wordsPerSegment = Math.ceil(
+          segmentWords.length /
+            Math.ceil((segmentEnd - segmentStart) / maxSegmentDuration)
+        );
+
+        for (let i = 0; i < segmentWords.length; i += wordsPerSegment) {
+          const segmentWordSlice = segmentWords.slice(i, i + wordsPerSegment);
+          const subSegmentStart =
+            i === 0 ? segmentStart : segmentWordSlice[0].start;
+          const subSegmentEnd =
+            segmentWordSlice[segmentWordSlice.length - 1].end;
+          const subSegmentText = segmentWordSlice.map((w) => w.word).join("");
+
+          segments.push({
+            ...originalSegment,
+            id: segments.length,
+            start: subSegmentStart,
+            end: subSegmentEnd,
+            text: subSegmentText,
+          });
+        }
+      } else {
+        // Single segment
+        segments.push({
+          ...originalSegment,
+          id: segments.length,
+          start: segmentStart,
+          end: segmentEnd,
+          text: segmentWords.map((w) => w.word).join(""),
+        });
+      }
+    }
+
+    // Final pass: aggressively eliminate gaps that could cause cutoff
+    for (let i = 1; i < segments.length; i++) {
+      const prevSegment = segments[i - 1];
+      const currentSegment = segments[i];
+
+      if (currentSegment.start > prevSegment.end) {
+        const gap = currentSegment.start - prevSegment.end;
+
+        if (gap <= 1.0) {
+          // Small to medium gaps - fill almost completely
+          const buffer = 0.05;
+          const fillableGap = gap - buffer;
+          const extension = fillableGap * 0.9; // Fill 90% of fillable gap
+          prevSegment.end = prevSegment.end + extension;
+          currentSegment.start = prevSegment.end + buffer;
+        } else if (gap <= 2.5) {
+          // Large gaps - fill most of it
+          const extension = gap * 0.7;
+          prevSegment.end = prevSegment.end + extension;
+          currentSegment.start =
+            currentSegment.start - (gap - extension - 0.05);
+        } else {
+          // Very large gaps - still fill significantly to prevent cutoff
+          const extension = Math.min(1.0, gap * 0.4);
+          prevSegment.end = prevSegment.end + extension;
+        }
+      }
+    }
+
+    console.log(
+      `Created ${segments.length} continuous segments from word-level timestamps`
+    );
+    return segments;
+  };
+
+  // Enhanced gap-filling function optimized to prevent any audio cutoff
+  const fillSegmentGaps = (segments: WhisperSegment[]) => {
+    if (segments.length === 0) return segments;
+
+    const filledSegments = [];
+    const sortedSegments = [...segments].sort((a, b) => a.start - b.start);
+    const minSegmentDuration = 0.5; // Minimum segment duration
+
+    for (let i = 0; i < sortedSegments.length; i++) {
+      const currentSegment = { ...sortedSegments[i] };
+      const nextSegment = sortedSegments[i + 1];
+
+      // Ensure minimum duration
+      if (currentSegment.end - currentSegment.start < minSegmentDuration) {
+        currentSegment.end = currentSegment.start + minSegmentDuration;
+      }
+
+      // Aggressive gap filling to prevent any audio cutoff
+      if (nextSegment) {
+        const gap = nextSegment.start - currentSegment.end;
+
+        if (gap > 0) {
+          if (gap <= 1.0) {
+            // Small to medium gaps (≤1s) - fill almost completely to prevent cutoff
+            currentSegment.end = nextSegment.start - 0.05; // Leave minimal buffer
+            console.log(
+              `Aggressively filled gap of ${gap.toFixed(
+                3
+              )}s between segments ${i} and ${i + 1}`
+            );
+          } else if (gap <= 2.0) {
+            // Larger gaps (1-2s) - fill most of it to prevent cutoff
+            const extension = gap * 0.85; // Fill 85% of gap
+            currentSegment.end = currentSegment.end + extension;
+            console.log(
+              `Filled large gap of ${gap.toFixed(
+                3
+              )}s by extending ${extension.toFixed(3)}s`
+            );
+          } else if (gap <= 4.0) {
+            // Very large gaps (2-4s) - still extend significantly to prevent cutoff
+            const extension = Math.min(1.0, gap * 0.6); // Max 1s extension, or 60% of gap
+            currentSegment.end = currentSegment.end + extension;
+            console.log(
+              `Extended for very large gap of ${gap.toFixed(
+                3
+              )}s by ${extension.toFixed(3)}s`
+            );
+          } else {
+            // Extremely large gaps (>4s) - minimal extension but still prevent cutoff
+            const extension = Math.min(0.8, gap * 0.3); // Max 0.8s extension
+            currentSegment.end = currentSegment.end + extension;
+            console.log(
+              `Minimal extension for huge gap of ${gap.toFixed(
+                3
+              )}s by ${extension.toFixed(3)}s`
+            );
+          }
+        } else if (gap < 0) {
+          // Overlap - adjust current segment end but leave small buffer
+          currentSegment.end = nextSegment.start - 0.05;
+          console.log(`Resolved overlap between segments ${i} and ${i + 1}`);
+        }
+      }
+
+      filledSegments.push(currentSegment);
+    }
+
+    return filledSegments;
+  };
+
   // Simulate transcription process for demo purposes
   const simulateTranscription = async () => {
-    const mediaName = currentFile?.name || `YouTube: ${currentYouTube?.id}`;
-    toast.success(`Starting transcription of ${mediaName}`);
-
-    // Sample transcript segments to simulate real transcription
+    // Sample transcript segments to simulate real transcription - with continuous timing (no gaps)
     const sampleSegments = [
       {
         text: "Welcome to this audio demonstration.",
-        startTime: 1.2,
+        startTime: 0.0,
         endTime: 3.5,
         confidence: 0.92,
       },
       {
         text: "Today we'll explore the key features of our application.",
-        startTime: 3.8,
+        startTime: 3.5,
         endTime: 7.2,
         confidence: 0.89,
       },
       {
         text: "The first feature is the ability to create precise loops.",
-        startTime: 7.5,
+        startTime: 7.2,
         endTime: 10.8,
         confidence: 0.95,
       },
       {
         text: "You can set the start and end points exactly where you want them.",
-        startTime: 11.2,
+        startTime: 10.8,
         endTime: 14.5,
         confidence: 0.91,
       },
       {
         text: "This is perfect for musicians practicing difficult passages.",
-        startTime: 14.8,
+        startTime: 14.5,
         endTime: 18.2,
         confidence: 0.88,
       },
       {
         text: "Or for language learners who want to repeat specific phrases.",
-        startTime: 18.5,
+        startTime: 18.2,
         endTime: 22.0,
         confidence: 0.93,
       },
       {
         text: "The second feature is our waveform visualization.",
-        startTime: 22.5,
+        startTime: 22.0,
         endTime: 25.8,
         confidence: 0.9,
       },
       {
         text: "It helps you see the audio structure and identify specific parts.",
-        startTime: 26.2,
+        startTime: 25.8,
         endTime: 30.0,
         confidence: 0.87,
       },
       {
         text: "And now we've added automatic transcription.",
-        startTime: 30.5,
+        startTime: 30.0,
         endTime: 33.2,
         confidence: 0.94,
       },
       {
         text: "So you can read along as you listen.",
-        startTime: 33.5,
-        endTime: 35.8,
+        startTime: 33.2,
+        endTime: 36.0,
         confidence: 0.92,
       },
     ];
@@ -359,8 +1196,8 @@ export const TranscriptPanel = () => {
       // Add segment to store
       addTranscriptSegment({
         text: segment.text,
-        startTime: segment.startTime,
-        endTime: segment.endTime,
+        startTime: Math.max(0, segment.startTime),
+        endTime: Math.max(segment.startTime, segment.endTime), // Remove the 0.5s buffer
         confidence: segment.confidence,
         isFinal: true,
       });
@@ -368,8 +1205,6 @@ export const TranscriptPanel = () => {
       // Delay to simulate processing time
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
-
-    toast.success("Transcription completed");
   };
 
   // Scroll to bottom when new segments are added
@@ -430,6 +1265,14 @@ export const TranscriptPanel = () => {
             title="Set OpenAI API Key"
           >
             <Key size={16} />
+          </button>
+
+          <button
+            onClick={handleOpenAISettings}
+            className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+            title="Open AI Settings"
+          >
+            <Settings size={16} />
           </button>
 
           <button
@@ -570,341 +1413,3 @@ export const TranscriptPanel = () => {
     </div>
   );
 };
-
-// Inline TranscriptSegmentItem component
-const TranscriptSegmentItem = ({
-  segment,
-}: {
-  segment: TranscriptSegmentType;
-}) => {
-  const [showExplanation, setShowExplanation] = useState(false);
-
-  const {
-    setCurrentTime,
-    createBookmarkFromTranscript,
-    currentTime,
-    setIsPlaying,
-    getCurrentMediaBookmarks,
-    setIsLooping,
-    setLoopPoints,
-    isLooping,
-    isPlaying,
-  } = usePlayerStore();
-
-  // Get current media bookmarks to check if this segment is bookmarked
-  const bookmarks = getCurrentMediaBookmarks();
-
-  // Format time as MM:SS
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  // Jump to this segment's time and start playing
-  const handleJumpToTime = () => {
-    // Cancel any active A-B loop to allow the selected line to play with highest priority
-    setIsLooping(false);
-
-    setCurrentTime(segment.startTime);
-    setIsPlaying(true); // Start playback immediately
-    toast.success(`Playing from ${formatTime(segment.startTime)}`);
-  };
-
-  // Pause playback
-  const handlePausePlayback = () => {
-    setIsPlaying(false);
-    toast.success("Playback paused");
-  };
-
-  // Get player state for checking loop status
-  const playerState = usePlayerStore.getState();
-  const currentLoopStart = playerState.loopStart;
-  const currentLoopEnd = playerState.loopEnd;
-
-  // Toggle looping for this segment
-  const handleToggleLoop = () => {
-    // If we're already looping this segment, turn off looping
-    if (
-      isLooping &&
-      currentLoopStart !== null &&
-      currentLoopEnd !== null &&
-      Math.abs(currentLoopStart - segment.startTime) < 0.1 &&
-      Math.abs(currentLoopEnd - segment.endTime) < 0.1
-    ) {
-      setIsLooping(false);
-      toast.success("Loop disabled");
-    } else {
-      // Set loop points to this segment's start and end times
-      setLoopPoints(segment.startTime, segment.endTime);
-      setIsLooping(true);
-      // Jump to start of the segment
-      setCurrentTime(segment.startTime);
-      setIsPlaying(true);
-      toast.success(
-        `Looping: ${formatTime(segment.startTime)} - ${formatTime(
-          segment.endTime
-        )}`
-      );
-    }
-  };
-
-  // Toggle bookmark for this segment
-  const handleToggleBookmark = () => {
-    // If already bookmarked, find and delete the bookmark
-    if (isBookmarked) {
-      // Find the bookmark ID that matches this segment
-      const bookmarkToDelete = bookmarks.find(
-        (bookmark) =>
-          Math.abs(bookmark.start - segment.startTime) < 0.5 &&
-          Math.abs(bookmark.end - segment.endTime) < 0.5
-      );
-
-      if (bookmarkToDelete) {
-        // Use the deleteBookmark function from the store
-        usePlayerStore.getState().deleteBookmark(bookmarkToDelete.id);
-        toast.success("Bookmark removed");
-      }
-    } else {
-      // Create a new bookmark
-      createBookmarkFromTranscript(segment.id);
-    }
-  };
-
-  // Handle explain button click
-  const handleExplain = () => {
-    setShowExplanation(true);
-  };
-
-  // Check if this segment has an associated bookmark
-  const isBookmarked = bookmarks.some(
-    (bookmark) =>
-      Math.abs(bookmark.start - segment.startTime) < 0.5 &&
-      Math.abs(bookmark.end - segment.endTime) < 0.5
-  );
-
-  // Check if this segment is currently being looped
-  const isCurrentlyLooping =
-    isLooping &&
-    currentLoopStart !== null &&
-    currentLoopEnd !== null &&
-    Math.abs(currentLoopStart - segment.startTime) < 0.1 &&
-    Math.abs(currentLoopEnd - segment.endTime) < 0.1;
-
-  // Determine if this segment is currently active
-  const isActive =
-    currentTime >= segment.startTime && currentTime <= segment.endTime;
-
-  // Determine if we should show pause button (when segment is active and audio is playing)
-  const shouldShowPauseButton = isActive && isPlaying;
-
-  return (
-    <>
-      <div
-        className={`p-2 rounded-md ${
-          isActive
-            ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
-            : "bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/50"
-        } transition-colors`}
-      >
-        <div className="flex justify-between items-start mb-1">
-          <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-            {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
-          </span>
-
-          <div className="flex space-x-1">
-            <button
-              onClick={
-                shouldShowPauseButton ? handlePausePlayback : handleJumpToTime
-              }
-              className={`p-1 rounded transition-colors ${
-                isActive
-                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
-                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-              }`}
-              title={
-                shouldShowPauseButton
-                  ? "Pause playback"
-                  : "Play from this segment"
-              }
-            >
-              {shouldShowPauseButton ? (
-                <Pause size={18} fill="currentColor" />
-              ) : (
-                <Play size={18} fill={isActive ? "currentColor" : "none"} />
-              )}
-            </button>
-
-            <button
-              onClick={handleToggleLoop}
-              className={`p-1 rounded transition-colors ${
-                isCurrentlyLooping
-                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
-                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-              }`}
-              title={
-                isCurrentlyLooping
-                  ? "Stop looping this segment"
-                  : "Loop this segment"
-              }
-            >
-              <Repeat
-                size={18}
-                fill={isCurrentlyLooping ? "currentColor" : "none"}
-              />
-            </button>
-
-            <button
-              onClick={handleToggleBookmark}
-              className={`p-1 rounded transition-colors ${
-                isBookmarked
-                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
-                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-              }`}
-              title={
-                isBookmarked
-                  ? "Remove bookmark for this segment"
-                  : "Create bookmark from this segment"
-              }
-            >
-              <Bookmark
-                size={18}
-                fill={isBookmarked ? "currentColor" : "none"}
-              />
-            </button>
-
-            <button
-              onClick={handleExplain}
-              className="p-1 rounded transition-colors text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
-              title="Explain this text with AI"
-            >
-              <Brain size={18} />
-            </button>
-          </div>
-        </div>
-
-        <p className="text-gray-800 dark:text-gray-200">{segment.text}</p>
-      </div>
-
-      <ExplanationDrawer
-        isOpen={showExplanation}
-        onClose={() => setShowExplanation(false)}
-        text={segment.text}
-      />
-    </>
-  );
-};
-
-// Inline TranscriptControlsPanel component
-const TranscriptControlsPanel = () => {
-  const { transcriptLanguage, setTranscriptLanguage, exportTranscript } =
-    usePlayerStore();
-
-  const LANGUAGE_OPTIONS = [
-    { value: "en-US", label: "English (US)" },
-    { value: "en-GB", label: "English (UK)" },
-    { value: "es-ES", label: "Spanish" },
-    { value: "fr-FR", label: "French" },
-    { value: "de-DE", label: "German" },
-    { value: "ja-JP", label: "Japanese" },
-    { value: "ko-KR", label: "Korean" },
-    { value: "zh-CN", label: "Chinese (Simplified)" },
-    { value: "ru-RU", label: "Russian" },
-  ];
-
-  return (
-    <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center">
-        <label
-          htmlFor="transcript-language"
-          className="text-xs text-gray-600 dark:text-gray-400 mr-2"
-        >
-          Language:
-        </label>
-        <select
-          id="transcript-language"
-          value={transcriptLanguage}
-          onChange={(e) => setTranscriptLanguage(e.target.value)}
-          className="text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-gray-700 dark:text-gray-300"
-        >
-          {LANGUAGE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex items-center space-x-1 text-xs">
-        <button
-          onClick={() => {
-            const content = exportTranscript("txt");
-            if (!content) return;
-
-            // Create a blob and download link
-            const blob = new Blob([content], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `transcript.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            toast.success(`Transcript exported as TXT`);
-          }}
-          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-gray-300"
-        >
-          TXT
-        </button>
-        <button
-          onClick={() => {
-            const content = exportTranscript("srt");
-            if (!content) return;
-
-            // Create a blob and download link
-            const blob = new Blob([content], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `transcript.srt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            toast.success(`Transcript exported as SRT`);
-          }}
-          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-gray-300"
-        >
-          SRT
-        </button>
-        <button
-          onClick={() => {
-            const content = exportTranscript("vtt");
-            if (!content) return;
-
-            // Create a blob and download link
-            const blob = new Blob([content], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `transcript.vtt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            toast.success(`Transcript exported as VTT`);
-          }}
-          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-gray-300"
-        >
-          VTT
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// No need for Web Speech API declarations since we're not using it

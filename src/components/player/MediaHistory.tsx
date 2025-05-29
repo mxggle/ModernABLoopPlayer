@@ -129,7 +129,6 @@ export const MediaHistory = () => {
 
       // Navigate to player
       navigate("/player");
-      toast.success("Media loaded");
       setIsDrawerOpen(false);
     } catch (error) {
       console.error("Failed to load media:", error);
@@ -141,14 +140,12 @@ export const MediaHistory = () => {
   const handleRemoveFromHistory = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     removeFromHistory(id);
-    toast.success("Removed from history");
   };
 
   // Clear all history
   const handleClearHistory = () => {
     if (confirm("Are you sure you want to clear all history?")) {
       clearMediaHistory();
-      toast.success("History cleared");
     }
   };
 
