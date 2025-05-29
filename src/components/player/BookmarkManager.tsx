@@ -84,7 +84,6 @@ export const BookmarkManager = () => {
     setBookmarkName("");
     setBookmarkAnnotation("");
     setIsAddingBookmark(false);
-    toast.success("Bookmark added");
   };
 
   // Start editing a bookmark
@@ -111,19 +110,16 @@ export const BookmarkManager = () => {
 
     setIsEditDialogOpen(false);
     setEditingBookmarkId(null);
-    toast.success("Bookmark updated");
   };
 
   // Delete a bookmark
   const handleDeleteBookmark = (id: string) => {
     storeDeleteBookmark(id);
-    toast.success("Bookmark deleted");
   };
 
   // Load a bookmark
   const handleLoadBookmark = (id: string) => {
     storeLoadBookmark(id);
-    toast.success("Bookmark loaded");
   };
 
   // Export bookmarks

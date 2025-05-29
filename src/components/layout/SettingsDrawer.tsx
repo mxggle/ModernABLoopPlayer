@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "../ui/button";
 import { cn } from "../../utils/cn";
+import { useNavigate } from "react-router-dom";
 import {
   X,
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   Waves,
   FileText,
   SlidersHorizontal,
+  Brain,
 } from "lucide-react";
 
 interface LayoutSettings {
@@ -33,12 +35,19 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   layoutSettings,
   setLayoutSettings,
 }) => {
+  const navigate = useNavigate();
+
   const handleOpenHistory = () => {
     const historyToggleButton = document.getElementById("historyDrawerToggle");
     if (historyToggleButton) {
       historyToggleButton.click();
     }
     onClose(); // Close settings drawer after triggering history
+  };
+
+  const handleOpenAISettings = () => {
+    navigate("/ai-settings");
+    onClose(); // Close settings drawer after navigation
   };
 
   const layoutOptions = [
@@ -78,7 +87,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             <LayoutDashboard className="h-5 w-5 mr-2 text-purple-500" />
             Settings
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8"
+          >
             <X size={20} />
           </Button>
         </div>
@@ -115,6 +129,21 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               </div>
             </div>
           )}
+
+          {/* AI Settings Section */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 px-1">
+              AI Services
+            </h3>
+            <Button
+              variant="outline"
+              onClick={handleOpenAISettings}
+              className="w-full justify-start text-sm"
+            >
+              <Brain className="h-5 w-5 mr-3 text-purple-500" />
+              AI Settings
+            </Button>
+          </div>
 
           {/* Media History Section */}
           <div>

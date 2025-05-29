@@ -809,22 +809,15 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       // Transcript actions
       startTranscribing() {
         set({ isTranscribing: true });
-        toast.success("Voice transcription started");
       },
 
       stopTranscribing() {
         set({ isTranscribing: false });
-        toast.success("Voice transcription stopped");
       },
 
       toggleTranscribing() {
         const { isTranscribing } = get();
         set({ isTranscribing: !isTranscribing });
-        toast.success(
-          !isTranscribing
-            ? "Voice transcription started"
-            : "Voice transcription stopped"
-        );
       },
 
       addTranscriptSegment(segment) {
@@ -868,7 +861,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             [mediaId]: [],
           },
         }));
-        toast.success("Transcript cleared");
       },
 
       setShowTranscript(show) {
@@ -882,7 +874,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
       setTranscriptLanguage(language) {
         set({ transcriptLanguage: language });
-        toast.success(`Transcript language set to ${language}`);
       },
 
       exportTranscript(format) {
@@ -1019,12 +1010,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             }
           }
 
-          // Add segments to transcript
+          // Add all segments to the transcript
           segments.forEach((segment) => {
             addTranscriptSegment(segment);
           });
-
-          toast.success(`Imported ${segments.length} transcript segments`);
         } catch (error) {
           console.error("Error importing transcript:", error);
           toast.error("Failed to import transcript file");
@@ -1261,8 +1250,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           playbackRate,
           annotation: segment.text, // Keep the full text as annotation
         });
-
-        toast.success("Bookmark created from transcript");
       },
 
       // New loading action

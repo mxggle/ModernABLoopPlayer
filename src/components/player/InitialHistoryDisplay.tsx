@@ -35,7 +35,6 @@ export const InitialHistoryDisplay = () => {
 
       // Navigate to player
       navigate("/player");
-      toast.success("Media loaded");
     } catch (error) {
       console.error("Failed to load media:", error);
       toast.error("Failed to load media");
