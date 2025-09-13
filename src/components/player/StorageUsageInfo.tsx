@@ -3,6 +3,14 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { getStorageUsage, clearAllMediaFiles } from '../../utils/mediaStorage'
 import { HardDrive, Trash2 } from 'lucide-react'
 import { Button } from '../ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog'
 import { toast } from 'react-hot-toast'
 
 export const StorageUsageInfo = () => {
@@ -35,13 +43,9 @@ export const StorageUsageInfo = () => {
   }
   
   // Clear all media storage and history
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const handleClearStorage = async () => {
-    if (!confirm('Are you sure you want to clear all stored media? This will remove all files from browser storage.')) {
-      return
-    }
-    
     setIsLoading(true)
-    
     try {
       await clearAllMediaFiles()
       await clearMediaHistory()
@@ -65,6 +69,7 @@ export const StorageUsageInfo = () => {
   }
   
   return (
+    <>
     <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -77,7 +82,7 @@ export const StorageUsageInfo = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={handleClearStorage}
+          onClick={() => setConfirmOpen(true)}
           disabled={isLoading || storageInfo.used === 0}
           title="Clear all stored media"
           className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 h-8 px-2"
@@ -105,5 +110,21 @@ export const StorageUsageInfo = () => {
         {storageInfo.percentage.toFixed(1)}% used
       </p>
     </div>
+
+    <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Clear All Stored Media</DialogTitle>
+          <DialogDescription>
+            This removes all media files from browser storage. This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button className="bg-red-600 hover:bg-red-700" onClick={() => { setConfirmOpen(false); handleClearStorage(); }}>Clear</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

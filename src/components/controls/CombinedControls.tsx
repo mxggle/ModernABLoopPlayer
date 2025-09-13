@@ -16,11 +16,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Bookmark,
+  ListMusic,
 } from "lucide-react";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
 import { Plus } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 export const CombinedControls = () => {
   const {
@@ -47,6 +49,15 @@ export const CombinedControls = () => {
     seekStepSeconds,
     getCurrentMediaBookmarks,
     addBookmark: storeAddBookmark,
+    // Playlist / queue state
+    playbackQueue,
+    playbackIndex,
+    isQueueActive,
+    mediaHistory,
+    startPlaybackQueue,
+    stopPlaybackQueue,
+    playbackMode,
+    setPlaybackMode,
   } = usePlayerStore();
 
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
@@ -373,6 +384,109 @@ export const CombinedControls = () => {
                 <span className="hidden sm:inline">Add</span>
               </Button>
             </div>
+
+            {/* Playlist button */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 py-1 px-3 h-8 text-xs font-medium"
+                  title="Show playlist"
+                >
+                  <ListMusic size={13} className="sm:w-[14px] sm:h-[14px]" />
+                  <span className="hidden sm:inline">Playlist</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-semibold">
+                    Playlist {playbackQueue.length > 0 ? `(${playbackQueue.length})` : ""}
+                  </div>
+                  {playbackQueue.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      {isQueueActive && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                          Playing
+                        </span>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => stopPlaybackQueue()}>
+                        Clear
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs text-gray-500">Mode:</span>
+                  <div role="group" className="inline-flex rounded-md overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <Button
+                      size="sm"
+                      variant={playbackMode === 'order' ? 'default' : 'ghost'}
+                      className="h-7 px-2 text-xs rounded-none"
+                      onClick={() => setPlaybackMode('order')}
+                    >
+                      Order
+                    </Button>
+                    <div className="w-px bg-gray-200 dark:bg-gray-700" />
+                    <Button
+                      size="sm"
+                      variant={playbackMode === 'shuffle' ? 'default' : 'ghost'}
+                      className="h-7 px-2 text-xs rounded-none"
+                      onClick={() => setPlaybackMode('shuffle')}
+                    >
+                      Shuffle
+                    </Button>
+                    <div className="w-px bg-gray-200 dark:bg-gray-700" />
+                    <Button
+                      size="sm"
+                      variant={playbackMode === 'repeat-all' ? 'default' : 'ghost'}
+                      className="h-7 px-2 text-xs rounded-none"
+                      onClick={() => setPlaybackMode('repeat-all')}
+                    >
+                      Repeat All
+                    </Button>
+                    <div className="w-px bg-gray-200 dark:bg-gray-700" />
+                    <Button
+                      size="sm"
+                      variant={playbackMode === 'repeat-one' ? 'default' : 'ghost'}
+                      className="h-7 px-2 text-xs rounded-none"
+                      onClick={() => setPlaybackMode('repeat-one')}
+                    >
+                      Repeat One
+                    </Button>
+                  </div>
+                </div>
+                {playbackQueue.length === 0 ? (
+                  <div className="text-sm text-gray-500">No items in the playlist.</div>
+                ) : (
+                  <ul className="max-h-64 overflow-y-auto space-y-1">
+                    {playbackQueue.map((id, idx) => {
+                      const item = mediaHistory.find((h) => h.id === id);
+                      const title = item?.name || `Item ${idx + 1}`;
+                      const isCurrent = idx === playbackIndex;
+                      return (
+                        <li key={`${id}-${idx}`}>
+                          <button
+                            className={`w-full text-left px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                              isCurrent ? "bg-gray-100 dark:bg-gray-800 font-medium" : ""
+                            }`}
+                            onClick={() => startPlaybackQueue(playbackQueue, id)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs w-6 text-gray-500">{idx + 1}.</span>
+                              <span className="truncate flex-1">{title}</span>
+                              {isCurrent && (
+                                <span className="text-xs text-purple-600 dark:text-purple-300">Now Playing</span>
+                              )}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </PopoverContent>
+            </Popover>
 
             <Button
               variant="outline"

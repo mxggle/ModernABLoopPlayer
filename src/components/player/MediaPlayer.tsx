@@ -241,6 +241,11 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   // Handle media ended
   const handleEnded = () => {
     console.log("Media playback ended");
+    const state = usePlayerStore.getState() as any;
+    if (state.isQueueActive) {
+      state.playNextInQueue?.();
+      return;
+    }
     setIsPlaying(false);
     setCurrentTime(0);
   };
