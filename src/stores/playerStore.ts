@@ -99,6 +99,9 @@ export interface PlayerState {
   videoSize: "sm" | "md" | "lg" | "xl";
   mediaBookmarks: MediaBookmarks; // Changed from bookmarks array to media-scoped object
   selectedBookmarkId: string | null;
+  // Seek configuration
+  seekStepSeconds: number; // default seek step for arrows/buttons
+  seekSmallStepSeconds: number; // shift+arrow small step
 
   // Transcript state
   mediaTranscripts: MediaTranscripts; // Changed from transcriptSegments array to media-scoped object
@@ -148,6 +151,9 @@ export interface PlayerActions {
   setShowWaveform: (show: boolean) => void;
   setVideoSize: (size: "sm" | "md" | "lg" | "xl") => void;
   setAutoAdvanceBookmarks: (enable: boolean) => void;
+  // Seek settings
+  setSeekStepSeconds: (seconds: number) => void;
+  setSeekSmallStepSeconds: (seconds: number) => void;
 
   // Transcript actions
   startTranscribing: () => void;
@@ -224,6 +230,9 @@ const initialState: PlayerState = {
   mediaHistory: [],
   historyLimit: 30,
   isLoadingMedia: false,
+  // Defaults for seek steps
+  seekStepSeconds: 5,
+  seekSmallStepSeconds: 1,
 };
 
 export const usePlayerStore = create<PlayerState & PlayerActions>()(
@@ -467,6 +476,11 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setShowWaveform: (showWaveform) => set({ showWaveform }),
       setVideoSize: (videoSize) => set({ videoSize }),
       setAutoAdvanceBookmarks: (autoAdvanceBookmarks) => set({ autoAdvanceBookmarks }),
+      // Seek settings
+      setSeekStepSeconds: (seconds: number) =>
+        set({ seekStepSeconds: Math.max(0.1, Math.min(120, seconds)) }),
+      setSeekSmallStepSeconds: (seconds: number) =>
+        set({ seekSmallStepSeconds: Math.max(0.05, Math.min(10, seconds)) }),
 
       // Bookmark actions
       addBookmark: (bookmark) => {
@@ -1338,6 +1352,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         recentYouTubeVideos: state.recentYouTubeVideos,
         mediaHistory: state.mediaHistory,
         historyLimit: state.historyLimit,
+        seekStepSeconds: state.seekStepSeconds,
+        seekSmallStepSeconds: state.seekSmallStepSeconds,
       }),
     }
   )

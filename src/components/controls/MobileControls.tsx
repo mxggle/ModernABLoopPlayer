@@ -32,6 +32,9 @@ export const MobileControls = () => {
     setPlaybackRate,
     setLoopPoints,
     setIsLooping,
+    seekForward: storeSeekForward,
+    seekBackward: storeSeekBackward,
+    seekStepSeconds,
     getCurrentMediaBookmarks,
   } = usePlayerStore();
 
@@ -67,16 +70,14 @@ export const MobileControls = () => {
     setVolume(value);
   };
 
-  // Seek backward 5 seconds
+  // Seek backward by configured step
   const seekBackward = () => {
-    const newTime = Math.max(0, currentTime - 5);
-    setCurrentTime(newTime);
+    storeSeekBackward(seekStepSeconds);
   };
 
-  // Seek forward 5 seconds
+  // Seek forward by configured step
   const seekForward = () => {
-    const newTime = Math.min(duration, currentTime + 5);
-    setCurrentTime(newTime);
+    storeSeekForward(seekStepSeconds);
   };
 
   // Toggle mute
@@ -202,7 +203,7 @@ export const MobileControls = () => {
             <button
               onClick={seekBackward}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label="Seek backward 5 seconds"
+              aria-label={`Seek backward ${seekStepSeconds} seconds`}
             >
               <SkipBack size={22} />
             </button>
@@ -222,7 +223,7 @@ export const MobileControls = () => {
             <button
               onClick={seekForward}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label="Seek forward 5 seconds"
+              aria-label={`Seek forward ${seekStepSeconds} seconds`}
             >
               <SkipForward size={22} />
             </button>

@@ -2,6 +2,7 @@ import React from "react";
 import { Button } from "../ui/button";
 import { cn } from "../../utils/cn";
 import { useNavigate } from "react-router-dom";
+import { usePlayerStore } from "../../stores/playerStore";
 import {
   X,
   LayoutDashboard,
@@ -14,6 +15,7 @@ import {
   SlidersHorizontal,
   Brain,
 } from "lucide-react";
+import { Input } from "../ui/input";
 
 interface LayoutSettings {
   showPlayer: boolean;
@@ -36,6 +38,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   setLayoutSettings,
 }) => {
   const navigate = useNavigate();
+  const {
+    seekStepSeconds,
+    seekSmallStepSeconds,
+    setSeekStepSeconds,
+    setSeekSmallStepSeconds,
+  } = usePlayerStore();
 
   const handleOpenHistory = () => {
     const historyToggleButton = document.getElementById("historyDrawerToggle");
@@ -99,6 +107,48 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
         {/* Drawer Content */}
         <div className="p-4 space-y-6 overflow-y-auto">
+          {/* Playback Settings */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 px-1">
+              Playback
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-sm text-gray-700 dark:text-gray-200 flex-1">
+                  Seek step (seconds)
+                </label>
+                <div className="w-28">
+                  <Input
+                    type="number"
+                    min={0.1}
+                    max={120}
+                    step={0.1}
+                    value={seekStepSeconds}
+                    onChange={(e) =>
+                      setSeekStepSeconds(parseFloat(e.target.value) || 0)
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-sm text-gray-700 dark:text-gray-200 flex-1">
+                  Small step (Shift + arrows)
+                </label>
+                <div className="w-28">
+                  <Input
+                    type="number"
+                    min={0.05}
+                    max={10}
+                    step={0.05}
+                    value={seekSmallStepSeconds}
+                    onChange={(e) =>
+                      setSeekSmallStepSeconds(parseFloat(e.target.value) || 0)
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
           {/* Layout Settings Section - Only show when layoutSettings and setLayoutSettings are available */}
           {layoutSettings && setLayoutSettings && (
             <div>

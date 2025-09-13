@@ -56,15 +56,17 @@ export const ABLoopControls = () => {
     }
   }
 
-  // Set loop start point at current time
+  // Set loop start (A) at current time
   const setLoopStartAtCurrentTime = () => {
-    const end = loopEnd !== null ? loopEnd : duration
-    if (currentTime < end) {
-      setLoopPoints(currentTime, end)
-      // Enable looping when points are set
-      if (!isLooping) {
-        setIsLooping(true)
-      }
+    if (duration === 0) return
+    if (loopEnd !== null && currentTime >= loopEnd) {
+      // After B: clear B and start new A
+      setLoopPoints(currentTime, null)
+      setIsLooping(false)
+    } else {
+      // Before B or no B: set A and keep B
+      setLoopPoints(currentTime, loopEnd)
+      if (loopEnd !== null && !isLooping) setIsLooping(true)
     }
   }
 

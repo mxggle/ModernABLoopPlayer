@@ -44,6 +44,7 @@ export const CombinedControls = () => {
     setIsLooping,
     seekForward: storeSeekForward,
     seekBackward: storeSeekBackward,
+    seekStepSeconds,
     getCurrentMediaBookmarks,
     addBookmark: storeAddBookmark,
   } = usePlayerStore();
@@ -120,14 +121,14 @@ export const CombinedControls = () => {
     }, 100);
   };
 
-  // Seek forward 5 seconds
+  // Seek forward by configured step
   const seekForward = () => {
-    storeSeekForward(5);
+    storeSeekForward(seekStepSeconds);
   };
 
-  // Seek backward 5 seconds
+  // Seek backward by configured step
   const seekBackward = () => {
-    storeSeekBackward(5);
+    storeSeekBackward(seekStepSeconds);
   };
 
   // Decrease playback rate
@@ -283,7 +284,7 @@ export const CombinedControls = () => {
             <button
               onClick={seekBackward}
               className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              aria-label="Seek backward 5 seconds"
+              aria-label={`Seek backward ${seekStepSeconds} seconds`}
             >
               <SkipBack size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>
@@ -306,7 +307,7 @@ export const CombinedControls = () => {
             <button
               onClick={seekForward}
               className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              aria-label="Seek forward 5 seconds"
+              aria-label={`Seek forward ${seekStepSeconds} seconds`}
             >
               <SkipForward size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>
