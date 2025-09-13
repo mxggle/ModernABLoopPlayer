@@ -48,9 +48,20 @@ export const InitialHistoryDisplay = () => {
           <History size={18} className="text-purple-500" />
           Your Recent Media
         </h3>
-        <span className="text-xs text-gray-500 bg-white/80 dark:bg-gray-800/80 px-2 py-1 rounded-full">
-          {mediaHistory.length} {mediaHistory.length === 1 ? "item" : "items"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 bg-white/80 dark:bg-gray-800/80 px-2 py-1 rounded-full">
+            {mediaHistory.length} {mediaHistory.length === 1 ? "item" : "items"}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              document.getElementById("historyDrawerToggle")?.click()
+            }
+          >
+            Manage
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6">

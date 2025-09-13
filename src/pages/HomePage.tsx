@@ -5,6 +5,7 @@ import { FileUploader } from "../components/player/FileUploader";
 import { YouTubeInput } from "../components/player/YouTubeInput";
 import { InitialHistoryDisplay } from "../components/player/InitialHistoryDisplay";
 import { MediaHistory } from "../components/player/MediaHistory";
+// Use the same component as the file drawer, embedded in-page
 import { AppLayout } from "../components/layout/AppLayout";
 
 export const HomePage = () => {
@@ -98,8 +99,8 @@ export const HomePage = () => {
         </div>
       </div>
 
-      {/* Media History - also typically outside normal flex flow */}
-      <MediaHistory />
+      {/* Inline Library Manager - uses the same component as the file drawer */}
+      <MediaHistory embedded title="Media Library" />
     </AppLayout>
   );
 };
