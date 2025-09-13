@@ -9,9 +9,11 @@ import {
   VolumeX,
   Minus,
   Plus,
+  ListMusic,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useRef } from "react";
 import { cn } from "@/utils/cn";
 
@@ -31,6 +33,15 @@ export const PlayerControls = () => {
     setPlaybackRate,
     toggleMute,
     seekStepSeconds,
+    // Playlist / queue state
+    playbackQueue,
+    playbackIndex,
+    isQueueActive,
+    mediaHistory,
+    startPlaybackQueue,
+    stopPlaybackQueue,
+    playbackMode,
+    setPlaybackMode,
   } = usePlayerStore();
 
   // Handle timeline click
@@ -195,6 +206,114 @@ export const PlayerControls = () => {
           >
             <Plus size={16} />
           </Button>
+
+          {/* Playlist popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                title="Show playlist"
+                className="ml-2"
+              >
+                <ListMusic size={16} className="mr-1" /> Playlist
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-semibold">
+                  Playlist {playbackQueue.length > 0 ? `(${playbackQueue.length})` : ""}
+                </div>
+                {playbackQueue.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    {isQueueActive && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                        Playing
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => stopPlaybackQueue()}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs text-gray-500">Mode:</span>
+                <div role="group" className="inline-flex rounded-md overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <Button
+                    size="sm"
+                    variant={playbackMode === 'order' ? 'default' : 'ghost'}
+                    className="h-7 px-2 text-xs rounded-none"
+                    onClick={() => setPlaybackMode('order')}
+                  >
+                    Order
+                  </Button>
+                  <div className="w-px bg-gray-200 dark:bg-gray-700" />
+                  <Button
+                    size="sm"
+                    variant={playbackMode === 'shuffle' ? 'default' : 'ghost'}
+                    className="h-7 px-2 text-xs rounded-none"
+                    onClick={() => setPlaybackMode('shuffle')}
+                  >
+                    Shuffle
+                  </Button>
+                  <div className="w-px bg-gray-200 dark:bg-gray-700" />
+                  <Button
+                    size="sm"
+                    variant={playbackMode === 'repeat-all' ? 'default' : 'ghost'}
+                    className="h-7 px-2 text-xs rounded-none"
+                    onClick={() => setPlaybackMode('repeat-all')}
+                  >
+                    Repeat All
+                  </Button>
+                  <div className="w-px bg-gray-200 dark:bg-gray-700" />
+                  <Button
+                    size="sm"
+                    variant={playbackMode === 'repeat-one' ? 'default' : 'ghost'}
+                    className="h-7 px-2 text-xs rounded-none"
+                    onClick={() => setPlaybackMode('repeat-one')}
+                  >
+                    Repeat One
+                  </Button>
+                </div>
+              </div>
+
+              {playbackQueue.length === 0 ? (
+                <div className="text-sm text-gray-500">No items in the playlist.</div>
+              ) : (
+                <ul className="max-h-64 overflow-y-auto space-y-1">
+                  {playbackQueue.map((id, idx) => {
+                    const item = mediaHistory.find((h) => h.id === id);
+                    const title = item?.name || `Item ${idx + 1}`;
+                    const isCurrent = idx === playbackIndex;
+                    return (
+                      <li key={`${id}-${idx}`}>
+                        <button
+                          className={cn(
+                            "w-full text-left px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800",
+                            isCurrent ? "bg-gray-100 dark:bg-gray-800 font-medium" : ""
+                          )}
+                          onClick={() => startPlaybackQueue(playbackQueue, id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs w-6 text-gray-500">{idx + 1}.</span>
+                            <span className="truncate flex-1">{title}</span>
+                            {isCurrent && (
+                              <span className="text-xs text-primary">Now Playing</span>
+                            )}
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </div>

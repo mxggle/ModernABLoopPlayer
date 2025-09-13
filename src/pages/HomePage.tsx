@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { usePlayerStore } from "../stores/playerStore";
 import { FileUploader } from "../components/player/FileUploader";
 import { YouTubeInput } from "../components/player/YouTubeInput";
-import { InitialHistoryDisplay } from "../components/player/InitialHistoryDisplay";
 import { MediaHistory } from "../components/player/MediaHistory";
 // Use the same component as the file drawer, embedded in-page
 import { AppLayout } from "../components/layout/AppLayout";
@@ -39,8 +38,7 @@ export const HomePage = () => {
             Choose Your Media Source
           </h2>
 
-          {/* Check for history and display if available */}
-          <InitialHistoryDisplay />
+          {/* Recent Media preview removed to avoid redundancy with Media Library */}
 
           {/* Tabs-style grid layout */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-8">

@@ -128,8 +128,10 @@ export interface PlayerState {
 
   // Playback queue
   playbackQueue: string[];
+  playbackQueueOriginal: string[]; // original order when queue started
   playbackIndex: number;
   isQueueActive: boolean;
+  playbackMode: "order" | "shuffle" | "repeat-all" | "repeat-one"; // order controls
 }
 
 export interface PlayerActions {
@@ -232,6 +234,7 @@ export interface PlayerActions {
   playNextInQueue: () => Promise<void>;
   playPreviousInQueue: () => Promise<void>;
   stopPlaybackQueue: () => void;
+  setPlaybackMode: (mode: "order" | "shuffle" | "repeat-all" | "repeat-one") => void;
 }
 
 const initialState: PlayerState = {
@@ -275,8 +278,10 @@ const initialState: PlayerState = {
   historyFolderFilter: "all",
   // Queue defaults
   playbackQueue: [],
+  playbackQueueOriginal: [],
   playbackIndex: -1,
   isQueueActive: false,
+  playbackMode: "order",
 };
 
 export const usePlayerStore = create<PlayerState & PlayerActions>()(
@@ -969,23 +974,51 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       // Queue controls
       startPlaybackQueue: async (ids, startId) => {
         if (!ids || ids.length === 0) return;
-        const startIndex = startId ? Math.max(0, ids.indexOf(startId)) : 0;
-        set({ playbackQueue: ids, playbackIndex: startIndex, isQueueActive: true });
+        const { playbackMode } = get();
+
+        // Preserve original order
+        const original = ids.slice();
+        let queue = ids.slice();
+
+        if (playbackMode === "shuffle") {
+          // Fisher-Yates shuffle
+          for (let i = queue.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [queue[i], queue[j]] = [queue[j], queue[i]];
+          }
+          if (startId) {
+            const idx = queue.indexOf(startId);
+            if (idx > 0) {
+              [queue[0], queue[idx]] = [queue[idx], queue[0]];
+            }
+          }
+          set({ playbackQueue: queue, playbackQueueOriginal: original, playbackIndex: 0, isQueueActive: true });
+        } else {
+          const startIndex = startId ? Math.max(0, original.indexOf(startId)) : 0;
+          set({ playbackQueue: original, playbackQueueOriginal: original, playbackIndex: startIndex, isQueueActive: true });
+        }
 
         const { loadFromHistory, setIsPlaying } = get();
-        await (loadFromHistory as unknown as (id: string) => Promise<void>)(
-          ids[startIndex]
-        );
+        const toLoad = get().playbackQueue[get().playbackIndex];
+        await (loadFromHistory as unknown as (id: string) => Promise<void>)(toLoad);
         setIsPlaying(true);
       },
       playNextInQueue: async () => {
-        const { playbackQueue, playbackIndex, isQueueActive } = get();
-        if (!isQueueActive) return;
-        const nextIndex = playbackIndex + 1;
-        if (nextIndex >= playbackQueue.length) {
-          set({ isQueueActive: false, playbackQueue: [], playbackIndex: -1 });
-          return;
+        const { playbackQueue, playbackIndex, isQueueActive, playbackMode } = get();
+        if (!isQueueActive || playbackQueue.length === 0) return;
+        let nextIndex = playbackIndex + 1;
+
+        if (playbackMode === "repeat-one") {
+          nextIndex = playbackIndex; // stay on the same item
+        } else if (nextIndex >= playbackQueue.length) {
+          if (playbackMode === "repeat-all") {
+            nextIndex = 0; // wrap
+          } else {
+            set({ isQueueActive: false, playbackQueue: [], playbackQueueOriginal: [], playbackIndex: -1 });
+            return;
+          }
         }
+
         set({ playbackIndex: nextIndex });
         const { loadFromHistory, setIsPlaying } = get();
         await (loadFromHistory as unknown as (id: string) => Promise<void>)(
@@ -994,9 +1027,20 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         setIsPlaying(true);
       },
       playPreviousInQueue: async () => {
-        const { playbackQueue, playbackIndex, isQueueActive } = get();
-        if (!isQueueActive) return;
-        const prevIndex = Math.max(0, playbackIndex - 1);
+        const { playbackQueue, playbackIndex, isQueueActive, playbackMode } = get();
+        if (!isQueueActive || playbackQueue.length === 0) return;
+        let prevIndex = playbackIndex - 1;
+
+        if (playbackMode === "repeat-one") {
+          prevIndex = playbackIndex; // stay on same
+        } else if (prevIndex < 0) {
+          if (playbackMode === "repeat-all") {
+            prevIndex = playbackQueue.length - 1; // wrap
+          } else {
+            prevIndex = 0;
+          }
+        }
+
         set({ playbackIndex: prevIndex });
         const { loadFromHistory, setIsPlaying } = get();
         await (loadFromHistory as unknown as (id: string) => Promise<void>)(
@@ -1004,7 +1048,46 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         );
         setIsPlaying(true);
       },
-      stopPlaybackQueue: () => set({ isQueueActive: false, playbackQueue: [], playbackIndex: -1 }),
+      stopPlaybackQueue: () => set({ isQueueActive: false, playbackQueue: [], playbackQueueOriginal: [], playbackIndex: -1 }),
+
+      setPlaybackMode: (mode) => {
+        const { playbackMode, isQueueActive, playbackQueueOriginal, playbackQueue, playbackIndex } = get();
+        if (mode === playbackMode) {
+          set({ playbackMode: mode });
+          return;
+        }
+        // If no active queue, just set the mode.
+        if (!isQueueActive || playbackQueue.length === 0) {
+          set({ playbackMode: mode });
+          return;
+        }
+
+        const currentId = playbackQueue[playbackIndex];
+        if (!currentId) {
+          set({ playbackMode: mode });
+          return;
+        }
+
+        if (mode === "shuffle") {
+          // Build new queue with current first and rest shuffled from original
+          const rest = (playbackQueueOriginal.length ? playbackQueueOriginal : playbackQueue).filter((id) => id !== currentId);
+          for (let i = rest.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [rest[i], rest[j]] = [rest[j], rest[i]];
+          }
+          set({ playbackMode: mode, playbackQueue: [currentId, ...rest], playbackIndex: 0 });
+        } else if (mode === "order") {
+          // Order mode: restore original order and set index to current item position
+          const base = playbackQueueOriginal.length ? playbackQueueOriginal.slice() : playbackQueue.slice();
+          const newIndex = Math.max(0, base.indexOf(currentId));
+          set({ playbackMode: mode, playbackQueue: base, playbackIndex: newIndex });
+        } else if (mode === "repeat-all" || mode === "repeat-one") {
+          // Repeat modes do not change ordering
+          const base = playbackQueue.slice();
+          const newIndex = Math.max(0, base.indexOf(currentId));
+          set({ playbackMode: mode, playbackQueue: base, playbackIndex: newIndex });
+        }
+      },
 
       // Transcript actions
       startTranscribing() {
@@ -1489,6 +1572,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         volume: state.volume,
         muted: state.muted,
         playbackRate: state.playbackRate,
+        playbackMode: state.playbackMode,
         theme: state.theme,
         waveformZoom: state.waveformZoom,
         showWaveform: state.showWaveform,
