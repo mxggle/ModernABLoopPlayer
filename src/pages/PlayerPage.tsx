@@ -38,6 +38,22 @@ export const PlayerPage = () => {
 
   const youtubeId = currentYouTube?.id;
 
+  // Auto-default player visibility based on media type
+  // For audio files, hide the large player card by default (still render in hidden mode)
+  // For video (YouTube or file), show the player by default
+  useEffect(() => {
+    if (currentFile) {
+      const isAudio = currentFile.type.includes("audio");
+      setLayoutSettings((prev) => ({ ...prev, showPlayer: !isAudio }));
+    }
+  }, [currentFile]);
+
+  useEffect(() => {
+    if (youtubeId && !currentFile) {
+      setLayoutSettings((prev) => ({ ...prev, showPlayer: true }));
+    }
+  }, [youtubeId, currentFile]);
+
   return (
     <AppLayout
       layoutSettings={layoutSettings}

@@ -29,7 +29,7 @@ export const AppLayout = ({
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [isLayoutPopoverOpen, setIsLayoutPopoverOpen] = useState(false);
 
-  const { currentFile, currentYouTube, theme, setTheme } = usePlayerStore();
+  const { currentFile, currentYouTube, theme, setTheme, seekStepSeconds, seekSmallStepSeconds } = usePlayerStore();
 
   // Toggle theme
   const toggleTheme = () => {
@@ -341,14 +341,14 @@ export const AppLayout = ({
                       ←/→
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Seek backward/forward 5 seconds
+                      Seek backward/forward {seekStepSeconds} seconds
                     </div>
 
                     <div className="font-medium text-gray-800 dark:text-gray-200">
                       Shift + ←/→
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Seek backward/forward 1 second
+                      Seek backward/forward {seekSmallStepSeconds} seconds
                     </div>
 
                     <div className="font-medium text-gray-800 dark:text-gray-200">

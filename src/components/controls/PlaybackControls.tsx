@@ -24,7 +24,8 @@ export const PlaybackControls = () => {
     setVolume,
     setPlaybackRate,
     seekForward: storeSeekForward,
-    seekBackward: storeSeekBackward
+    seekBackward: storeSeekBackward,
+    seekStepSeconds
   } = usePlayerStore()
 
   // Toggle play/pause
@@ -42,14 +43,14 @@ export const PlaybackControls = () => {
     setVolume(values[0])
   }
 
-  // Seek backward 5 seconds
+  // Seek backward by configured step
   const seekBackward = () => {
-    storeSeekBackward(5)
+    storeSeekBackward(seekStepSeconds)
   }
 
-  // Seek forward 5 seconds
+  // Seek forward by configured step
   const seekForward = () => {
-    storeSeekForward(5)
+    storeSeekForward(seekStepSeconds)
   }
 
   // Toggle mute
@@ -110,7 +111,7 @@ export const PlaybackControls = () => {
           <button
             onClick={seekBackward}
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label="Seek backward 5 seconds"
+            aria-label={`Seek backward ${seekStepSeconds} seconds`}
           >
             <SkipBack size={20} />
           </button>
@@ -126,7 +127,7 @@ export const PlaybackControls = () => {
           <button
             onClick={seekForward}
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label="Seek forward 5 seconds"
+            aria-label={`Seek forward ${seekStepSeconds} seconds`}
           >
             <SkipForward size={20} />
           </button>

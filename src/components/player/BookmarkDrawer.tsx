@@ -69,8 +69,7 @@ export const BookmarkDrawer = () => {
       toast.error("Please enter a name for the bookmark");
       return;
     }
-
-    storeAddBookmark({
+    const added = storeAddBookmark({
       name: bookmarkName.trim(),
       start: loopStart,
       end: loopEnd,
@@ -81,10 +80,12 @@ export const BookmarkDrawer = () => {
       youtubeId: currentYouTube?.id,
     });
 
-    setBookmarkName("");
-    setBookmarkAnnotation("");
-    setIsAddingBookmark(false);
-    toast.success("Bookmark added");
+    if (added) {
+      setBookmarkName("");
+      setBookmarkAnnotation("");
+      setIsAddingBookmark(false);
+      toast.success("Bookmark added");
+    }
   };
 
   // Start editing a bookmark

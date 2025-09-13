@@ -18,6 +18,7 @@ export const KeyboardShortcutsHelp = () => {
     { key: ',', description: 'Set loop start point (A) to current time' },
     { key: '.', description: 'Set loop end point (B) to current time' },
     { key: '/', description: 'Toggle looping on/off' },
+    { key: 'M', description: 'Quick add bookmark from current loop or time' },
     { key: '↑', description: 'Increase volume' },
     { key: '↓', description: 'Decrease volume' },
     { key: 'Shift + →', description: 'Increase playback rate' },

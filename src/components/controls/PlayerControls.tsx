@@ -30,6 +30,7 @@ export const PlayerControls = () => {
     setVolume,
     setPlaybackRate,
     toggleMute,
+    seekStepSeconds,
   } = usePlayerStore();
 
   // Handle timeline click
@@ -50,15 +51,15 @@ export const PlayerControls = () => {
     setVolume(value[0]);
   };
 
-  // Seek backward 10 seconds
+  // Seek backward by configured step
   const seekBackward = () => {
-    const newTime = Math.max(0, currentTime - 10);
+    const newTime = Math.max(0, currentTime - seekStepSeconds);
     setCurrentTime(newTime);
   };
 
-  // Seek forward 10 seconds
+  // Seek forward by configured step
   const seekForward = () => {
-    const newTime = Math.min(duration, currentTime + 10);
+    const newTime = Math.min(duration, currentTime + seekStepSeconds);
     setCurrentTime(newTime);
   };
 
@@ -139,7 +140,7 @@ export const PlayerControls = () => {
             variant="ghost"
             size="icon"
             onClick={seekBackward}
-            aria-label="Seek backward 10 seconds"
+            aria-label={`Seek backward ${seekStepSeconds} seconds`}
           >
             <SkipBack size={18} />
           </Button>
@@ -163,7 +164,7 @@ export const PlayerControls = () => {
             variant="ghost"
             size="icon"
             onClick={seekForward}
-            aria-label="Seek forward 10 seconds"
+            aria-label={`Seek forward ${seekStepSeconds} seconds`}
           >
             <SkipForward size={18} />
           </Button>

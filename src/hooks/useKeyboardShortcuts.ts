@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { usePlayerStore } from '@/stores/playerStore'
+import { toast } from 'react-hot-toast'
 
 export const useKeyboardShortcuts = () => {
   const {
@@ -10,11 +11,18 @@ export const useKeyboardShortcuts = () => {
     loopStart,
     loopEnd,
     isLooping,
+    playbackRate,
+    currentFile,
+    currentYouTube,
     setIsPlaying,
     setCurrentTime,
     setVolume,
     setLoopPoints,
-    setIsLooping
+    setIsLooping,
+    addBookmark: storeAddBookmark,
+    getCurrentMediaBookmarks,
+    seekStepSeconds,
+    seekSmallStepSeconds,
   } = usePlayerStore()
 
   useEffect(() => {
@@ -39,9 +47,15 @@ export const useKeyboardShortcuts = () => {
         case 'a':
         case 'A': {
           e.preventDefault()
-          const end = loopEnd !== null ? loopEnd : duration
-          if (currentTime < end) {
-            setLoopPoints(currentTime, end)
+          if (duration === 0) break
+          if (loopEnd !== null && currentTime >= loopEnd) {
+            // After B: start a new loop by setting A and clearing B
+            setLoopPoints(currentTime, null)
+            setIsLooping(false)
+          } else {
+            // Before B (or B not set): move A only, keep B
+            setLoopPoints(currentTime, loopEnd)
+            if (loopEnd !== null && !isLooping) setIsLooping(true)
           }
           break
         }
@@ -72,27 +86,27 @@ export const useKeyboardShortcuts = () => {
           setIsLooping(false)
           break
 
-        // Seek backward 5 seconds - Left arrow
+        // Seek backward - Left arrow
         case 'ArrowLeft':
           e.preventDefault()
           if (e.shiftKey) {
-            // Shift + Left = 1 second
-            setCurrentTime(Math.max(0, currentTime - 1))
+            // Shift + Left = small step
+            setCurrentTime(Math.max(0, currentTime - seekSmallStepSeconds))
           } else {
-            // Left = 5 seconds
-            setCurrentTime(Math.max(0, currentTime - 5))
+            // Left = configured step
+            setCurrentTime(Math.max(0, currentTime - seekStepSeconds))
           }
           break
 
-        // Seek forward 5 seconds - Right arrow
+        // Seek forward - Right arrow
         case 'ArrowRight':
           e.preventDefault()
           if (e.shiftKey) {
-            // Shift + Right = 1 second
-            setCurrentTime(Math.min(duration, currentTime + 1))
+            // Shift + Right = small step
+            setCurrentTime(Math.min(duration, currentTime + seekSmallStepSeconds))
           } else {
-            // Right = 5 seconds
-            setCurrentTime(Math.min(duration, currentTime + 5))
+            // Right = configured step
+            setCurrentTime(Math.min(duration, currentTime + seekStepSeconds))
           }
           break
 
@@ -125,6 +139,35 @@ export const useKeyboardShortcuts = () => {
           break
         }
 
+        // Quick add bookmark - M key
+        case 'm':
+        case 'M': {
+          e.preventDefault()
+          if (duration === 0) return
+
+          const start = loopStart !== null ? loopStart : Math.max(0, currentTime - 2)
+          const end = loopEnd !== null ? loopEnd : Math.min(duration, currentTime + 2)
+          if (end <= start) return
+
+          const count = getCurrentMediaBookmarks().length + 1
+          const name = `Clip ${count}`
+
+          const added = storeAddBookmark({
+            name,
+            start,
+            end,
+            playbackRate,
+            mediaName: currentFile?.name,
+            mediaType: currentFile?.type,
+            youtubeId: currentYouTube?.id,
+            annotation: ''
+          })
+          if (added) {
+            toast.success('Bookmark added')
+          }
+          break
+        }
+
         default:
           break
       }
@@ -143,10 +186,15 @@ export const useKeyboardShortcuts = () => {
     loopStart,
     loopEnd,
     isLooping,
+    playbackRate,
     setIsPlaying,
     setCurrentTime,
     setVolume,
     setLoopPoints,
-    setIsLooping
+    setIsLooping,
+    currentFile,
+    currentYouTube,
+    storeAddBookmark,
+    getCurrentMediaBookmarks
   ])
 }

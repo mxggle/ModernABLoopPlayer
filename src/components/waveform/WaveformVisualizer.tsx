@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import * as Tone from "tone";
 import {
@@ -7,6 +7,12 @@ import {
   ArrowsPointingOutIcon,
 } from "@heroicons/react/24/solid";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { AlignStartHorizontal, AlignEndHorizontal, Bookmark, X, Repeat, Trash2, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { toast } from "react-hot-toast";
+
+// Stable empty array used in selectors to avoid creating
+// a new [] on every render (prevents getSnapshot warnings)
+const EMPTY_BOOKMARKS: readonly any[] = Object.freeze([]);
 
 // Utility function to format time in mm:ss.ms format
 const formatTime = (time: number): string => {
@@ -21,9 +27,19 @@ const formatTime = (time: number): string => {
     .padStart(2, "0")}.${milliseconds}`;
 };
 
+// Safe formatter for zoom value display
+const formatZoom = (z: unknown): string => {
+  const n = typeof z === "number" && isFinite(z) ? z : 1;
+  return n.toFixed(1);
+};
+
 export const WaveformVisualizer = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Track clickable bookmark lane rects (CSS pixel units)
+  const laneRectsRef = useRef<
+    { id: string; x1: number; x2: number; y1: number; y2: number }[]
+  >([]);
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<number | null>(null);
@@ -32,6 +48,15 @@ export const WaveformVisualizer = () => {
   const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
   const [pinchStartDistance, setPinchStartDistance] = useState<number | null>(null);
   const [pinchStartZoom, setPinchStartZoom] = useState<number>(1);
+  // Context menu for overlapping bookmarks selection
+  const [overlapMenu, setOverlapMenu] = useState<
+    | {
+        x: number;
+        y: number;
+        items: { id: string; name: string; start: number; end: number }[];
+      }
+    | null
+  >(null);
   
   // Detect if device is mobile
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -42,13 +67,51 @@ export const WaveformVisualizer = () => {
     duration,
     loopStart,
     loopEnd,
+    isLooping,
+    playbackRate,
     waveformZoom,
     showWaveform,
     setCurrentTime,
     setLoopPoints,
     setWaveformZoom,
     setIsLooping,
+    addBookmark: storeAddBookmark,
+    selectedBookmarkId,
+    loadBookmark,
+    setIsPlaying,
+    deleteBookmark,
+    autoAdvanceBookmarks,
+    setAutoAdvanceBookmarks,
   } = usePlayerStore();
+
+  // Subscribe to bookmarks for current media so changes re-render this component
+  const bookmarks = usePlayerStore((state) => {
+    const mediaId = state.getCurrentMediaId();
+    // Return the actual array from state if it exists; otherwise return
+    // a module-stable empty array so the selector snapshot is referentially stable.
+    return mediaId && state.mediaBookmarks[mediaId]
+      ? state.mediaBookmarks[mediaId]
+      : (EMPTY_BOOKMARKS as any[]);
+  });
+
+  // Resolve the currently active/selected bookmark for display
+  const activeBookmark = bookmarks?.find((b) => b.id === selectedBookmarkId) || null;
+
+  // Ensure zoom stays a finite number (guards against accidental non-number assignments)
+  useEffect(() => {
+    if (typeof waveformZoom !== "number" || !isFinite(waveformZoom)) {
+      setWaveformZoom(1);
+    }
+  }, [waveformZoom, setWaveformZoom]);
+
+  // Close overlap menu on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOverlapMenu(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Load audio file and analyze waveform
   useEffect(() => {
@@ -97,8 +160,9 @@ export const WaveformVisualizer = () => {
     if (!ctx) return;
 
     // Set canvas dimensions
-    canvas.width = canvas.clientWidth * window.devicePixelRatio;
-    canvas.height = canvas.clientHeight * window.devicePixelRatio;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -126,6 +190,74 @@ export const WaveformVisualizer = () => {
       loopEnd !== null
         ? ((loopEnd - startOffset) / visibleDuration) * canvas.width
         : -1;
+
+    // Draw bookmark regions using vertical lanes at the top
+    laneRectsRef.current = [];
+    const visibleBookmarks = (Array.isArray(bookmarks) ? bookmarks : []).filter(
+      (bm) => !(bm.end < startOffset || bm.start > endOffset)
+    );
+    // Greedy lane assignment by time to avoid overlaps in the same lane
+    const lanes: { lastEnd: number }[] = [];
+    const assigned: { id: string; start: number; end: number; lane: number }[] = [];
+    // Sort by start time then by duration ascending so shorter clips get first choice
+    visibleBookmarks
+      .slice()
+      .sort((a, b) => (a.start - b.start) || (a.end - a.start) - (b.end - b.start))
+      .forEach((bm) => {
+        let placed = false;
+        for (let i = 0; i < lanes.length; i++) {
+          if (bm.start >= lanes[i].lastEnd) {
+            lanes[i].lastEnd = bm.end;
+            assigned.push({ id: bm.id, start: bm.start, end: bm.end, lane: i });
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          lanes.push({ lastEnd: bm.end });
+          assigned.push({ id: bm.id, start: bm.start, end: bm.end, lane: lanes.length - 1 });
+        }
+      });
+
+    const lanePaddingCss = isMobile ? 8 : 6; // px from top
+    const laneHeightCss = isMobile ? 20 : 16; // px height per lane (bolder on mobile)
+    const laneGapCss = isMobile ? 4 : 3; // px spacing between lanes
+    const toCanvasX = (t: number) =>
+      ((Math.max(t, startOffset) - startOffset) / visibleDuration) * canvas.width;
+    const topYCanvas = lanePaddingCss * dpr;
+    assigned.forEach(({ id, start, end, lane }) => {
+      const x1c = toCanvasX(start);
+      const x2c = ((Math.min(end, endOffset) - startOffset) / visibleDuration) * canvas.width;
+      const width = Math.max(1, x2c - x1c);
+      const yCss = lanePaddingCss + lane * (laneHeightCss + laneGapCss);
+      const yCanvas = yCss * dpr;
+      const hCanvas = laneHeightCss * dpr;
+      const isActive = id === selectedBookmarkId;
+      // Fill lane block (bolder opacity)
+      ctx.fillStyle = isActive ? "rgba(139,92,246,0.95)" : "rgba(139,92,246,0.65)";
+      ctx.fillRect(x1c, yCanvas, width, hCanvas);
+      // Outline
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(255,255,255,0.9)";
+      ctx.lineWidth = 2 * dpr;
+      ctx.strokeRect(x1c + 0.5 * dpr, yCanvas + 0.5 * dpr, Math.max(0, width - dpr), Math.max(0, hCanvas - dpr));
+      // Save clickable rect in CSS pixels with a small hit padding for touch
+      const hitPadY = isMobile ? 4 : 2;
+      const hitPadX = isMobile ? 2 : 1;
+      laneRectsRef.current.push({ id, x1: x1c / dpr - hitPadX, x2: x2c / dpr + hitPadX, y1: Math.max(0, yCss - hitPadY), y2: yCss + laneHeightCss + hitPadY });
+    });
+
+    // Dim the active bookmark across full height for context
+    const active = (Array.isArray(bookmarks) ? bookmarks : []).find(
+      (b) => b.id === selectedBookmarkId
+    );
+    if (active && !(active.end < startOffset || active.start > endOffset)) {
+      const x1 = toCanvasX(active.start);
+      const x2 = ((Math.min(active.end, endOffset) - startOffset) / visibleDuration) * canvas.width;
+      const w = Math.max(1, x2 - x1);
+      ctx.fillStyle = "rgba(139,92,246,0.15)";
+      ctx.fillRect(x1, 0, w, canvas.height);
+    }
 
     // Draw loop region background
     if (
@@ -201,6 +333,8 @@ export const WaveformVisualizer = () => {
     loopEnd,
     waveformZoom,
     showWaveform,
+    bookmarks,
+    selectedBookmarkId,
   ]);
 
   // Helper function to draw markers
@@ -416,26 +550,52 @@ export const WaveformVisualizer = () => {
 
   // Handle mouse wheel for zooming
   const handleMouseWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault(); // Prevent page scrolling
+    // Stop default scroll/zoom behaviors and stop bubbling
+    e.preventDefault();
+    e.stopPropagation();
 
-    // Get the mouse wheel delta
     const delta = e.deltaY;
-
-    // Delta is negative when scrolling up (zoom in)
-    // Delta is positive when scrolling down (zoom out)
-    if (delta < 0) {
-      // Zoom in - smoother increment for wheel
-      setWaveformZoom(Math.min(waveformZoom * 1.1, 20));
-    } else {
-      // Zoom out - smoother decrement for wheel
-      setWaveformZoom(Math.max(waveformZoom / 1.1, 1));
-    }
+    const currentZoom = waveformZoom;
+    const nextZoom = delta < 0 ? Math.min(currentZoom * 1.1, 20) : Math.max(currentZoom / 1.1, 1);
+    setWaveformZoom(nextZoom);
   };
+
+  // Ensure wheel/touch listeners are non-passive so preventDefault works on all browsers
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onWheel = (ev: WheelEvent) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const delta = ev.deltaY;
+      const currentZoom = usePlayerStore.getState().waveformZoom;
+      const nextZoom = delta < 0 ? Math.min(currentZoom * 1.1, 20) : Math.max(currentZoom / 1.1, 1);
+      setWaveformZoom(nextZoom);
+    };
+
+    const onTouchMove = (ev: TouchEvent) => {
+      // When interacting inside the waveform, prevent the page from scrolling
+      if (ev.touches.length >= 1) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+
+    return () => {
+      el.removeEventListener('wheel', onWheel as EventListener);
+      el.removeEventListener('touchmove', onTouchMove as EventListener);
+    };
+  }, [setWaveformZoom]);
   
 
 
   // Handle mouse down for range selection
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (overlapMenu) setOverlapMenu(null);
     if (!canvasRef.current) return;
 
     // Only start selection with left mouse button
@@ -495,6 +655,28 @@ export const WaveformVisualizer = () => {
       setDragStart(null);
       setDragEnd(null);
     }
+    if (overlapMenu) setOverlapMenu(null);
+  };
+
+  // Navigate between bookmarks (previous/next)
+  const goToBookmark = (direction: "prev" | "next") => {
+    const list = (bookmarks || []).slice().sort((a, b) => a.start - b.start);
+    if (list.length === 0) return;
+
+    // Find current index: selected id preferred; otherwise nearest to current time
+    let idx = selectedBookmarkId ? list.findIndex(b => b.id === selectedBookmarkId) : -1;
+    if (idx === -1) {
+      // nearest next
+      idx = list.findIndex(b => b.start > currentTime);
+      if (idx === -1) idx = list.length - 1; // fallback to last
+    }
+
+    const nextIdx = direction === "next" ? (idx + 1) % list.length : (idx - 1 + list.length) % list.length;
+    const target = list[nextIdx];
+    if (!target) return;
+    loadBookmark(target.id);
+    setCurrentTime(target.start);
+    setIsPlaying(true);
   };
 
   // Enable looping for the selected range
@@ -521,6 +703,53 @@ export const WaveformVisualizer = () => {
 
     const time = positionToTime(e.clientX);
     if (time >= 0 && time <= duration) {
+      // First: check if click is within a stacked lane rect (precise selection)
+      const rect = containerRef.current?.getBoundingClientRect();
+      const xCss = rect ? e.clientX - rect.left : 0;
+      const yCss = rect ? e.clientY - rect.top : 0;
+      const laneHit = laneRectsRef.current.find(
+        (r) => xCss >= r.x1 && xCss <= r.x2 && yCss >= r.y1 && yCss <= r.y2
+      );
+      if (laneHit) {
+        const bm = bookmarks?.find((b) => b.id === laneHit.id);
+        if (bm) {
+          loadBookmark(bm.id);
+          setCurrentTime(bm.start);
+          setIsPlaying(true);
+          document.body.classList.add("user-seeking");
+          setTimeout(() => document.body.classList.remove("user-seeking"), 100);
+          return;
+        }
+      }
+
+      // Otherwise: fall back to region test under cursor
+      const overlapped = Array.isArray(bookmarks)
+        ? bookmarks.filter((bm) => bm.start <= time && time <= bm.end)
+        : [];
+
+      if (overlapped.length === 1) {
+        const clickedBookmark = overlapped[0];
+        loadBookmark(clickedBookmark.id);
+        setCurrentTime(clickedBookmark.start);
+        setIsPlaying(true);
+        document.body.classList.add("user-seeking");
+        setTimeout(() => {
+          document.body.classList.remove("user-seeking");
+        }, 100);
+        return;
+      } else if (overlapped.length > 1 && containerRef.current) {
+        // Multiple overlaps: show a small picker near the click position
+        const rect = containerRef.current.getBoundingClientRect();
+        // Sort by shortest duration first (more specific clips first)
+        const items = overlapped
+          .slice()
+          .sort((a, b) => (a.end - a.start) - (b.end - b.start))
+          .map((b) => ({ id: b.id, name: b.name, start: b.start, end: b.end }));
+        setOverlapMenu({ x: e.clientX - rect.left, y: Math.max(8, e.clientY - rect.top), items });
+        return;
+      }
+
+      // Otherwise, just seek to the clicked time
       setCurrentTime(time);
       document.body.classList.add("user-seeking");
       setTimeout(() => {
@@ -529,38 +758,60 @@ export const WaveformVisualizer = () => {
     }
   };
 
+  // Utility to prevent click-through on overlay controls inside the canvas
+  const stopPropagation = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleSelectBookmark = (id: string) => {
+    const bm = bookmarks?.find((b) => b.id === id);
+    if (!bm) return;
+    loadBookmark(id);
+    setCurrentTime(bm.start);
+    setIsPlaying(true);
+    setOverlapMenu(null);
+    document.body.classList.add("user-seeking");
+    setTimeout(() => {
+      document.body.classList.remove("user-seeking");
+    }, 100);
+  };
+
   return (
     <div className="mt-2 backdrop-blur-sm rounded-lg overflow-hidden border border-purple-500/30 relative">
-      {/* Zoom controls - responsive sizing based on device */}
-      <div className={`absolute top-1 right-1 z-10 flex items-center ${isMobile ? 'space-x-2' : 'space-x-1'} bg-gray-800/80 backdrop-blur-sm rounded ${isMobile ? 'px-2 py-1' : 'px-1 py-0.5'}`}>
-        <button
-          className={`bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white rounded ${isMobile ? 'p-2' : 'p-1'}`}
-          onClick={handleZoomIn}
-          title="Zoom In"
-        >
-          <PlusIcon className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
-        </button>
-        <button
-          className={`bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white rounded ${isMobile ? 'p-2' : 'p-1'}`}
-          onClick={handleZoomOut}
-          title="Zoom Out"
-        >
-          <MinusIcon className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
-        </button>
-        <button
-          className={`bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white rounded ${isMobile ? 'p-2' : 'p-1'}`}
-          onClick={handleResetZoom}
-          title="Reset Zoom"
-        >
-          <ArrowsPointingOutIcon className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
-        </button>
-        <span className={isMobile ? "text-sm text-white" : "text-xs text-white"}>{waveformZoom.toFixed(1)}x</span>
-      </div>
+      {/* Zoom controls - moved to top-left; hidden on mobile (use pinch) */}
+      {/* {!isMobile && (
+        <div className={`absolute top-1 left-1 z-10 flex items-center gap-1 bg-gray-900/60 backdrop-blur rounded-full ring-1 ring-white/10 shadow-md px-1.5 py-1`}>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-8 w-8`}
+            onClick={handleZoomIn}
+            title="Zoom In"
+          >
+            <PlusIcon className="h-3.5 w-3.5" />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-8 w-8`}
+            onClick={handleZoomOut}
+            title="Zoom Out"
+          >
+            <MinusIcon className="h-3.5 w-3.5" />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-8 w-8`}
+            onClick={handleResetZoom}
+            title="Reset Zoom"
+          >
+            <ArrowsPointingOutIcon className="h-3.5 w-3.5" />
+          </button>
+          <span className="text-xs text-white/90 px-1">{formatZoom(waveformZoom)}x</span>
+        </div>
+      )} */}
+
+      {/* Quick loop actions were moved inside the canvas container to avoid overlapping the footer */}
 
       {/* Waveform visualization with drag selection and touch support */}
       <div
         ref={containerRef}
-        className={`${isMobile ? 'h-28' : 'h-24'} overflow-hidden relative`}
+        className={`${isMobile ? 'h-40' : 'h-40 sm:h-48 lg:h-56'} overflow-hidden relative overscroll-contain touch-none select-none`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -571,7 +822,155 @@ export const WaveformVisualizer = () => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
+        {/* In-canvas quick loop actions - desktop only to avoid overlap on mobile */}
+        {!isMobile && (
+        <div
+          className={`absolute bottom-2 right-2 z-10 flex items-center gap-1 bg-gray-900/60 backdrop-blur rounded-full ring-1 ring-white/10 shadow-md px-1.5 py-1`}
+          onMouseDown={stopPropagation}
+          onClick={stopPropagation}
+          onTouchStart={stopPropagation}
+          onWheel={stopPropagation as unknown as React.WheelEventHandler<HTMLDivElement>}
+          onPointerDown={stopPropagation}
+        >
+          <button
+            className={`${isLooping ? 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white' : 'text-white hover:bg-white/10 active:bg-white/20'} inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? 'h-9 w-9' : 'h-8 w-8'}`}
+            onClick={() => setIsLooping(!isLooping)}
+            title={isLooping ? 'Disable loop' : 'Enable loop'}
+            aria-label="Toggle loop"
+          >
+            <Repeat size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? 'h-9 w-9' : 'h-8 w-8'}`}
+            onClick={() => {
+              if (duration === 0) return;
+              if (loopEnd !== null && currentTime >= loopEnd) {
+                setLoopPoints(currentTime, null);
+                setIsLooping(false);
+              } else {
+                setLoopPoints(currentTime, loopEnd);
+                if (loopEnd !== null) setIsLooping(true);
+              }
+            }}
+            title="Set A at current time"
+            aria-label="Set A"
+          >
+            <AlignStartHorizontal size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? 'h-9 w-9' : 'h-8 w-8'}`}
+            onClick={() => {
+              if (duration === 0) return;
+              const start = loopStart !== null ? loopStart : 0;
+              if (currentTime > start) {
+                setLoopPoints(start, currentTime);
+                setIsLooping(true);
+              }
+            }}
+            title="Set B at current time"
+            aria-label="Set B"
+          >
+            <AlignEndHorizontal size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? 'h-9 w-9' : 'h-8 w-8'}`}
+            onClick={() => {
+              setLoopPoints(null, null);
+              setIsLooping(false);
+            }}
+            title="Clear loop"
+            aria-label="Clear loop"
+          >
+            <X size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? 'h-9 w-9' : 'h-8 w-8'}`}
+            onClick={() => goToBookmark("prev")}
+            title="Previous bookmark"
+            aria-label="Previous bookmark"
+            disabled={(bookmarks?.length || 0) === 0}
+          >
+            <ChevronLeft size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? 'h-9 w-9' : 'h-8 w-8'}`}
+            onClick={() => goToBookmark("next")}
+            title="Next bookmark"
+            aria-label="Next bookmark"
+            disabled={(bookmarks?.length || 0) === 0}
+          >
+            <ChevronRight size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`${autoAdvanceBookmarks ? 'bg-purple-600 text-white' : 'text-white hover:bg-white/10 active:bg-white/20'} inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? 'h-9 w-9' : 'h-8 w-8'}`}
+            onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}
+            title={autoAdvanceBookmarks ? 'Auto-advance between bookmarks: On' : 'Auto-advance between bookmarks: Off'}
+            aria-label="Toggle auto-advance"
+          >
+            <ChevronsRight size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            disabled={!selectedBookmarkId}
+            className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? 'h-9 w-9' : 'h-8 w-8'} ${selectedBookmarkId ? 'hover:bg-red-500/20 active:bg-red-500/30' : 'opacity-40 cursor-not-allowed'}`}
+            onClick={() => {
+              if (!selectedBookmarkId) return;
+              deleteBookmark(selectedBookmarkId);
+              toast.success('Bookmark deleted');
+            }}
+            title="Delete current bookmark"
+            aria-label="Delete current bookmark"
+          >
+            <Trash2 size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            disabled={!(loopStart !== null && loopEnd !== null)}
+            className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? 'h-9 w-9' : 'h-8 w-8'} ${loopStart !== null && loopEnd !== null ? 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800' : 'bg-purple-600/40 cursor-not-allowed'}`}
+            onClick={() => {
+              if (loopStart === null || loopEnd === null) return;
+              const added = storeAddBookmark({
+                name: `Clip ${usePlayerStore.getState().getCurrentMediaBookmarks().length + 1}`,
+                start: loopStart,
+                end: loopEnd,
+                playbackRate,
+                mediaName: currentFile?.name,
+                mediaType: currentFile?.type,
+                youtubeId: undefined,
+                annotation: "",
+              });
+              if (added) toast.success("Bookmark added");
+            }}
+            title="Add bookmark from loop"
+            aria-label="Add bookmark"
+          >
+            <Bookmark size={isMobile ? 16 : 14} />
+          </button>
+        </div>
+        )}
         <canvas ref={canvasRef} className="w-full h-full cursor-crosshair" />
+
+        {/* Overlapping bookmarks picker */}
+        {overlapMenu && (
+          <div
+            className={isMobile ? "absolute z-20 bg-gray-900/90 text-white rounded-lg shadow-lg ring-1 ring-white/10 backdrop-blur" : "absolute z-20 bg-gray-900/90 text-white text-xs rounded-lg shadow-lg ring-1 ring-white/10 backdrop-blur min-w-[160px]"}
+            style={isMobile ? { left: 8, right: 8, top: 8 } : { left: overlapMenu.x, top: Math.min(overlapMenu.y, (containerRef.current?.clientHeight || 0) - 8) }}
+            onMouseDown={stopPropagation}
+            onClick={stopPropagation}
+            onTouchStart={stopPropagation}
+          >
+            {overlapMenu.items.map((item) => (
+              <button
+                key={item.id}
+                className={isMobile ? "w-full text-left px-4 py-3 text-sm hover:bg-white/10 focus:bg-white/10 focus:outline-none" : "w-full text-left px-3 py-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none"}
+                onClick={() => handleSelectBookmark(item.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={isMobile ? "truncate" : "truncate max-w-[120px]"}>{item.name || 'Clip'}</span>
+                  <span className={isMobile ? "ml-2 text-xs text-white/70" : "ml-2 text-[11px] text-white/70"}>{formatTime(item.start)}–{formatTime(item.end)}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Visual indicator for dragging selection */}
         {isDragging && dragStart !== null && dragEnd !== null && (
@@ -606,7 +1005,128 @@ export const WaveformVisualizer = () => {
       </div>
 
       {/* Loop controls - responsive design for mobile */}
-      <div className={`flex ${isMobile ? 'flex-col' : 'items-center justify-between'} p-1 bg-gray-900/50`}>
+      <div
+        className={`flex ${isMobile ? 'flex-col' : 'items-center justify-between'} p-1 bg-gray-900/50`}
+        onMouseDown={stopPropagation}
+        onClick={stopPropagation}
+        onTouchStart={stopPropagation}
+      >
+        {isMobile && (
+          <div className="flex items-center justify-end gap-2 mb-1">
+            <button
+              className={`${isLooping ? 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white' : 'text-white hover:bg-white/10 active:bg-white/20'} inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 h-9 w-9`}
+              onClick={() => setIsLooping(!isLooping)}
+              title={isLooping ? 'Disable loop' : 'Enable loop'}
+              aria-label="Toggle loop"
+            >
+              <Repeat size={16} />
+            </button>
+            <button
+              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-9 w-9`}
+              onClick={() => {
+                if (duration === 0) return;
+                if (loopEnd !== null && currentTime >= loopEnd) {
+                  setLoopPoints(currentTime, null);
+                  setIsLooping(false);
+                } else {
+                  setLoopPoints(currentTime, loopEnd);
+                  if (loopEnd !== null) setIsLooping(true);
+                }
+              }}
+              title="Set A at current time"
+              aria-label="Set A"
+            >
+              <AlignStartHorizontal size={16} />
+            </button>
+            <button
+              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-9 w-9`}
+              onClick={() => {
+                if (duration === 0) return;
+                const start = loopStart !== null ? loopStart : 0;
+                if (currentTime > start) {
+                  setLoopPoints(start, currentTime);
+                  setIsLooping(true);
+                }
+              }}
+              title="Set B at current time"
+              aria-label="Set B"
+            >
+              <AlignEndHorizontal size={16} />
+            </button>
+            <button
+              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-9 w-9`}
+              onClick={() => {
+                setLoopPoints(null, null);
+                setIsLooping(false);
+              }}
+              title="Clear loop"
+              aria-label="Clear loop"
+            >
+              <X size={16} />
+            </button>
+            <button
+              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-9 w-9`}
+              onClick={() => goToBookmark("prev")}
+              title="Previous bookmark"
+              aria-label="Previous bookmark"
+              disabled={(bookmarks?.length || 0) === 0}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-9 w-9`}
+              onClick={() => goToBookmark("next")}
+              title="Next bookmark"
+              aria-label="Next bookmark"
+              disabled={(bookmarks?.length || 0) === 0}
+            >
+              <ChevronRight size={16} />
+            </button>
+            <button
+              className={`${autoAdvanceBookmarks ? 'bg-purple-600 text-white' : 'text-white hover:bg-white/10 active:bg-white/20'} inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 h-9 w-9`}
+              onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}
+              title={autoAdvanceBookmarks ? 'Auto-advance between bookmarks: On' : 'Auto-advance between bookmarks: Off'}
+              aria-label="Toggle auto-advance"
+            >
+              <ChevronsRight size={16} />
+            </button>
+            <button
+              disabled={!selectedBookmarkId}
+              className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 h-9 w-9 ${selectedBookmarkId ? 'hover:bg-red-500/20 active:bg-red-500/30' : 'opacity-40 cursor-not-allowed'}`}
+              onClick={() => {
+                if (!selectedBookmarkId) return;
+                deleteBookmark(selectedBookmarkId);
+                toast.success('Bookmark deleted');
+              }}
+              title="Delete current bookmark"
+              aria-label="Delete current bookmark"
+            >
+              <Trash2 size={16} />
+            </button>
+            <button
+              disabled={!(loopStart !== null && loopEnd !== null)}
+              className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 h-9 w-9 ${loopStart !== null && loopEnd !== null ? 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800' : 'bg-purple-600/40 cursor-not-allowed'}`}
+              onClick={() => {
+                if (loopStart === null || loopEnd === null) return;
+                const added = storeAddBookmark({
+                  name: `Clip ${usePlayerStore.getState().getCurrentMediaBookmarks().length + 1}`,
+                  start: loopStart,
+                  end: loopEnd,
+                  playbackRate,
+                  mediaName: currentFile?.name,
+                  mediaType: currentFile?.type,
+                  youtubeId: undefined,
+                  annotation: "",
+                });
+                if (added) toast.success("Bookmark added");
+              }}
+              title="Add bookmark from loop"
+              aria-label="Add bookmark"
+            >
+              <Bookmark size={16} />
+            </button>
+          </div>
+        )}
         <div className={`flex items-center ${isMobile ? 'mb-1 justify-between w-full' : 'space-x-2'}`}>
           <span className={isMobile ? "text-sm text-white font-medium" : "text-xs text-white"}>Loop: </span>
           {loopStart !== null && loopEnd !== null ? (
@@ -617,8 +1137,11 @@ export const WaveformVisualizer = () => {
               <button
                 className={`bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded ${isMobile ? 'text-sm px-3 py-1 ml-2' : 'text-xs px-2 py-0.5'}`}
                 onClick={handleLoopSelection}
+                title={activeBookmark ? activeBookmark.name : 'Loop Selection'}
               >
-                Loop Selection
+                <span className="inline-block max-w-[50vw] sm:max-w-[220px] truncate align-middle">
+                  {activeBookmark ? activeBookmark.name : 'Loop Selection'}
+                </span>
               </button>
             </div>
           ) : (
@@ -629,7 +1152,7 @@ export const WaveformVisualizer = () => {
         </div>
 
         <span className={isMobile ? "text-sm text-gray-400 w-full text-right" : "text-xs text-gray-400"}>
-          Current zoom: {waveformZoom.toFixed(1)}x
+          Current zoom: {formatZoom(waveformZoom)}x
           {isMobile && " (pinch to zoom)"}
         </span>
       </div>

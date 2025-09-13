@@ -144,14 +144,22 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
         // Only jump back when we actually exceed the end time
         // Use a small tolerance to account for timing precision
         if (currentTimeValue >= loopEnd + 0.005) {
+          const state = usePlayerStore.getState();
+          const { autoAdvanceBookmarks, selectedBookmarkId, getCurrentMediaBookmarks, loadBookmark } = state as any;
+          if (autoAdvanceBookmarks && selectedBookmarkId) {
+            const list = (getCurrentMediaBookmarks?.() || []).slice().sort((a: any, b: any) => a.start - b.start);
+            const idx = list.findIndex((b: any) => b.id === selectedBookmarkId);
+            if (list.length > 0) {
+              const next = list[(idx + 1 + list.length) % list.length];
+              if (next) {
+                loadBookmark?.(next.id);
+                mediaElement.currentTime = next.start;
+                return; // skip default looping
+              }
+            }
+          }
           mediaElement.currentTime = loopStart;
-          console.log(
-            `Loop: Audio reached ${currentTimeValue.toFixed(
-              3
-            )}s, end was ${loopEnd.toFixed(
-              3
-            )}s, jumping back to ${loopStart.toFixed(3)}s`
-          );
+          // keep looping current A-B by default
         } else if (
           currentTimeValue < loopStart - startBuffer &&
           currentTimeValue > 0
@@ -296,10 +304,11 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
           <div
             className="w-full rounded-lg flex items-center justify-center relative"
             style={{
+              // Compact but not cramped: keep a sensible minimum using clamp
               height: showWaveform
-                ? "calc(100vh - 400px)"
-                : "min(calc(100vh - 250px), 300px)", // Responsive height
-              maxHeight: "350px",
+                ? "clamp(240px, calc(100vh - 420px), 300px)"
+                : "clamp(220px, calc(100vh - 300px), 280px)",
+              maxHeight: "300px",
               transition: "height 0.3s ease-in-out", // Smooth transition
             }}
           >
