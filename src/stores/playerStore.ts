@@ -48,12 +48,19 @@ export interface MediaHistoryItem {
   type: "file" | "youtube";
   name: string;
   accessedAt: number;
+  folderId?: string | null;
   fileData?: Omit<MediaFile, "id">;
   youtubeData?: {
     title?: string;
     youtubeId?: string;
   };
   storageId?: string; // ID for IndexedDB storage
+}
+
+export interface MediaFolder {
+  id: string;
+  name: string;
+  createdAt: number;
 }
 
 export interface TranscriptSegment {
@@ -113,6 +120,16 @@ export interface PlayerState {
   recentYouTubeVideos: YouTubeMedia[];
   mediaHistory: MediaHistoryItem[];
   historyLimit: number;
+  // Library organization & sorting
+  mediaFolders: Record<string, MediaFolder>;
+  historySortBy: "date" | "name" | "type";
+  historySortOrder: "asc" | "desc";
+  historyFolderFilter: "all" | "unfiled" | string;
+
+  // Playback queue
+  playbackQueue: string[];
+  playbackIndex: number;
+  isQueueActive: boolean;
 }
 
 export interface PlayerActions {
@@ -197,6 +214,24 @@ export interface PlayerActions {
   removeFromHistory: (historyItemId: string) => void;
   clearMediaHistory: () => void;
   setHistoryLimit: (limit: number) => void;
+
+  // Folder & item management
+  createMediaFolder: (name: string) => string;
+  renameMediaFolder: (folderId: string, newName: string) => void;
+  deleteMediaFolder: (folderId: string) => void;
+  moveHistoryItemToFolder: (historyItemId: string, folderId: string | null) => void;
+  renameHistoryItem: (historyItemId: string, newName: string) => void;
+  setHistorySort: (
+    by: "date" | "name" | "type",
+    order: "asc" | "desc"
+  ) => void;
+  setHistoryFolderFilter: (filter: "all" | "unfiled" | string) => void;
+
+  // Queue controls
+  startPlaybackQueue: (ids: string[], startId?: string) => Promise<void>;
+  playNextInQueue: () => Promise<void>;
+  playPreviousInQueue: () => Promise<void>;
+  stopPlaybackQueue: () => void;
 }
 
 const initialState: PlayerState = {
@@ -233,6 +268,15 @@ const initialState: PlayerState = {
   // Defaults for seek steps
   seekStepSeconds: 5,
   seekSmallStepSeconds: 1,
+  // Library organization & sorting defaults
+  mediaFolders: {},
+  historySortBy: "date",
+  historySortOrder: "desc",
+  historyFolderFilter: "all",
+  // Queue defaults
+  playbackQueue: [],
+  playbackIndex: -1,
+  isQueueActive: false,
 };
 
 export const usePlayerStore = create<PlayerState & PlayerActions>()(
@@ -666,6 +710,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             const updatedItem = {
               ...existingItem,
               accessedAt: timestamp,
+              // Preserve existing name (keep user renames)
+              name: existingItem.name || (item as any).name,
               // Update storageId if the new item has one
               ...(item.storageId && !existingItem.storageId
                 ? { storageId: item.storageId }
@@ -674,6 +720,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
               ...(item.fileData
                 ? { fileData: { ...existingItem.fileData, ...item.fileData } }
                 : {}),
+              // Preserve folder assignment
+              folderId: existingItem.folderId ?? null,
             };
 
             return {
@@ -687,7 +735,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           // Otherwise add as new item
           return {
             mediaHistory: [
-              { ...item, id, accessedAt: timestamp },
+              { ...item, id, accessedAt: timestamp, folderId: null },
               ...state.mediaHistory,
             ].slice(0, state.historyLimit),
           };
@@ -857,6 +905,106 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setHistoryLimit(limit) {
         set({ historyLimit: limit });
       },
+
+      // Folder & item management
+      createMediaFolder: (name) => {
+        const id = `folder-${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(2, 8)}`;
+        set((state) => ({
+          mediaFolders: {
+            ...state.mediaFolders,
+            [id]: { id, name, createdAt: Date.now() },
+          },
+        }));
+        return id;
+      },
+      renameMediaFolder: (folderId, newName) =>
+        set((state) => ({
+          mediaFolders: {
+            ...state.mediaFolders,
+            [folderId]: {
+              ...state.mediaFolders[folderId],
+              name: newName,
+            },
+          },
+        })),
+      deleteMediaFolder: (folderId) =>
+        set((state) => ({
+          mediaFolders: Object.fromEntries(
+            Object.entries(state.mediaFolders).filter(([id]) => id !== folderId)
+          ),
+          mediaHistory: state.mediaHistory.map((item) =>
+            item.folderId === folderId ? { ...item, folderId: null } : item
+          ),
+          historyFolderFilter:
+            state.historyFolderFilter === folderId ? "all" : state.historyFolderFilter,
+        })),
+      moveHistoryItemToFolder: (historyItemId, folderId) =>
+        set((state) => ({
+          mediaHistory: state.mediaHistory.map((item) =>
+            item.id === historyItemId ? { ...item, folderId: folderId ?? null } : item
+          ),
+        })),
+      renameHistoryItem: (historyItemId, newName) =>
+        set((state) => ({
+          mediaHistory: state.mediaHistory.map((item) =>
+            item.id === historyItemId
+              ? {
+                  ...item,
+                  name: newName,
+                  ...(item.type === "file" && item.fileData
+                    ? { fileData: { ...item.fileData, name: newName } }
+                    : {}),
+                  ...(item.type === "youtube" && item.youtubeData
+                    ? { youtubeData: { ...item.youtubeData, title: newName } }
+                    : {}),
+                }
+              : item
+          ),
+        })),
+      setHistorySort: (by, order) => set({ historySortBy: by, historySortOrder: order }),
+      setHistoryFolderFilter: (filter) => set({ historyFolderFilter: filter }),
+
+      // Queue controls
+      startPlaybackQueue: async (ids, startId) => {
+        if (!ids || ids.length === 0) return;
+        const startIndex = startId ? Math.max(0, ids.indexOf(startId)) : 0;
+        set({ playbackQueue: ids, playbackIndex: startIndex, isQueueActive: true });
+
+        const { loadFromHistory, setIsPlaying } = get();
+        await (loadFromHistory as unknown as (id: string) => Promise<void>)(
+          ids[startIndex]
+        );
+        setIsPlaying(true);
+      },
+      playNextInQueue: async () => {
+        const { playbackQueue, playbackIndex, isQueueActive } = get();
+        if (!isQueueActive) return;
+        const nextIndex = playbackIndex + 1;
+        if (nextIndex >= playbackQueue.length) {
+          set({ isQueueActive: false, playbackQueue: [], playbackIndex: -1 });
+          return;
+        }
+        set({ playbackIndex: nextIndex });
+        const { loadFromHistory, setIsPlaying } = get();
+        await (loadFromHistory as unknown as (id: string) => Promise<void>)(
+          playbackQueue[nextIndex]
+        );
+        setIsPlaying(true);
+      },
+      playPreviousInQueue: async () => {
+        const { playbackQueue, playbackIndex, isQueueActive } = get();
+        if (!isQueueActive) return;
+        const prevIndex = Math.max(0, playbackIndex - 1);
+        set({ playbackIndex: prevIndex });
+        const { loadFromHistory, setIsPlaying } = get();
+        await (loadFromHistory as unknown as (id: string) => Promise<void>)(
+          playbackQueue[prevIndex]
+        );
+        setIsPlaying(true);
+      },
+      stopPlaybackQueue: () => set({ isQueueActive: false, playbackQueue: [], playbackIndex: -1 }),
 
       // Transcript actions
       startTranscribing() {
@@ -1352,6 +1500,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         recentYouTubeVideos: state.recentYouTubeVideos,
         mediaHistory: state.mediaHistory,
         historyLimit: state.historyLimit,
+        mediaFolders: state.mediaFolders,
+        historySortBy: state.historySortBy,
+        historySortOrder: state.historySortOrder,
+        historyFolderFilter: state.historyFolderFilter,
         seekStepSeconds: state.seekStepSeconds,
         seekSmallStepSeconds: state.seekSmallStepSeconds,
       }),
