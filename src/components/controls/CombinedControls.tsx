@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
+import { Plus } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 export const CombinedControls = () => {
   const {
@@ -31,6 +33,8 @@ export const CombinedControls = () => {
     loopStart,
     loopEnd,
     isLooping,
+    currentFile,
+    currentYouTube,
     setIsPlaying,
     setCurrentTime,
     setVolume,
@@ -41,6 +45,7 @@ export const CombinedControls = () => {
     seekForward: storeSeekForward,
     seekBackward: storeSeekBackward,
     getCurrentMediaBookmarks,
+    addBookmark: storeAddBookmark,
   } = usePlayerStore();
 
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
@@ -62,6 +67,42 @@ export const CombinedControls = () => {
   // Toggle play/pause
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
+  };
+
+  // Quick-add a bookmark using current loop selection or a short window
+  const quickAddBookmark = () => {
+    // Determine the range: prefer existing loop selection
+    const start = loopStart !== null ? loopStart : Math.max(0, currentTime - 2);
+    const end = loopEnd !== null ? loopEnd : Math.min(duration, currentTime + 2);
+
+    if (duration === 0) {
+      toast.error("Load media before adding bookmarks");
+      return;
+    }
+
+    if (end <= start) {
+      toast.error("Set a valid A–B range first");
+      return;
+    }
+
+    // Generate a simple default name
+    const count = bookmarks.length + 1;
+    const name = `Clip ${count}`;
+
+    // Persist bookmark to current media
+    const added = storeAddBookmark({
+      name,
+      start,
+      end,
+      playbackRate,
+      mediaName: currentFile?.name,
+      mediaType: currentFile?.type,
+      youtubeId: currentYouTube?.id,
+      annotation: "",
+    });
+    if (added) {
+      toast.success("Bookmark added");
+    }
   };
 
   // Handle timeline slider change with improved seeking capability
@@ -128,14 +169,23 @@ export const CombinedControls = () => {
     }
   };
 
-  // Set loop start point at current time
+  // Set loop start (A) at current time.
+  // Rules:
+  // - If a loop exists and current time is AFTER B, clear B and set only A (fresh loop start).
+  // - If current time is BEFORE B, set A and keep existing B.
+  // - Do not auto-create a default B.
   const setLoopStartAtCurrentTime = () => {
-    const end = loopEnd !== null ? loopEnd : duration;
-    if (currentTime < end) {
-      setLoopPoints(currentTime, end);
-      // Enable looping when points are set
-      if (!isLooping) {
-        setIsLooping(true);
+    if (duration === 0) return;
+    if (loopEnd !== null && currentTime >= loopEnd) {
+      // Start fresh: A=current, clear B, and stop looping until B is set
+      setLoopPoints(currentTime, null);
+      setIsLooping(false);
+    } else {
+      // Just move A; keep B as-is (may be null)
+      setLoopPoints(currentTime, loopEnd);
+      if (loopEnd !== null) {
+        // Valid A-B range remains; keep looping state
+        if (!isLooping) setIsLooping(true);
       }
     }
   };
@@ -298,21 +348,30 @@ export const CombinedControls = () => {
               </span>
             </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleBookmarkDrawer}
-              className="gap-1 py-1 px-3 h-8 text-xs font-medium relative"
-              aria-label="Open bookmarks"
-            >
-              <Bookmark size={13} className="sm:w-[14px] sm:h-[14px]" />
-              <span className="hidden sm:inline">Bookmarks</span>
-              {bookmarks.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                  {bookmarks.length > 9 ? "9+" : bookmarks.length}
-                </span>
-              )}
-            </Button>
+            {/* Bookmarks + Add grouped */}
+            <div role="group" className="inline-flex items-stretch rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleBookmarkDrawer}
+                className="gap-1 py-1 px-3 h-8 text-xs font-medium relative rounded-none border-0"
+                aria-label="Open bookmarks"
+              >
+                <Bookmark size={13} className="sm:w-[14px] sm:h-[14px]" />
+                <span className="hidden sm:inline">Bookmarks</span>
+              </Button>
+              <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" aria-hidden></div>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={quickAddBookmark}
+                className="gap-1 py-1 px-3 h-8 text-xs font-medium rounded-none"
+                aria-label="Quick add bookmark"
+              >
+                <Plus size={13} className="sm:w-[14px] sm:h-[14px]" />
+                <span className="hidden sm:inline">Add</span>
+              </Button>
+            </div>
 
             <Button
               variant="outline"
@@ -325,7 +384,6 @@ export const CombinedControls = () => {
               ) : (
                 <ChevronUp size={13} className="sm:w-[14px] sm:h-[14px]" />
               )}
-              <span className="hidden sm:inline">AB Loop</span>
             </Button>
           </div>
         </div>

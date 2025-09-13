@@ -7,6 +7,10 @@ import {
 } from "../utils/mediaStorage";
 import { toast } from "react-hot-toast";
 
+// Prevent noisy duplicate toasts for existing A–B ranges
+let lastDuplicateToastAt = 0;
+const DUPLICATE_TOAST_ID = "bookmark-duplicate";
+
 export interface MediaFile {
   name: string;
   type: string;
@@ -84,6 +88,7 @@ export interface PlayerState {
   isLooping: boolean;
   loopCount: number;
   maxLoops: number;
+  autoAdvanceBookmarks: boolean;
   bpm: number | null;
   quantizeLoop: boolean;
 
@@ -142,6 +147,7 @@ export interface PlayerActions {
   setWaveformZoom: (zoom: number) => void;
   setShowWaveform: (show: boolean) => void;
   setVideoSize: (size: "sm" | "md" | "lg" | "xl") => void;
+  setAutoAdvanceBookmarks: (enable: boolean) => void;
 
   // Transcript actions
   startTranscribing: () => void;
@@ -161,7 +167,7 @@ export interface PlayerActions {
   createBookmarkFromTranscript: (segmentId: string) => void;
 
   // Bookmark actions
-  addBookmark: (bookmark: Omit<LoopBookmark, "id" | "createdAt">) => void;
+  addBookmark: (bookmark: Omit<LoopBookmark, "id" | "createdAt">) => boolean;
   updateBookmark: (id: string, changes: Partial<LoopBookmark>) => void;
   deleteBookmark: (id: string) => void;
   loadBookmark: (id: string) => void;
@@ -201,6 +207,7 @@ const initialState: PlayerState = {
   isLooping: false,
   loopCount: 0,
   maxLoops: 0,
+  autoAdvanceBookmarks: false,
   bpm: null,
   quantizeLoop: false,
   theme: "dark",
@@ -459,12 +466,32 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setWaveformZoom: (waveformZoom) => set({ waveformZoom }),
       setShowWaveform: (showWaveform) => set({ showWaveform }),
       setVideoSize: (videoSize) => set({ videoSize }),
+      setAutoAdvanceBookmarks: (autoAdvanceBookmarks) => set({ autoAdvanceBookmarks }),
 
       // Bookmark actions
       addBookmark: (bookmark) => {
         const { getCurrentMediaId } = get();
         const mediaId = getCurrentMediaId();
-        if (!mediaId) return;
+        if (!mediaId) return false;
+
+        // Prevent duplicates: same start/end within tolerance
+        const TOL = 0.05; // 50ms tolerance
+        const existing = get().mediaBookmarks[mediaId] || [];
+        const isDup = existing.some(
+          (b) => Math.abs(b.start - bookmark.start) < TOL && Math.abs(b.end - bookmark.end) < TOL
+        );
+        if (isDup) {
+          const now = Date.now();
+          // Show at most once every 1.5s and reuse the same toast id
+          if (now - lastDuplicateToastAt > 1500) {
+            lastDuplicateToastAt = now;
+            toast.error("A bookmark for this A–B range already exists", {
+              id: DUPLICATE_TOAST_ID,
+              duration: 1500,
+            });
+          }
+          return false;
+        }
 
         set((state) => ({
           mediaBookmarks: {
@@ -479,6 +506,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             ],
           },
         }));
+        return true;
       },
       updateBookmark: (id, changes) => {
         const { getCurrentMediaId } = get();
@@ -534,10 +562,20 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         const mediaId = getCurrentMediaId();
         if (!mediaId) return;
 
+        // Deduplicate on import by time range (within tolerance)
+        const TOL = 0.05;
+        const current = get().mediaBookmarks[mediaId] || [];
+        const filtered = bookmarks.filter(
+          (bm) =>
+            !current.some(
+              (b) => Math.abs(b.start - bm.start) < TOL && Math.abs(b.end - bm.end) < TOL
+            )
+        );
+
         set((state) => ({
           mediaBookmarks: {
             ...state.mediaBookmarks,
-            [mediaId]: [...(state.mediaBookmarks[mediaId] || []), ...bookmarks],
+            [mediaId]: [...(state.mediaBookmarks[mediaId] || []), ...filtered],
           },
         }));
       },
