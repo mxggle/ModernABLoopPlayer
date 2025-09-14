@@ -106,7 +106,7 @@ export const PlayerPage = () => {
 
       {/* Waveform Section */}
       {currentFile &&
-        currentFile.type.includes("audio") &&
+        (currentFile.type.includes("audio") || currentFile.type.includes("video")) &&
         showWaveform &&
         layoutSettings.showWaveform && (
           <div className="mt-4 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50/50 to-indigo-50/50 dark:from-purple-900/10 dark:to-indigo-900/10 p-4">

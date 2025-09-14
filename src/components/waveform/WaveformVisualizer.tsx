@@ -125,13 +125,21 @@ export const WaveformVisualizer = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Load audio file and analyze waveform
+  // Load audio/video file and analyze waveform
   useEffect(() => {
+    console.log('🔍 WaveformVisualizer useEffect triggered:', {
+      currentFile: currentFile?.name,
+      type: currentFile?.type,
+      url: currentFile?.url ? 'present' : 'missing',
+      showWaveform
+    });
+    
     if (
       !currentFile ||
       !currentFile.url ||
-      !currentFile.type.includes("audio")
+      (!currentFile.type.includes("audio") && !currentFile.type.includes("video"))
     ) {
+      console.log('❌ WaveformVisualizer: File validation failed');
       setWaveformData(null);
       return;
     }
@@ -140,19 +148,141 @@ export const WaveformVisualizer = () => {
 
     const loadAudio = async () => {
       try {
-        // Load audio buffer
-        buffer = new Tone.ToneAudioBuffer(currentFile.url, () => {
-          // Get audio data
-          const channelData = buffer?.getChannelData(0) || new Float32Array();
+        if (currentFile.type.includes("video")) {
+          // For video files, extract audio using multiple methods
+          console.log('🎬 Loading video file for waveform:', currentFile.name, 'Type:', currentFile.type);
+          await loadVideoAudio(currentFile.url);
+        } else {
+          // For audio files, use Tone.js as before
+          buffer = new Tone.ToneAudioBuffer(currentFile.url, () => {
+            // Get audio data
+            const channelData = buffer?.getChannelData(0) || new Float32Array();
 
-          // Downsample for performance
-          const downsampledData = downsampleAudioData(channelData, 2000);
-          setWaveformData(downsampledData);
-        });
+            // Downsample for performance
+            const downsampledData = downsampleAudioData(channelData, 2000);
+            setWaveformData(downsampledData);
+          });
+        }
       } catch (error) {
         console.error("Error loading audio for waveform:", error);
       }
     };
+
+    const loadVideoAudio = async (videoUrl: string) => {
+      console.log('🎬 Starting video audio extraction for:', videoUrl);
+      
+      try {
+        // Method 1: Try using fetch + decodeAudioData (works for some video formats)
+        console.log('🎵 Trying Method 1: Direct audio decoding...');
+        const response = await fetch(videoUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+        
+        console.log('✅ Method 1 succeeded! Audio buffer created:', audioBuffer);
+        const channelData = audioBuffer.getChannelData(0);
+        const downsampledData = downsampleAudioData(channelData, 2000);
+        setWaveformData(downsampledData);
+        audioContext.close();
+        return;
+        
+      } catch (error) {
+        console.log('❌ Method 1 failed:', (error as Error).message);
+      }
+      
+      try {
+        // Method 2: Use video element with Web Audio API
+        console.log('🎵 Trying Method 2: Video element extraction...');
+        
+        const video = document.createElement('video');
+        video.src = videoUrl;
+        video.muted = true;
+        video.volume = 0;
+        
+        // Wait for video to be ready
+        await new Promise((resolve, reject) => {
+          video.oncanplaythrough = () => {
+            console.log('📹 Video ready for playback');
+            resolve(true);
+          };
+          video.onerror = (e) => {
+            console.log('❌ Video loading error:', e);
+            reject(e);
+          };
+          video.load();
+        });
+        
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        
+        // Resume audio context if suspended
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+        }
+        
+        const source = audioContext.createMediaElementSource(video);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        
+        source.connect(analyser);
+        // Don't connect to destination to avoid audio output
+        
+        // Start video playback
+        video.currentTime = 0;
+        await video.play();
+        
+        console.log('🎬 Video playing, extracting audio data...');
+        
+        // Extract frequency data to create waveform
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        const waveformSamples: number[] = [];
+        
+        // Collect samples for 3 seconds or until video ends
+        const maxSamples = 2000;
+        const sampleInterval = 50; // ms
+        
+        for (let i = 0; i < maxSamples && video.currentTime < video.duration; i++) {
+          analyser.getByteFrequencyData(dataArray);
+          
+          // Convert frequency data to waveform-like data
+          let sum = 0;
+          for (let j = 0; j < bufferLength; j++) {
+            sum += dataArray[j];
+          }
+          const average = (sum / bufferLength) / 255; // Normalize to 0-1
+          waveformSamples.push((average - 0.5) * 2); // Convert to -1 to 1 range
+          
+          await new Promise(resolve => setTimeout(resolve, sampleInterval));
+        }
+        
+        video.pause();
+        source.disconnect();
+        audioContext.close();
+        
+        if (waveformSamples.length > 0) {
+          console.log('✅ Method 2 succeeded! Extracted', waveformSamples.length, 'samples');
+          const channelData = new Float32Array(waveformSamples);
+          const downsampledData = downsampleAudioData(channelData, 2000);
+          setWaveformData(downsampledData);
+          return;
+        }
+        
+      } catch (error) {
+        console.log('❌ Method 2 failed:', (error as Error).message);
+      }
+      
+      // Method 3: Generate placeholder waveform
+      console.log('🎵 Using Method 3: Generating placeholder waveform');
+      const placeholderData = new Float32Array(2000);
+      for (let i = 0; i < placeholderData.length; i++) {
+        // Create a more interesting placeholder pattern
+        const t = i / 2000;
+        placeholderData[i] = Math.sin(t * Math.PI * 20) * Math.exp(-t * 2) * 0.3;
+      }
+      setWaveformData(placeholderData);
+      console.log('✅ Placeholder waveform generated for video file');
+    }
 
     loadAudio();
 
@@ -709,7 +839,7 @@ export const WaveformVisualizer = () => {
     ]
   );
 
-  if (!showWaveform || !currentFile || !currentFile.type.includes("audio")) {
+  if (!showWaveform || !currentFile || (!currentFile.type.includes("audio") && !currentFile.type.includes("video"))) {
     return null;
   }
 

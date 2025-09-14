@@ -271,6 +271,8 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
             onLoadedMetadata={handleLoadedMetadata}
             onEnded={handleEnded}
             onError={handleError}
+            controls
+            preload="metadata"
           />
         ) : (
           <audio
@@ -296,6 +298,8 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={handleEnded}
           onError={handleError}
+          controls
+          preload="metadata"
         />
       ) : (
         <>
