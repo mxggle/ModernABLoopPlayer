@@ -13,6 +13,11 @@ import {
   AlignEndHorizontal,
   X,
   Bookmark,
+  ListMusic,
+  Shuffle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsRight,
 } from "lucide-react";
 import { Button } from "../ui/button";
 
@@ -36,11 +41,20 @@ export const MobileControls = () => {
     seekBackward: storeSeekBackward,
     seekStepSeconds,
     getCurrentMediaBookmarks,
+    // Playlist / queue state
+    playbackQueue,
+    playbackIndex,
+    stopPlaybackQueue,
+    setPlaybackMode,
+    playbackMode,
+    // Auto-advance bookmarks
+    autoAdvanceBookmarks,
+    setAutoAdvanceBookmarks,
   } = usePlayerStore();
 
-  const [showABControls, setShowABControls] = useState(false);
   const [showSpeedControls, setShowSpeedControls] = useState(false);
   const [showVolumeDrawer, setShowVolumeDrawer] = useState(false);
+  const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(false);
 
   // Get current media bookmarks for the bookmark button
   const bookmarks = getCurrentMediaBookmarks();
@@ -95,6 +109,50 @@ export const MobileControls = () => {
   const toggleBookmarkDrawer = () => {
     const bookmarkToggle = document.getElementById("bookmarkDrawerToggle");
     bookmarkToggle?.click();
+  };
+
+  // Navigate to previous bookmark
+  const goToPreviousBookmark = () => {
+    if (bookmarks.length === 0) return;
+
+    // Find the bookmark that comes before the current time
+    const sortedBookmarks = [...bookmarks].sort((a, b) => a.start - b.start);
+    let targetBookmark = null;
+
+    for (let i = sortedBookmarks.length - 1; i >= 0; i--) {
+      if (sortedBookmarks[i].start < currentTime - 0.5) {
+        // 0.5s tolerance
+        targetBookmark = sortedBookmarks[i];
+        break;
+      }
+    }
+
+    // If no previous bookmark found, go to the last one
+    if (!targetBookmark && sortedBookmarks.length > 0) {
+      targetBookmark = sortedBookmarks[sortedBookmarks.length - 1];
+    }
+
+    if (targetBookmark) {
+      setCurrentTime(targetBookmark.start);
+    }
+  };
+
+  // Navigate to next bookmark
+  const goToNextBookmark = () => {
+    if (bookmarks.length === 0) return;
+
+    // Find the bookmark that comes after the current time
+    const sortedBookmarks = [...bookmarks].sort((a, b) => a.start - b.start);
+    const targetBookmark = sortedBookmarks.find(
+      (bookmark) => bookmark.start > currentTime + 0.5
+    ); // 0.5s tolerance
+
+    // If no next bookmark found, go to the first one
+    const bookmarkToUse = targetBookmark || sortedBookmarks[0];
+
+    if (bookmarkToUse) {
+      setCurrentTime(bookmarkToUse.start);
+    }
   };
 
   // Set loop start point at current time
@@ -185,27 +243,28 @@ export const MobileControls = () => {
           </span>
         </div>
 
-        {/* Main controls - mobile optimized */}
-        <div className="flex justify-between items-center">
-          {/* Left controls */}
-          <div className="flex items-center">
+        {/* Main controls - reorganized for better vertical space usage */}
+        <div className="space-y-4">
+          {/* Primary controls row - play/pause and seek */}
+          <div className="flex items-center justify-center space-x-6">
             <button
-              onClick={toggleMute}
-              className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label={volume > 0 ? "Mute" : "Unmute"}
+              onClick={() => setShowPlaylistDrawer(true)}
+              className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 relative"
+              aria-label="Open playlist"
             >
-              {volume > 0 ? <Volume2 size={22} /> : <VolumeX size={22} />}
+              <ListMusic size={20} />
+              {playbackQueue.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {playbackQueue.length > 9 ? "9+" : playbackQueue.length}
+                </span>
+              )}
             </button>
-          </div>
-
-          {/* Center controls - play/pause and seek */}
-          <div className="flex items-center justify-center space-x-4">
             <button
               onClick={seekBackward}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
               aria-label={`Seek backward ${seekStepSeconds} seconds`}
             >
-              <SkipBack size={22} />
+              <SkipBack size={24} />
             </button>
 
             <button
@@ -214,9 +273,9 @@ export const MobileControls = () => {
               aria-label={isPlaying ? "Pause" : "Play"}
             >
               {isPlaying ? (
-                <Pause size={28} />
+                <Pause size={32} />
               ) : (
-                <Play size={28} className="ml-1" />
+                <Play size={32} className="ml-1" />
               )}
             </button>
 
@@ -225,18 +284,25 @@ export const MobileControls = () => {
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
               aria-label={`Seek forward ${seekStepSeconds} seconds`}
             >
-              <SkipForward size={22} />
+              <SkipForward size={24} />
+            </button>
+            <button
+              onClick={() => setShowSpeedControls(true)}
+              className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+              aria-label="Playback speed"
+            >
+              <span className="text-sm font-bold">{playbackRate}x</span>
             </button>
           </div>
 
-          {/* Right controls */}
-          <div className="flex items-center">
+          {/* Secondary controls row - features and tools */}
+          <div className="flex items-center justify-center space-x-4">
             <button
               onClick={toggleBookmarkDrawer}
-              className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 relative mr-2"
+              className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 relative"
               aria-label="Open bookmarks"
             >
-              <Bookmark size={22} />
+              <Bookmark size={20} />
               {bookmarks.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {bookmarks.length > 9 ? "9+" : bookmarks.length}
@@ -244,106 +310,86 @@ export const MobileControls = () => {
               )}
             </button>
 
+
             <button
-              onClick={() => setShowABControls(!showABControls)}
+              onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}
+              className={`p-3 rounded-full ${
+                autoAdvanceBookmarks
+                  ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                  : "hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+              aria-label={autoAdvanceBookmarks ? 'Auto-advance between bookmarks: On' : 'Auto-advance between bookmarks: Off'}
+            >
+              <ChevronsRight size={20} />
+            </button>
+
+            <button
+              onClick={toggleLooping}
               className={`p-3 rounded-full ${
                 isLooping
                   ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
                   : "hover:bg-gray-200 dark:hover:bg-gray-700"
               }`}
-              aria-label="AB Loop controls"
+              aria-label={isLooping ? 'Loop: On' : 'Loop: Off'}
             >
-              <Repeat size={22} />
+              <Repeat size={20} />
+            </button>
+
+            <button
+              onClick={setLoopStartAtCurrentTime}
+              className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+              aria-label="Set A point at current time"
+            >
+              <AlignStartHorizontal size={20} />
+            </button>
+
+            <button
+              onClick={setLoopEndAtCurrentTime}
+              className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+              aria-label="Set B point at current time"
+            >
+              <AlignEndHorizontal size={20} />
+            </button>
+
+            <button
+              onClick={clearLoopPoints}
+              disabled={loopStart === null && loopEnd === null}
+              className={`p-3 rounded-full ${
+                loopStart === null && loopEnd === null
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+              }`}
+              aria-label="Clear loop points"
+            >
+              <X size={20} />
             </button>
           </div>
+
+          {/* Bookmark navigation row */}
+          {bookmarks.length > 0 && (
+            <div className="flex items-center justify-center space-x-6 pt-2">
+              <button
+                onClick={goToPreviousBookmark}
+                className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                aria-label="Previous bookmark"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-2">
+                Bookmark Navigation
+              </span>
+              <button
+                onClick={goToNextBookmark}
+                className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                aria-label="Next bookmark"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* AB Loop Panel */}
-      {showABControls && (
-        <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-semibold">AB Loop Controls</h3>
-            <button
-              onClick={() => setShowABControls(false)}
-              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          {/* A-B Control Buttons */}
-          <div className="flex justify-between mb-4">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={setLoopStartAtCurrentTime}
-              className="flex-1 mr-2 h-12 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800"
-            >
-              <AlignStartHorizontal size={18} className="mr-1" />
-              <span className="font-medium">Set A Point</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={setLoopEndAtCurrentTime}
-              className="flex-1 ml-2 h-12 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800"
-            >
-              <span className="font-medium">Set B Point</span>
-              <AlignEndHorizontal size={18} className="ml-1" />
-            </Button>
-          </div>
-
-          {/* A-B Navigation and Status */}
-          <div className="flex justify-between mb-4">
-            <Button
-              variant="outline"
-              size="default"
-              onClick={jumpToLoopStart}
-              disabled={loopStart === null}
-              className="flex-1 mr-2"
-            >
-              <span>
-                A: {loopStart !== null ? formatTime(loopStart) : "--:--"}
-              </span>
-            </Button>
-
-            <Button
-              variant="outline"
-              size="default"
-              onClick={jumpToLoopEnd}
-              disabled={loopEnd === null}
-              className="flex-1 ml-2"
-            >
-              <span>B: {loopEnd !== null ? formatTime(loopEnd) : "--:--"}</span>
-            </Button>
-          </div>
-
-          {/* Loop Controls */}
-          <div className="flex justify-between">
-            <Button
-              variant={isLooping ? "default" : "outline"}
-              size="default"
-              onClick={toggleLooping}
-              className="flex-1 mr-2 h-12"
-            >
-              <Repeat size={18} className="mr-1" />
-              <span>{isLooping ? "Loop On" : "Loop Off"}</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              size="default"
-              onClick={clearLoopPoints}
-              disabled={loopStart === null && loopEnd === null}
-              className="flex-1 ml-2 h-12 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900"
-            >
-              <span>Clear Loop</span>
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Volume Controls Panel */}
       {showVolumeDrawer && (
@@ -395,6 +441,142 @@ export const MobileControls = () => {
                   }%, #e2e8f0 ${volume * 100}%)`,
                 }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Playlist Panel */}
+      {showPlaylistDrawer && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowPlaylistDrawer(false)}
+        >
+          <div
+            className="fixed bottom-0 left-0 right-0 max-h-[80vh] bg-white dark:bg-gray-800 rounded-t-xl shadow-xl p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="h-1.5 w-12 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto my-2" />
+
+            <div className="px-4 py-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold">
+                Playlist{" "}
+                {playbackQueue.length > 0 ? `(${playbackQueue.length})` : ""}
+              </h2>
+              <button
+                onClick={() => setShowPlaylistDrawer(false)}
+                className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {playbackQueue.length > 0 && (
+              <div className="px-4 py-2 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700">
+                <Button
+                  variant={playbackMode === "shuffle" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() =>
+                    setPlaybackMode(
+                      playbackMode === "shuffle" ? "order" : "shuffle"
+                    )
+                  }
+                  className="flex-1"
+                >
+                  <Shuffle size={16} className="mr-1" />
+                  {playbackMode === "shuffle" ? "Shuffle" : "Order"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={stopPlaybackQueue}
+                  className="px-3 text-red-600 dark:text-red-400"
+                >
+                  Clear
+                </Button>
+              </div>
+            )}
+
+            <div className="p-4">
+              {playbackQueue.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <ListMusic size={48} className="mx-auto mb-2 opacity-30" />
+                  <p>No items in the playlist.</p>
+                </div>
+              ) : (
+                <ul className="max-h-64 overflow-y-auto space-y-2">
+                  {playbackQueue.map((id, idx) => {
+                    const { mediaHistory } = usePlayerStore.getState();
+                    const item = mediaHistory.find((h) => h.id === id);
+                    if (!item) return null;
+
+                    const isCurrentItem = idx === playbackIndex;
+                    return (
+                      <li
+                        key={id}
+                        className={`flex items-center gap-3 p-3 rounded-lg ${
+                          isCurrentItem
+                            ? "bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800"
+                            : "bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {item.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {item.type === "file" ? "Audio File" : "YouTube"}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {isCurrentItem && (
+                            <span className="text-xs bg-purple-600 text-white px-2 py-1 rounded-full">
+                              Now
+                            </span>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              // Remove item from queue by creating new queue without this item
+                              const newQueue = playbackQueue.filter(
+                                (_, i) => i !== idx
+                              );
+                              const { playbackQueueOriginal } =
+                                usePlayerStore.getState();
+                              const newOriginal = playbackQueueOriginal.filter(
+                                (id) => newQueue.includes(id)
+                              );
+
+                              if (newQueue.length === 0) {
+                                stopPlaybackQueue();
+                              } else {
+                                const newIndex =
+                                  idx < playbackIndex
+                                    ? playbackIndex - 1
+                                    : idx === playbackIndex
+                                    ? Math.min(
+                                        playbackIndex,
+                                        newQueue.length - 1
+                                      )
+                                    : playbackIndex;
+                                usePlayerStore.setState({
+                                  playbackQueue: newQueue,
+                                  playbackQueueOriginal: newOriginal,
+                                  playbackIndex: newIndex,
+                                });
+                              }
+                            }}
+                            className="text-red-600 dark:text-red-400 p-1 h-8 w-8"
+                          >
+                            <X size={14} />
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           </div>
         </div>
