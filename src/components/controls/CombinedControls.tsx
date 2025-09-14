@@ -248,7 +248,7 @@ export const CombinedControls = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-10">
+    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-[50]">
       <div className="max-w-6xl mx-auto px-2 sm:px-4 py-1 sm:py-2">
         {/* Timeline slider - improved design and visibility */}
         <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
