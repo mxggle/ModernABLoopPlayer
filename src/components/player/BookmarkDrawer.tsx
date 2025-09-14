@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { usePlayerStore, type LoopBookmark } from "../../stores/playerStore";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
@@ -216,6 +216,31 @@ export const BookmarkDrawer = () => {
     setIsDrawerOpen(!isDrawerOpen);
   };
 
+  // Handle ESC key to close drawer
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isDrawerOpen) {
+        setIsDrawerOpen(false);
+      }
+    };
+
+    if (isDrawerOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDrawerOpen]);
+
+  // Handle click outside to close drawer
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    // Only close if clicking on the backdrop overlay
+    if (e.target === e.currentTarget) {
+      setIsDrawerOpen(false);
+    }
+  };
+
   return (
     <>
       {/* Hidden button that can be triggered from the header */}
@@ -226,10 +251,19 @@ export const BookmarkDrawer = () => {
         aria-label={t(isDrawerOpen ? "bookmarks.closeDrawer" : "bookmarks.openDrawer")}
       />
 
+      {/* Backdrop overlay for click-outside */}
+      {isDrawerOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-[64]" 
+          onClick={handleBackdropClick}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Bookmarks drawer */}
       <div
         className={cn(
-          "fixed right-0 top-0 h-full bg-white dark:bg-gray-800 shadow-xl z-[60] transition-all duration-300 ease-in-out overflow-y-auto",
+          "fixed right-0 top-0 h-full bg-white dark:bg-gray-800 shadow-xl z-[65] transition-all duration-300 ease-in-out overflow-y-auto",
           isDrawerOpen ? "w-80 translate-x-0" : "w-80 translate-x-full"
         )}
       >

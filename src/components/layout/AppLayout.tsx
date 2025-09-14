@@ -61,7 +61,7 @@ export const AppLayout = ({
       {/* Spacer to prevent content from being hidden behind fixed header */}
       <div className="h-[52px] sm:h-[56px]"></div>
       {/* Header - fixed at the top */}
-      <header className="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 fixed top-0 left-0 right-0 z-50 max-w-5xl mx-auto">
+      <header className="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 fixed top-0 left-0 right-0 z-[55] max-w-5xl mx-auto">
         <button
           onClick={navigateToHome}
           className="flex items-center gap-1 sm:gap-2 focus:outline-none"

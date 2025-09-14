@@ -192,22 +192,10 @@ export const MobileControls = () => {
     setIsLooping(false);
   };
 
-  // Jump to loop start
-  const jumpToLoopStart = () => {
-    if (loopStart !== null) {
-      setCurrentTime(loopStart);
-    }
-  };
-
-  // Jump to loop end
-  const jumpToLoopEnd = () => {
-    if (loopEnd !== null) {
-      setCurrentTime(loopEnd);
-    }
-  };
+  // Note: Loop jump functions removed as they're not used in the mobile interface
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-10 pb-safe">
+    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-[50] pb-safe">
       <div className="px-3 pt-2 pb-3">
         {/* Timeline */}
         <div className="flex items-center mb-4">
@@ -396,7 +384,7 @@ export const MobileControls = () => {
       {/* Volume Controls Panel */}
       {showVolumeDrawer && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm"
           onClick={() => setShowVolumeDrawer(false)}
         >
           <div
@@ -451,7 +439,7 @@ export const MobileControls = () => {
       {/* Playlist Panel */}
       {showPlaylistDrawer && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm"
           onClick={() => setShowPlaylistDrawer(false)}
         >
           <div
@@ -587,7 +575,7 @@ export const MobileControls = () => {
       {/* Playback Speed Panel */}
       {showSpeedControls && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm"
           onClick={() => setShowSpeedControls(false)}
         >
           <div

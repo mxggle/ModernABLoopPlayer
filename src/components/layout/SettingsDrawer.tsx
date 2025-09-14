@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "../ui/button";
 import { cn } from "../../utils/cn";
 import { useNavigate } from "react-router-dom";
@@ -48,6 +48,23 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     setSeekSmallStepSeconds,
   } = usePlayerStore();
 
+  // Handle ESC key to close drawer
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   const handleOpenHistory = () => {
     const historyToggleButton = document.getElementById("historyDrawerToggle");
     if (historyToggleButton) {
@@ -84,13 +101,30 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     },
   ];
 
+  // Handle click outside to close drawer
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    // Only close if clicking on the backdrop overlay
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div
-      className={cn(
-        "fixed inset-y-0 right-0 z-40 w-full sm:w-80 bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out border-l border-gray-200 dark:border-gray-700",
-        isOpen ? "translate-x-0" : "translate-x-full"
+    <>
+      {/* Backdrop overlay for click-outside */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-[59]" 
+          onClick={handleBackdropClick}
+          aria-hidden="true"
+        />
       )}
-    >
+      <div
+        className={cn(
+          "fixed inset-y-0 right-0 z-[60] w-full sm:w-80 bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out border-l border-gray-200 dark:border-gray-700",
+          isOpen ? "translate-x-0" : "translate-x-full"
+        )}
+      >
       <div className="flex flex-col h-full">
         {/* Drawer Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -223,5 +257,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
