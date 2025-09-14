@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
+import { useTranslation } from "react-i18next";
 import { formatTime } from "../../utils/formatTime";
 import {
   Play,
@@ -25,6 +26,7 @@ import { toast } from "react-hot-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 export const CombinedControls = () => {
+  const { t } = useTranslation();
   const {
     isPlaying,
     currentTime,
@@ -88,18 +90,18 @@ export const CombinedControls = () => {
     const end = loopEnd !== null ? loopEnd : Math.min(duration, currentTime + 2);
 
     if (duration === 0) {
-      toast.error("Load media before adding bookmarks");
+      toast.error(t("bookmarks.loadMediaFirst"));
       return;
     }
 
     if (end <= start) {
-      toast.error("Set a valid A–B range first");
+      toast.error(t("bookmarks.setValidRange"));
       return;
     }
 
     // Generate a simple default name
     const count = bookmarks.length + 1;
-    const name = `Clip ${count}`;
+    const name = t("bookmarks.defaultClipName", { count });
 
     // Persist bookmark to current media
     const added = storeAddBookmark({
@@ -113,7 +115,7 @@ export const CombinedControls = () => {
       annotation: "",
     });
     if (added) {
-      toast.success("Bookmark added");
+      toast.success(t("bookmarks.bookmarkAdded"));
     }
   };
 
@@ -272,7 +274,7 @@ export const CombinedControls = () => {
             <button
               onClick={toggleMute}
               className="p-1 sm:p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              aria-label={volume > 0 ? "Mute" : "Unmute"}
+              aria-label={volume > 0 ? t("player.mute") : t("player.unmute")}
             >
               {volume > 0 ? (
                 <Volume2 size={16} className="sm:w-[18px] sm:h-[18px]" />
@@ -295,7 +297,7 @@ export const CombinedControls = () => {
             <button
               onClick={seekBackward}
               className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              aria-label={`Seek backward ${seekStepSeconds} seconds`}
+              aria-label={t("player.seekBackward", { seconds: seekStepSeconds })}
             >
               <SkipBack size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>
@@ -303,7 +305,7 @@ export const CombinedControls = () => {
             <button
               onClick={togglePlayPause}
               className="p-2 sm:p-3 bg-purple-600 rounded-full text-white hover:bg-purple-700 shadow-md transition-all duration-150 active:scale-95"
-              aria-label={isPlaying ? "Pause" : "Play"}
+              aria-label={isPlaying ? t("player.pause") : t("player.play")}
             >
               {isPlaying ? (
                 <Pause size={20} className="sm:w-[24px] sm:h-[24px]" />
@@ -318,7 +320,7 @@ export const CombinedControls = () => {
             <button
               onClick={seekForward}
               className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              aria-label={`Seek forward ${seekStepSeconds} seconds`}
+              aria-label={t("player.seekForward", { seconds: seekStepSeconds })}
             >
               <SkipForward size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>
@@ -329,7 +331,7 @@ export const CombinedControls = () => {
               <button
                 onClick={decreasePlaybackRate}
                 className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-                aria-label="Decrease playback rate"
+                aria-label={t("player.decreaseSpeed")}
               >
                 <Rewind size={14} className="sm:w-[16px] sm:h-[16px]" />
               </button>
@@ -341,7 +343,7 @@ export const CombinedControls = () => {
               <button
                 onClick={increasePlaybackRate}
                 className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-                aria-label="Increase playback rate"
+                aria-label={t("player.increaseSpeed")}
               >
                 <FastForward size={14} className="sm:w-[16px] sm:h-[16px]" />
               </button>
@@ -352,11 +354,11 @@ export const CombinedControls = () => {
               size="sm"
               onClick={toggleLooping}
               className="gap-1 py-1 px-3 h-8 text-xs font-medium"
-              aria-label="Toggle looping"
+              aria-label={t("player.toggleLooping")}
             >
               <Repeat size={13} className="sm:w-[14px] sm:h-[14px]" />
               <span className="hidden sm:inline">
-                {isLooping ? "Loop On" : "Loop"}
+                {isLooping ? t("player.loopOn") : t("player.loop")}
               </span>
             </Button>
 
@@ -367,10 +369,10 @@ export const CombinedControls = () => {
                 size="sm"
                 onClick={toggleBookmarkDrawer}
                 className="gap-1 py-1 px-3 h-8 text-xs font-medium relative rounded-none border-0"
-                aria-label="Open bookmarks"
+                aria-label={t("bookmarks.openDrawer")}
               >
                 <Bookmark size={13} className="sm:w-[14px] sm:h-[14px]" />
-                <span className="hidden sm:inline">Bookmarks</span>
+                <span className="hidden sm:inline">{t("bookmarks.title")}</span>
               </Button>
               <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" aria-hidden></div>
               <Button
@@ -378,10 +380,10 @@ export const CombinedControls = () => {
                 size="sm"
                 onClick={quickAddBookmark}
                 className="gap-1 py-1 px-3 h-8 text-xs font-medium rounded-none"
-                aria-label="Quick add bookmark"
+                aria-label={t("bookmarks.quickAddBookmark")}
               >
                 <Plus size={13} className="sm:w-[14px] sm:h-[14px]" />
-                <span className="hidden sm:inline">Add</span>
+                <span className="hidden sm:inline">{t("common.add")}</span>
               </Button>
             </div>
 
@@ -392,32 +394,32 @@ export const CombinedControls = () => {
                   variant="outline"
                   size="sm"
                   className="gap-1 py-1 px-3 h-8 text-xs font-medium"
-                  title="Show playlist"
+                  title={t("player.showPlaylist")}
                 >
                   <ListMusic size={13} className="sm:w-[14px] sm:h-[14px]" />
-                  <span className="hidden sm:inline">Playlist</span>
+                  <span className="hidden sm:inline">{t("player.playlist")}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-sm font-semibold">
-                    Playlist {playbackQueue.length > 0 ? `(${playbackQueue.length})` : ""}
+                    {t("player.playlist")} {playbackQueue.length > 0 ? `(${playbackQueue.length})` : ""}
                   </div>
                   {playbackQueue.length > 0 && (
                     <div className="flex items-center gap-2">
                       {isQueueActive && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
-                          Playing
+                          {t("player.playing")}
                         </span>
                       )}
                       <Button size="sm" variant="ghost" onClick={() => stopPlaybackQueue()}>
-                        Clear
+                        {t("player.clear")}
                       </Button>
                     </div>
                   )}
                 </div>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs text-gray-500">Mode:</span>
+                  <span className="text-xs text-gray-500">{t("player.mode")}</span>
                   <div role="group" className="inline-flex rounded-md overflow-hidden border border-gray-200 dark:border-gray-700">
                     <Button
                       size="sm"
@@ -425,7 +427,7 @@ export const CombinedControls = () => {
                       className="h-7 px-2 text-xs rounded-none"
                       onClick={() => setPlaybackMode('order')}
                     >
-                      Order
+                      {t("player.order")}
                     </Button>
                     <div className="w-px bg-gray-200 dark:bg-gray-700" />
                     <Button
@@ -434,7 +436,7 @@ export const CombinedControls = () => {
                       className="h-7 px-2 text-xs rounded-none"
                       onClick={() => setPlaybackMode('shuffle')}
                     >
-                      Shuffle
+                      {t("player.shuffle")}
                     </Button>
                     <div className="w-px bg-gray-200 dark:bg-gray-700" />
                     <Button
@@ -443,7 +445,7 @@ export const CombinedControls = () => {
                       className="h-7 px-2 text-xs rounded-none"
                       onClick={() => setPlaybackMode('repeat-all')}
                     >
-                      Repeat All
+                      {t("player.repeatAll")}
                     </Button>
                     <div className="w-px bg-gray-200 dark:bg-gray-700" />
                     <Button
@@ -452,12 +454,12 @@ export const CombinedControls = () => {
                       className="h-7 px-2 text-xs rounded-none"
                       onClick={() => setPlaybackMode('repeat-one')}
                     >
-                      Repeat One
+                      {t("player.repeatOne")}
                     </Button>
                   </div>
                 </div>
                 {playbackQueue.length === 0 ? (
-                  <div className="text-sm text-gray-500">No items in the playlist.</div>
+                  <div className="text-sm text-gray-500">{t("player.noItemsInPlaylist")}</div>
                 ) : (
                   <ul className="max-h-64 overflow-y-auto space-y-1">
                     {playbackQueue.map((id, idx) => {
@@ -476,7 +478,7 @@ export const CombinedControls = () => {
                               <span className="text-xs w-6 text-gray-500">{idx + 1}.</span>
                               <span className="truncate flex-1">{title}</span>
                               {isCurrent && (
-                                <span className="text-xs text-purple-600 dark:text-purple-300">Now Playing</span>
+                                <span className="text-xs text-purple-600 dark:text-purple-300">{t("player.now")}</span>
                               )}
                             </div>
                           </button>
@@ -521,7 +523,7 @@ export const CombinedControls = () => {
                 variant="outline"
                 size="sm"
                 onClick={setLoopStartAtCurrentTime}
-                aria-label="Set loop start at current time"
+                aria-label={t("loop.setStart")}
                 className="py-1 px-3 h-8 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30"
               >
                 <AlignStartHorizontal
@@ -535,7 +537,7 @@ export const CombinedControls = () => {
                 variant="outline"
                 size="sm"
                 onClick={setLoopEndAtCurrentTime}
-                aria-label="Set loop end at current time"
+                aria-label={t("loop.setEnd")}
                 className="py-1 px-3 h-8 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30"
               >
                 <AlignEndHorizontal
@@ -582,7 +584,7 @@ export const CombinedControls = () => {
                 disabled={loopStart === null && loopEnd === null}
                 className="py-1 px-2 sm:px-3 h-7 sm:h-8 text-xs font-medium text-red-600 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:hover:bg-transparent"
               >
-                Clear Loop
+                {t("loop.clearLoopPoints")}
               </Button>
             </div>
           </div>

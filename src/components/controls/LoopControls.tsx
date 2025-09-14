@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "@/stores/playerStore";
 import { formatTime } from "@/utils/formatTime";
 import {
@@ -24,6 +25,7 @@ import {
 import { cn } from "@/utils/cn";
 
 export const LoopControls = () => {
+  const { t } = useTranslation();
   const [startInput, setStartInput] = useState("");
   const [endInput, setEndInput] = useState("");
   const [bpmInput, setBpmInput] = useState("");
@@ -239,7 +241,7 @@ export const LoopControls = () => {
   return (
     <div className="space-y-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">A-B Loop</h3>
+        <h3 className="text-lg font-medium">{t("loop.title")}</h3>
 
         <TooltipProvider>
           <Tooltip>
@@ -254,11 +256,11 @@ export const LoopControls = () => {
                 )}
               >
                 <RepeatIcon className="mr-2 h-4 w-4" />
-                {isLooping ? "Looping" : "Loop"}
+                {t(isLooping ? "loop.looping" : "loop.loop")}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{isLooping ? "Disable A-B loop" : "Enable A-B loop"}</p>
+              <p>{t(isLooping ? "loop.disableLoop" : "loop.enableLoop")}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -298,15 +300,15 @@ export const LoopControls = () => {
       {/* Time inputs and controls */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="loop-start">Loop Start</Label>
+          <Label htmlFor="loop-start">{t("loop.loopStart")}</Label>
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="icon"
               onClick={setCurrentAsLoopStart}
-              title="Set current time as loop start"
+              title={t("loop.setStart")}
             >
-              <span className="sr-only">Set current time as loop start</span>↓
+              <span className="sr-only">{t("loop.setStart")}</span>↓
             </Button>
             <Input
               id="loop-start"
@@ -315,21 +317,21 @@ export const LoopControls = () => {
               onBlur={handleStartInputBlur}
               onKeyPress={(e) => handleInputKeyPress(e, handleStartInputBlur)}
               className="w-full"
-              placeholder="00:00.000"
+              placeholder={t("loop.timePlaceholder")}
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="loop-end">Loop End</Label>
+          <Label htmlFor="loop-end">{t("loop.loopEnd")}</Label>
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="icon"
               onClick={setCurrentAsLoopEnd}
-              title="Set current time as loop end"
+              title={t("loop.setEnd")}
             >
-              <span className="sr-only">Set current time as loop end</span>↓
+              <span className="sr-only">{t("loop.setEnd")}</span>↓
             </Button>
             <Input
               id="loop-end"
@@ -338,7 +340,7 @@ export const LoopControls = () => {
               onBlur={handleEndInputBlur}
               onKeyPress={(e) => handleInputKeyPress(e, handleEndInputBlur)}
               className="w-full"
-              placeholder="00:00.000"
+              placeholder={t("loop.timePlaceholder")}
             />
           </div>
         </div>
@@ -352,7 +354,7 @@ export const LoopControls = () => {
             variant="outline"
             size="icon"
             onClick={() => moveLoopWindow(-1)}
-            title="Move loop window left"
+            title={t("loop.moveLeft")}
             disabled={loopStart === null || loopEnd === null}
           >
             <ArrowLeftIcon className="h-4 w-4" />
@@ -361,7 +363,7 @@ export const LoopControls = () => {
             variant="outline"
             size="icon"
             onClick={() => moveLoopWindow(1)}
-            title="Move loop window right"
+            title={t("loop.moveRight")}
             disabled={loopStart === null || loopEnd === null}
           >
             <ArrowRightIcon className="h-4 w-4" />
@@ -374,7 +376,7 @@ export const LoopControls = () => {
             variant="outline"
             size="sm"
             onClick={() => scaleLoop(0.5)}
-            title="Halve loop length"
+            title={t("loop.halveLength")}
             disabled={loopStart === null || loopEnd === null}
           >
             <span className="text-xs">×½</span>
@@ -383,7 +385,7 @@ export const LoopControls = () => {
             variant="outline"
             size="sm"
             onClick={() => scaleLoop(2)}
-            title="Double loop length"
+            title={t("loop.doubleLength")}
             disabled={loopStart === null || loopEnd === null}
           >
             <span className="text-xs">×2</span>
@@ -399,19 +401,17 @@ export const LoopControls = () => {
               className={quantizeLoop ? "border-primary" : ""}
               disabled={loopStart === null || loopEnd === null}
             >
-              BPM: {bpm || "—"}
+              {t("loop.bpm")} {bpm || "—"}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80">
             <div className="grid gap-4">
               <div className="space-y-2">
-                <h4 className="font-medium">Loop Quantization</h4>
-                <p className="text-sm text-muted-foreground">
-                  Set BPM to quantize loop length to match musical beats.
-                </p>
+                <h4 className="font-medium">{t("loop.quantizationTitle")}</h4>
+                <p className="text-sm text-muted-foreground">{t("loop.quantizationDesc")}</p>
               </div>
               <div className="grid grid-cols-3 items-center gap-4">
-                <Label htmlFor="bpm-input">BPM</Label>
+                <Label htmlFor="bpm-input">{t("loop.bpmLabel")}</Label>
                 <Input
                   id="bpm-input"
                   value={bpmInput}
@@ -419,7 +419,7 @@ export const LoopControls = () => {
                   onBlur={handleBpmInputBlur}
                   onKeyPress={(e) => handleInputKeyPress(e, handleBpmInputBlur)}
                   className="col-span-2"
-                  placeholder="e.g. 120"
+                  placeholder={t("loop.bpmPlaceholder")}
                   type="number"
                   min="1"
                   max="300"
@@ -434,9 +434,7 @@ export const LoopControls = () => {
                   className="rounded border-gray-300"
                   disabled={bpm === null}
                 />
-                <Label htmlFor="quantize-checkbox">
-                  Auto-quantize loop to beats
-                </Label>
+                <Label htmlFor="quantize-checkbox">{t("loop.autoQuantize")}</Label>
               </div>
               <Button
                 variant="default"
@@ -445,7 +443,7 @@ export const LoopControls = () => {
                   bpm === null || loopStart === null || loopEnd === null
                 }
               >
-                Quantize Now
+                {t("loop.quantizeNow")}
               </Button>
             </div>
           </PopoverContent>

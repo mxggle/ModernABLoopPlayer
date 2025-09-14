@@ -1,5 +1,6 @@
 import { usePlayerStore } from '../../stores/playerStore'
 import { formatTime } from '../../utils/formatTime'
+import { useTranslation } from 'react-i18next'
 import { Slider } from '@radix-ui/react-slider'
 import { 
   Play, 
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react'
 
 export const PlaybackControls = () => {
+  const { t } = useTranslation()
   const {
     isPlaying,
     currentTime,
@@ -92,7 +94,7 @@ export const PlaybackControls = () => {
           <button
             onClick={toggleMute}
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label={volume > 0 ? "Mute" : "Unmute"}
+            aria-label={volume > 0 ? t("player.mute") : t("player.unmute")}
           >
             {volume > 0 ? <Volume2 size={20} /> : <VolumeX size={20} />}
           </button>
@@ -111,7 +113,7 @@ export const PlaybackControls = () => {
           <button
             onClick={seekBackward}
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label={`Seek backward ${seekStepSeconds} seconds`}
+            aria-label={`${t("player.seekBackward")} ${seekStepSeconds} ${t("common.seconds")}`}
           >
             <SkipBack size={20} />
           </button>
@@ -119,7 +121,7 @@ export const PlaybackControls = () => {
           <button
             onClick={togglePlayPause}
             className="p-3 bg-purple-600 rounded-full text-white hover:bg-purple-700"
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? t("player.pause") : t("player.play")}
           >
             {isPlaying ? <Pause size={24} /> : <Play size={24} />}
           </button>
@@ -127,7 +129,7 @@ export const PlaybackControls = () => {
           <button
             onClick={seekForward}
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label={`Seek forward ${seekStepSeconds} seconds`}
+            aria-label={`${t("player.seekForward")} ${seekStepSeconds} ${t("common.seconds")}`}
           >
             <SkipForward size={20} />
           </button>
@@ -137,7 +139,7 @@ export const PlaybackControls = () => {
           <button
             onClick={decreasePlaybackRate}
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label="Decrease playback rate"
+            aria-label={t("player.decreaseSpeed")}
           >
             <Rewind size={20} />
           </button>
@@ -147,7 +149,7 @@ export const PlaybackControls = () => {
           <button
             onClick={increasePlaybackRate}
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label="Increase playback rate"
+            aria-label={t("player.increaseSpeed")}
           >
             <FastForward size={20} />
           </button>

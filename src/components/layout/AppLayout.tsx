@@ -1,5 +1,6 @@
 import { useState, Dispatch, SetStateAction } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { Moon, Sun, Info, Settings, Layout, Eye, EyeOff } from "lucide-react";
@@ -24,6 +25,7 @@ export const AppLayout = ({
   layoutSettings,
   setLayoutSettings,
 }: AppLayoutProps) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
@@ -92,7 +94,7 @@ export const AppLayout = ({
                 <Popover.Trigger asChild>
                   <button
                     className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
-                    aria-label="Layout settings"
+                    aria-label={t("layout.layoutSettings")}
                   >
                     <Layout className="h-4 w-4 sm:h-5 sm:w-5" />
                   </button>
@@ -105,7 +107,7 @@ export const AppLayout = ({
                   >
                     <div className="space-y-3">
                       <h3 className="font-medium text-gray-900 dark:text-white text-sm">
-                        Layout Settings
+                        {t("layout.layoutSettings")}
                       </h3>
 
                       {/* Player Toggle */}
@@ -117,7 +119,7 @@ export const AppLayout = ({
                             <EyeOff className="h-4 w-4 text-gray-500" />
                           )}
                           <span className="text-sm text-gray-700 dark:text-gray-300">
-                            Player
+                            {t("layout.player")}
                           </span>
                         </div>
                         <button
@@ -152,7 +154,7 @@ export const AppLayout = ({
                             <EyeOff className="h-4 w-4 text-gray-500" />
                           )}
                           <span className="text-sm text-gray-700 dark:text-gray-300">
-                            Waveform
+                            {t("layout.waveform")}
                           </span>
                         </div>
                         <button
@@ -187,7 +189,7 @@ export const AppLayout = ({
                             <EyeOff className="h-4 w-4 text-gray-500" />
                           )}
                           <span className="text-sm text-gray-700 dark:text-gray-300">
-                            Transcript
+                            {t("layout.transcript")}
                           </span>
                         </div>
                         <button
@@ -222,7 +224,7 @@ export const AppLayout = ({
                             <EyeOff className="h-4 w-4 text-gray-500" />
                           )}
                           <span className="text-sm text-gray-700 dark:text-gray-300">
-                            Controls
+                            {t("layout.controls")}
                           </span>
                         </div>
                         <button
@@ -260,8 +262,8 @@ export const AppLayout = ({
             className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
             aria-label={
               theme === "dark"
-                ? "Switch to light theme"
-                : "Switch to dark theme"
+                ? t("layout.switchToLightTheme")
+                : t("layout.switchToDarkTheme")
             }
           >
             {theme === "dark" ? (
@@ -275,7 +277,7 @@ export const AppLayout = ({
           <button
             onClick={toggleSettingsDrawer}
             className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
-            aria-label="Open settings"
+            aria-label={t("layout.openSettings")}
           >
             <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
@@ -288,7 +290,7 @@ export const AppLayout = ({
             <Dialog.Trigger asChild>
               <button
                 className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
-                aria-label="Show keyboard shortcuts"
+                aria-label={t("layout.showKeyboardShortcuts")}
               >
                 <Info className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
@@ -297,7 +299,7 @@ export const AppLayout = ({
               <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
               <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl max-w-md w-full border border-gray-100 dark:border-gray-700">
                 <Dialog.Title className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-                  Keyboard Shortcuts
+                  {t("layout.keyboardShortcuts")}
                 </Dialog.Title>
 
                 <div className="space-y-2">
@@ -306,70 +308,70 @@ export const AppLayout = ({
                       Spacebar
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Play/Pause
+                      {t("layout.playPause")}
                     </div>
 
                     <div className="font-medium text-gray-800 dark:text-gray-200">
                       A
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Set A point at current time
+                      {t("layout.setAPoint")}
                     </div>
 
                     <div className="font-medium text-gray-800 dark:text-gray-200">
                       B
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Set B point at current time
+                      {t("layout.setBPoint")}
                     </div>
 
                     <div className="font-medium text-gray-800 dark:text-gray-200">
                       L
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Toggle loop on/off
+                      {t("layout.toggleLoop")}
                     </div>
 
                     <div className="font-medium text-gray-800 dark:text-gray-200">
                       C
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Clear loop points
+                      {t("layout.clearLoopPoints")}
                     </div>
 
                     <div className="font-medium text-gray-800 dark:text-gray-200">
                       ←/→
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Seek backward/forward {seekStepSeconds} seconds
+                      {t("layout.seekBackwardForward", { seconds: seekStepSeconds })}
                     </div>
 
                     <div className="font-medium text-gray-800 dark:text-gray-200">
                       Shift + ←/→
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Seek backward/forward {seekSmallStepSeconds} seconds
+                      {t("layout.seekBackwardForwardSmall", { seconds: seekSmallStepSeconds })}
                     </div>
 
                     <div className="font-medium text-gray-800 dark:text-gray-200">
                       ↑/↓
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Volume up/down
+                      {t("layout.volumeUpDown")}
                     </div>
 
                     <div className="font-medium text-gray-800 dark:text-gray-200">
                       0-9
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      Jump to 0-90% of track
+                      {t("layout.jumpToPercent")}
                     </div>
                   </div>
                 </div>
 
                 <Dialog.Close asChild>
                   <button className="mt-6 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 w-full font-medium shadow-sm transition-colors">
-                    Close
+                    {t("common.close")}
                   </button>
                 </Dialog.Close>
               </Dialog.Content>

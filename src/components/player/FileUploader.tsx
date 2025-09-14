@@ -1,12 +1,14 @@
 import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import { FileAudio } from "lucide-react";
 import { motion } from "framer-motion";
 import { storeMediaFile } from "../../utils/mediaStorage";
 
 export const FileUploader = () => {
+  const { t } = useTranslation();
   const { setCurrentFile } = usePlayerStore();
 
   const onDrop = useCallback(
@@ -17,7 +19,7 @@ export const FileUploader = () => {
 
       // Check if file is audio or video
       if (!file.type.includes("audio") && !file.type.includes("video")) {
-        toast.error("Please upload an audio or video file");
+        toast.error(t("upload.invalidFileType"));
         return;
       }
 
@@ -93,14 +95,14 @@ export const FileUploader = () => {
           })
           .catch((error) => {
             console.error("Failed to store file in IndexedDB:", error);
-            toast.error("Failed to store file. Please try again.");
+            toast.error(t("upload.storageError"));
           });
       } catch (error) {
         console.error("Error in file upload:", error);
-        toast.error("An error occurred while uploading the file");
+        toast.error(t("upload.uploadError"));
       }
     },
-    [setCurrentFile]
+    [setCurrentFile, t]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -144,14 +146,14 @@ export const FileUploader = () => {
       >
         <p className="text-base font-medium text-gray-800 dark:text-gray-100 mb-2">
           {isDragActive
-            ? "Drop to upload..."
-            : "Drag & drop audio/video files here"}
+            ? t("upload.dropToUpload")
+            : t("upload.dragDrop")}
         </p>
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
-          or click to browse files
+          {t("upload.browseFiles")}
         </p>
         <p className="text-xs text-purple-500 dark:text-purple-400 font-medium">
-          MP3, WAV, OGG, FLAC, AAC, MP4, WebM
+          {t("upload.supportedFormats")}
         </p>
       </motion.div>
     </div>

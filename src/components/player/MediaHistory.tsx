@@ -5,6 +5,7 @@ import {
 } from "../../stores/playerStore";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import {
   History,
   Play,
@@ -52,12 +53,13 @@ const HistoryList = ({
   onDragStartItem,
   onDragEndItem,
 }: HistoryListProps) => {
+  const { t } = useTranslation();
   const { mediaFolders, moveHistoryItemToFolder } = usePlayerStore();
   if (historyItems.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-gray-500">
         <Clock size={48} className="mb-2 opacity-30" />
-        <p>No history items to display</p>
+        <p>{t("history.noHistoryItems")}</p>
       </div>
     );
   }
@@ -102,7 +104,7 @@ const HistoryList = ({
               size="icon"
               className="h-8 w-8 text-green-600"
               onClick={() => onLoadItem(item)}
-              title="Play media"
+              title={t("history.playMedia")}
             >
               <Play size={16} />
             </Button>
@@ -114,21 +116,21 @@ const HistoryList = ({
                   size="icon"
                   className="h-8 w-8"
                   onClick={(e) => e.stopPropagation()}
-                  title="Move to folder"
+                  title={t("history.moveToFolder")}
                 >
                   <Folder size={16} />
                 </Button>
               </PopoverTrigger>
               <PopoverContent onClick={(e) => e.stopPropagation()}>
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">Move to folder</div>
+                  <div className="text-sm font-medium">{t("history.moveToFolder")}</div>
                   <div className="flex flex-col gap-2">
                     <Button
                       variant={!item.folderId ? "default" : "outline"}
                       size="sm"
                       onClick={() => moveHistoryItemToFolder(item.id, null)}
                     >
-                      Unfiled
+                      {t("history.unfiled")}
                     </Button>
                     {Object.values(mediaFolders).map((f) => (
                       <Button
@@ -150,7 +152,7 @@ const HistoryList = ({
               size="icon"
               className="h-8 w-8 text-red-600"
               onClick={(e) => onRemoveItem(item.id, e)}
-              title="Remove from history"
+              title={t("history.removeFromHistory")}
             >
               <Trash2 size={16} />
             </Button>
@@ -168,6 +170,7 @@ export const MediaHistory = ({
   embedded?: boolean;
   title?: string;
 }) => {
+  const { t } = useTranslation();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "files" | "youtube">(
     "all"
@@ -265,7 +268,7 @@ export const MediaHistory = ({
       setIsDrawerOpen(false);
     } catch (error) {
       console.error("Failed to load media:", error);
-      toast.error("Failed to load media");
+      toast.error(t("history.failedToLoadMedia"));
     }
   };
 
@@ -297,7 +300,7 @@ export const MediaHistory = ({
           id="historyDrawerToggle"
           onClick={toggleDrawer}
           className="hidden"
-          aria-label={isDrawerOpen ? "Close recent media" : "Open recent media"}
+          aria-label={isDrawerOpen ? t("history.closeRecentMedia") : t("history.openRecentMedia")}
         />
       )}
 
@@ -307,14 +310,14 @@ export const MediaHistory = ({
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <History size={18} /> {"Media Library"}
+                <History size={18} /> {t("history.mediaLibrary")}
               </h2>
               <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm" title="Sort">
+                    <Button variant="ghost" size="sm" title={t("history.sort")}>
                       <Filter size={16} className="mr-1" />
-                      Sort
+                      {t("history.sort")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-56">
@@ -367,9 +370,9 @@ export const MediaHistory = ({
                   onClick={() =>
                     startPlaybackQueue(sortedHistory.map((i) => i.id))
                   }
-                  title="Play all"
+                  title={t("history.playAll")}
                 >
-                  <Play size={16} className="mr-1" /> Play All
+                  <Play size={16} className="mr-1" /> {t("history.playAll")}
                 </Button>
               </div>
             </div>
@@ -378,12 +381,12 @@ export const MediaHistory = ({
               {/* Sidebar: same as drawer */}
               <aside className="w-full sm:w-56 shrink-0 border-r-0 sm:border-r border-gray-200 dark:border-gray-700 p-3 overflow-y-auto overscroll-contain block">
                 <div className="text-xs uppercase text-gray-500 mb-2">
-                  Folders
+                  {t("history.folders")}
                 </div>
                 <div className="space-y-1">
                   {[
-                    { id: "all", name: "All" },
-                    { id: "unfiled", name: "Unfiled" },
+                    { id: "all", name: t("history.all") },
+                    { id: "unfiled", name: t("history.unfiled") },
                     ...Object.values(mediaFolders),
                   ].map((f: any) => (
                     <button
@@ -457,13 +460,13 @@ export const MediaHistory = ({
                   <div className="px-4 pt-2">
                     <TabsList className="w-full">
                       <TabsTrigger value="all" className="flex-1">
-                        All
+                        {t("history.all")}
                       </TabsTrigger>
                       <TabsTrigger value="files" className="flex-1">
-                        Audio Files
+                        {t("history.audioFiles")}
                       </TabsTrigger>
                       <TabsTrigger value="youtube" className="flex-1">
-                        YouTube
+                        {t("history.youtube")}
                       </TabsTrigger>
                     </TabsList>
                   </div>
@@ -534,19 +537,19 @@ export const MediaHistory = ({
               <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-xl font-bold flex items-center gap-2">
                   <History size={20} />
-                  {title || "Recent Media"}
+                  {title || t("history.recentMedia")}
                 </h2>
                 <div className="flex items-center gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" title="Sort">
+                      <Button variant="ghost" size="sm" title={t("history.sort")}>
                         <Filter size={16} className="mr-1" />
-                        Sort
+                        {t("history.sort")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-56">
                       <div className="space-y-2">
-                        <div className="text-sm font-medium">Sort by</div>
+                        <div className="text-sm font-medium">{t("history.sortBy")}</div>
                         <div className="flex flex-wrap gap-2">
                           {["date", "name", "type"].map((k) => (
                             <Button
@@ -565,7 +568,7 @@ export const MediaHistory = ({
                             </Button>
                           ))}
                         </div>
-                        <div className="text-sm font-medium">Order</div>
+                        <div className="text-sm font-medium">{t("history.order")}</div>
                         <div className="flex gap-2">
                           {["asc", "desc"].map((o) => (
                             <Button
@@ -594,15 +597,15 @@ export const MediaHistory = ({
                     onClick={() =>
                       startPlaybackQueue(sortedHistory.map((i) => i.id))
                     }
-                    title="Play all"
+                    title={t("history.playAll")}
                   >
-                    <Play size={16} className="mr-1" /> Play All
+                    <Play size={16} className="mr-1" /> {t("history.playAll")}
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleClearHistory}
-                    title="Clear all history"
+                    title={t("history.clearAllHistory")}
                     className="text-gray-500 hover:text-red-500"
                   >
                     <Trash2 size={18} />
@@ -611,7 +614,7 @@ export const MediaHistory = ({
                     variant="ghost"
                     size="icon"
                     onClick={toggleDrawer}
-                    title="Close recent media"
+                    title={t("history.closeRecentMedia")}
                   >
                     <X size={20} />
                   </Button>
@@ -622,12 +625,12 @@ export const MediaHistory = ({
                 {/* Sidebar: folders (hidden on mobile) */}
                 <aside className="hidden sm:block w-56 shrink-0 border-r border-gray-200 dark:border-gray-700 p-3 overflow-y-auto overscroll-contain">
                   <div className="text-xs uppercase text-gray-500 mb-2">
-                    Folders
+                    {t("history.folders")}
                   </div>
                   <div className="space-y-1">
                     {[
-                      { id: "all", name: "All" },
-                      { id: "unfiled", name: "Unfiled" },
+                      { id: "all", name: t("history.all") },
+                      { id: "unfiled", name: t("history.unfiled") },
                       ...Object.values(mediaFolders),
                     ].map((f: any) => (
                       <button
@@ -698,8 +701,8 @@ export const MediaHistory = ({
                     <div className="flex items-center gap-2">
                       {(
                         [
-                          { id: "all", name: "All" },
-                          { id: "unfiled", name: "Unfiled" },
+                          { id: "all", name: t("history.all") },
+                          { id: "unfiled", name: t("history.unfiled") },
                           ...Object.values(mediaFolders),
                         ] as { id: string; name: string }[]
                       ).map((f) => (
@@ -757,7 +760,7 @@ export const MediaHistory = ({
                                   ) as HTMLButtonElement;
                                   if (dialog) dialog.click();
                                 }}
-                                title="Edit folder name"
+                                title={t("history.editFolderName")}
                               >
                                 <Pencil size={10} />
                               </Button>
@@ -779,13 +782,13 @@ export const MediaHistory = ({
                     <div className="px-4 pt-2">
                       <TabsList className="w-full">
                         <TabsTrigger value="all" className="flex-1">
-                          All
+                          {t("history.all")}
                         </TabsTrigger>
                         <TabsTrigger value="files" className="flex-1">
-                          Audio Files
+                          {t("history.audioFiles")}
                         </TabsTrigger>
                         <TabsTrigger value="youtube" className="flex-1">
-                          YouTube
+                          {t("history.youtube")}
                         </TabsTrigger>
                       </TabsList>
                     </div>
@@ -856,6 +859,7 @@ export const MediaHistory = ({
 
 // Small components for cleaner JSX
 function NewFolderButton({ fullWidth = false }: { fullWidth?: boolean }) {
+  const { t } = useTranslation();
   const { createMediaFolder } = usePlayerStore();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -866,15 +870,15 @@ function NewFolderButton({ fullWidth = false }: { fullWidth?: boolean }) {
         size="sm"
         className={fullWidth ? "w-full" : undefined}
         onClick={() => setOpen(true)}
-        title="New folder"
+        title={t("history.newFolder")}
       >
-        <FolderPlus size={16} className="mr-1" /> New
+        <FolderPlus size={16} className="mr-1" /> {t("history.new")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New Folder</DialogTitle>
-            <DialogDescription>Enter a name for the folder.</DialogDescription>
+            <DialogTitle>{t("history.newFolder")}</DialogTitle>
+            <DialogDescription>{t("history.enterFolderName")}</DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
@@ -1109,20 +1113,21 @@ function RenameItemButton({ item }: { item: MediaHistoryItem }) {
 }
 
 function NewFolderForMoveButton({ itemId }: { itemId: string }) {
+  const { t } = useTranslation();
   const { createMediaFolder, moveHistoryItemToFolder } = usePlayerStore();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   return (
     <>
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        <FolderPlus size={14} className="mr-1" /> New Folder
+        <FolderPlus size={14} className="mr-1" /> {t("history.newFolder")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New Folder</DialogTitle>
+            <DialogTitle>{t("history.newFolder")}</DialogTitle>
             <DialogDescription>
-              Enter a name and we’ll move the item there.
+              {t("history.enterFolderNameAndMove")}
             </DialogDescription>
           </DialogHeader>
           <Input

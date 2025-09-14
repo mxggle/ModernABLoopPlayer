@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { Search, Youtube } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -8,6 +9,7 @@ interface YouTubeInputProps {
 }
 
 export const YouTubeInput = ({ onVideoIdSubmit }: YouTubeInputProps) => {
+  const { t } = useTranslation();
   const [inputValue, setInputValue] = useState("");
 
   const extractVideoId = (url: string): string | null => {
@@ -38,14 +40,14 @@ export const YouTubeInput = ({ onVideoIdSubmit }: YouTubeInputProps) => {
     e.preventDefault();
 
     if (!inputValue.trim()) {
-      toast.error("Please enter a YouTube URL or video ID");
+      toast.error(t("youtube.enterUrl"));
       return;
     }
 
     const videoId = extractVideoId(inputValue.trim());
 
     if (!videoId) {
-      toast.error("Invalid YouTube URL or video ID");
+      toast.error(t("youtube.invalidUrl"));
       return;
     }
 
@@ -65,7 +67,7 @@ export const YouTubeInput = ({ onVideoIdSubmit }: YouTubeInputProps) => {
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Enter YouTube URL or video ID"
+          placeholder={t("youtube.enterUrl")}
           className="w-full h-12 px-12 rounded-xl border-2 border-purple-100 dark:border-purple-900/30 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 outline-none text-sm"
           whileFocus={{ scale: 1.01 }}
         />
@@ -81,7 +83,7 @@ export const YouTubeInput = ({ onVideoIdSubmit }: YouTubeInputProps) => {
         whileTap={{ scale: 0.98 }}
       >
         <Search size={18} />
-        Load Video
+        {t("youtube.loadVideo")}
       </motion.button>
     </motion.form>
   );
