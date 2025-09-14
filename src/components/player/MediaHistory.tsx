@@ -190,11 +190,7 @@ export const MediaHistory = ({
     historyFolderFilter,
     setHistoryFolderFilter,
     setHistorySort,
-    createMediaFolder,
-    renameMediaFolder,
-    deleteMediaFolder,
     moveHistoryItemToFolder,
-    renameHistoryItem,
     startPlaybackQueue,
   } = usePlayerStore();
 
@@ -983,6 +979,8 @@ function RenameFolderButton({ folderId }: { folderId: string }) {
   );
 }
 
+// Commented out unused component
+/*
 function DeleteFolderButton({ folderId }: { folderId: string }) {
   const { deleteMediaFolder } = usePlayerStore();
   const [open, setOpen] = useState(false);
@@ -1023,6 +1021,7 @@ function DeleteFolderButton({ folderId }: { folderId: string }) {
     </>
   );
 }
+*/
 
 function ConfirmClearDialog({
   open,

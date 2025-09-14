@@ -1,11 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import * as Tone from "tone";
-import {
-  PlusIcon,
-  MinusIcon,
-  ArrowsPointingOutIcon,
-} from "@heroicons/react/24/solid";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   AlignStartHorizontal,
@@ -373,7 +368,7 @@ export const WaveformVisualizer = () => {
     const toCanvasX = (t: number) =>
       ((Math.max(t, startOffset) - startOffset) / visibleDuration) *
       canvas.width;
-    const topYCanvas = lanePaddingCss * dpr;
+    // const topYCanvas = lanePaddingCss * dpr; // Unused variable
     assigned.forEach(({ id, start, end, lane }) => {
       const x1c = toCanvasX(start);
       const x2c =
@@ -843,20 +838,23 @@ export const WaveformVisualizer = () => {
     return null;
   }
 
-  // Handle zoom controls
-  const handleZoomIn = () => {
-    // Increase zoom by 25% with a maximum of 20x
-    setWaveformZoom(Math.min(waveformZoom * 1.25, 20));
-  };
+  // Handle zoom controls - commented out unused function
+  // const handleZoomIn = () => {
+  //   // Increase zoom by 25% with a maximum of 20x
+  //   setWaveformZoom(Math.min(waveformZoom * 1.25, 20));
+  // };
 
-  const handleZoomOut = () => {
-    // Decrease zoom by 20% with a minimum of 1x
-    setWaveformZoom(Math.max(waveformZoom / 1.25, 1));
-  };
+  // const handleZoomIn = () => {
+  //   setZoomLevel((prev) => Math.min(prev * 1.5, 10));
+  // };
 
-  const handleResetZoom = () => {
-    setWaveformZoom(1); // Reset to default zoom
-  };
+  // const handleZoomOut = () => {
+  //   setZoomLevel((prev) => Math.max(prev / 1.5, 0.1));
+  // };
+
+  // const handleResetZoom = () => {
+  //   setZoomLevel(1);
+  // };
 
   // Handle mouse wheel for zooming
   const handleMouseWheel = (e: React.WheelEvent<HTMLDivElement>) => {
