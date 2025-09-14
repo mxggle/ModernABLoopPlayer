@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-09-14
+
+### Added
+
+- Internationalization (i18n) support:
+  - Complete translations for player controls and bookmarks
+  - Language detection and switching capability
+  - Support for English, Chinese, and Japanese languages
+- Video file support:
+  - Native video player integration
+  - Waveform visualization for video files
+  - Enhanced native media controls
+- Playlist management:
+  - UI for playlist creation and editing
+  - Playback mode controls (shuffle, repeat)
+  - Queue management system
+- Media organization:
+  - Folder organization for media history
+  - Sorting options for media files
+  - Improved media history panel
+- Enhanced controls:
+  - Redesigned mobile controls
+  - Quick-add bookmark feature
+  - Configurable seek steps
+  - Improved bookmark navigation
+
+### Fixed
+
+- Standardized z-index layering across components
+- Added ESC key and click-outside handling for all drawers
+- Improved bookmark management across components
+
 ## [0.5.0] - 2025-05-29
 
 ### Added
@@ -105,7 +137,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Layout optimizations for desktop view
   - TypeScript and React component structure
 
-[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/USERNAME/loopmate/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/USERNAME/loopmate/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/USERNAME/loopmate/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/USERNAME/loopmate/compare/v0.2.0...v0.3.0
