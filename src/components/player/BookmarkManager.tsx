@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { usePlayerStore, type LoopBookmark } from "../../stores/playerStore";
 import { toast } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { formatTime } from "../../utils/formatTime";
 import { generateShareableUrl } from "../../utils/shareableUrl";
 import {
@@ -28,6 +29,7 @@ import {
 import { cn } from "../../utils/cn";
 
 export const BookmarkManager = () => {
+  const { t } = useTranslation();
   const [bookmarkName, setBookmarkName] = useState("");
   const [bookmarkAnnotation, setBookmarkAnnotation] = useState("");
   const [isAddingBookmark, setIsAddingBookmark] = useState(false);
@@ -66,7 +68,7 @@ export const BookmarkManager = () => {
     }
 
     if (!bookmarkName.trim()) {
-      toast.error("Please enter a name for the bookmark");
+      toast.error(t("bookmarks.enterBookmarkName"));
       return;
     }
     const added = storeAddBookmark({
@@ -83,7 +85,7 @@ export const BookmarkManager = () => {
       setBookmarkName("");
       setBookmarkAnnotation("");
       setIsAddingBookmark(false);
-      toast.success("Bookmark added");
+      toast.success(t("bookmarks.bookmarkAdded"));
     }
   };
 
@@ -100,7 +102,7 @@ export const BookmarkManager = () => {
     if (!editingBookmarkId) return;
 
     if (!editName.trim()) {
-      toast.error("Bookmark name cannot be empty");
+      toast.error(t("bookmarks.nameCannotBeEmpty"));
       return;
     }
 
@@ -126,7 +128,7 @@ export const BookmarkManager = () => {
   // Export bookmarks
   const handleExportBookmarks = () => {
     if (bookmarks.length === 0) {
-      toast.error("No bookmarks to export");
+      toast.error(t("bookmarks.noBookmarksToExport"));
       return;
     }
 
@@ -144,7 +146,7 @@ export const BookmarkManager = () => {
     linkElement.setAttribute("download", exportFileDefaultName);
     linkElement.click();
 
-    toast.success("Bookmarks exported");
+    toast.success(t("bookmarks.bookmarksExported"));
   };
 
   // Import bookmarks
@@ -162,13 +164,13 @@ export const BookmarkManager = () => {
 
         if (Array.isArray(importedBookmarks)) {
           storeImportBookmarks(importedBookmarks);
-          toast.success(`Imported ${importedBookmarks.length} bookmarks`);
+          toast.success(t("bookmarks.bookmarksImported", { count: importedBookmarks.length }));
         } else {
-          toast.error("Invalid bookmark file format");
+          toast.error(t("bookmarks.invalidFileFormat"));
         }
       } catch (error) {
         console.error("Error importing bookmarks:", error);
-        toast.error("Error importing bookmarks");
+        toast.error(t("bookmarks.importError"));
       }
     };
 
@@ -201,21 +203,21 @@ export const BookmarkManager = () => {
     // Copy to clipboard
     navigator.clipboard
       .writeText(url)
-      .then(() => toast.success("Shareable link copied to clipboard"))
-      .catch(() => toast.error("Failed to copy link"));
+      .then(() => toast.success(t("bookmarks.linkCopied")))
+      .catch(() => toast.error(t("bookmarks.copyFailed")));
   };
 
   return (
     <Card className="bg-white dark:bg-gray-800">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-medium flex justify-between items-center">
-          <span>Bookmarks</span>
+          <span>{t("bookmarks.title")}</span>
           <div className="flex space-x-1">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsAddingBookmark(!isAddingBookmark)}
-              aria-label="Add bookmark"
+              aria-label={t("bookmarks.addBookmark")}
             >
               <Plus size={16} />
             </Button>
@@ -224,7 +226,7 @@ export const BookmarkManager = () => {
               variant="outline"
               size="sm"
               onClick={handleShareLoopSettings}
-              aria-label="Share loop settings"
+              aria-label={t("bookmarks.shareLoopSettings")}
               disabled={loopStart === null || loopEnd === null}
             >
               <Share2 size={16} />
@@ -234,7 +236,7 @@ export const BookmarkManager = () => {
               variant="outline"
               size="sm"
               onClick={handleExportBookmarks}
-              aria-label="Export bookmarks"
+              aria-label={t("bookmarks.exportBookmarks")}
               disabled={bookmarks.length === 0}
             >
               <Download size={16} />
@@ -244,7 +246,7 @@ export const BookmarkManager = () => {
               variant="outline"
               size="sm"
               onClick={handleImportClick}
-              aria-label="Import bookmarks"
+              aria-label={t("bookmarks.importBookmarks")}
             >
               <Upload size={16} />
               <input
@@ -263,23 +265,20 @@ export const BookmarkManager = () => {
         {isAddingBookmark && (
           <div className="mb-4 space-y-3 p-3 border border-gray-200 dark:border-gray-700 rounded-md">
             <div>
-              <Input
-                placeholder="Bookmark name"
+              <input
+                type="text"
                 value={bookmarkName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setBookmarkName(e.target.value)
-                }
-                className="w-full"
+                onChange={(e) => setBookmarkName(e.target.value)}
+                placeholder={t("bookmarks.bookmarkName")}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
             </div>
 
             <div>
-              <Textarea
-                placeholder="Annotation (optional)"
+              <textarea
                 value={bookmarkAnnotation}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                  setBookmarkAnnotation(e.target.value)
-                }
+                onChange={(e) => setBookmarkAnnotation(e.target.value)}
+                placeholder={t("bookmarks.annotationOptional")}
                 className="w-full h-20 resize-none"
               />
             </div>
@@ -290,7 +289,7 @@ export const BookmarkManager = () => {
                 size="sm"
                 onClick={() => setIsAddingBookmark(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="default"
@@ -300,7 +299,7 @@ export const BookmarkManager = () => {
                   !bookmarkName.trim() || loopStart === null || loopEnd === null
                 }
               >
-                Save
+                {t("common.save")}
               </Button>
             </div>
           </div>
@@ -309,9 +308,9 @@ export const BookmarkManager = () => {
         {bookmarks.length === 0 ? (
           <div className="text-center py-6 text-gray-500 dark:text-gray-400">
             <Bookmark className="mx-auto h-8 w-8 opacity-50 mb-2" />
-            <p>No bookmarks yet</p>
+            <p>{t("bookmarks.noBookmarks")}</p>
             <p className="text-sm">
-              Create your first bookmark by clicking the + button above
+              {t("bookmarks.createFirstBookmark")}
             </p>
           </div>
         ) : (
@@ -363,7 +362,7 @@ export const BookmarkManager = () => {
                     size="icon"
                     className="h-7 w-7"
                     onClick={() => handleEditBookmark(bookmark)}
-                    aria-label="Edit bookmark"
+                    aria-label={t("bookmarks.editBookmark")}
                   >
                     <Edit size={14} />
                   </Button>
@@ -373,7 +372,7 @@ export const BookmarkManager = () => {
                     size="icon"
                     className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                     onClick={() => handleDeleteBookmark(bookmark.id)}
-                    aria-label="Delete bookmark"
+                    aria-label={t("bookmarks.deleteBookmark")}
                   >
                     <Trash2 size={14} />
                   </Button>
@@ -388,16 +387,16 @@ export const BookmarkManager = () => {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Bookmark</DialogTitle>
+            <DialogTitle>{t("bookmarks.editBookmark")}</DialogTitle>
             <DialogDescription>
-              Update the name and annotation for this bookmark.
+              {t("bookmarks.updateBookmarkDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <label htmlFor="edit-name" className="text-sm font-medium">
-                Name
+                {t("bookmarks.name")}
               </label>
               <Input
                 id="edit-name"
@@ -405,13 +404,13 @@ export const BookmarkManager = () => {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setEditName(e.target.value)
                 }
-                placeholder="Bookmark name"
+                placeholder={t("bookmarks.bookmarkName")}
               />
             </div>
 
             <div className="space-y-2">
               <label htmlFor="edit-annotation" className="text-sm font-medium">
-                Annotation
+                {t("bookmarks.annotation")}
               </label>
               <Textarea
                 id="edit-annotation"
@@ -419,7 +418,7 @@ export const BookmarkManager = () => {
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                   setEditAnnotation(e.target.value)
                 }
-                placeholder="Annotation (optional)"
+                placeholder={t("bookmarks.annotationOptional")}
                 className="h-24"
               />
             </div>
@@ -430,7 +429,7 @@ export const BookmarkManager = () => {
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
 
             <Button
@@ -438,7 +437,7 @@ export const BookmarkManager = () => {
               onClick={handleSaveEdit}
               disabled={!editName.trim()}
             >
-              Save Changes
+              {t("bookmarks.saveChanges")}
             </Button>
           </DialogFooter>
         </DialogContent>

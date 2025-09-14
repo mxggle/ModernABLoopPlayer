@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../stores/playerStore";
 import { MediaPlayer } from "../components/player/MediaPlayer";
 import { YouTubePlayer } from "../components/player/YouTubePlayer";
@@ -14,6 +15,7 @@ import { useWindowSize } from "../hooks/useWindowSize";
 import { AppLayout } from "../components/layout/AppLayout";
 
 export const PlayerPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [layoutSettings, setLayoutSettings] = useState({
     showPlayer: true,
@@ -65,7 +67,7 @@ export const PlayerPage = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
             <p className="text-lg text-gray-600 dark:text-gray-300">
-              Loading media...
+              {t("common.loading")}
             </p>
           </div>
         </div>
@@ -76,7 +78,7 @@ export const PlayerPage = () => {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <p className="text-lg text-gray-600 dark:text-gray-300 mb-4">
-              No media loaded. Redirecting to home...
+              {t("player.noMediaLoaded")}
             </p>
           </div>
         </div>

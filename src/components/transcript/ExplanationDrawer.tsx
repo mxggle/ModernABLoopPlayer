@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Drawer } from "../ui/drawer";
 import { ModelSelector } from "../ui/ModelSelector";
 import { MarkdownRenderer } from "../ui/MarkdownRenderer";
@@ -75,6 +76,7 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
   onClose,
   text,
 }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [explanation, setExplanation] = useState<ExplanationResult | null>(
     null
@@ -91,6 +93,16 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
   // Settings state
   const [targetLanguage, setTargetLanguage] = useState("English");
 
+  const handleClose = useCallback(() => {
+    if (isLoading && canCloseWhileLoading) {
+      toast(t("explanation.generatingInBackground"), {
+        icon: "ℹ️",
+        duration: 3000,
+      });
+    }
+    onClose();
+  }, [isLoading, canCloseWhileLoading, onClose, t]);
+
   // Handle ESC key to close drawer
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -106,7 +118,7 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen]);
+    }, [isOpen, handleClose]);
 
   // Subscribe to global explanation state
   useEffect(() => {
@@ -189,26 +201,24 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
     }
   }, [text]);
 
-  const getApiKey = (provider: AIProvider): string => {
+  const getApiKey = useCallback((provider: AIProvider): string => {
     return localStorage.getItem(`${provider}_api_key`) || "";
-  };
+  }, []);
 
-  const hasValidApiKey = (provider: AIProvider): boolean => {
+  const hasValidApiKey = useCallback((provider: AIProvider): boolean => {
     const apiKey = getApiKey(provider);
     return aiService.validateApiKey(provider, apiKey);
-  };
+  }, [getApiKey]);
 
-  const generateExplanation = async () => {
+    const generateExplanation = useCallback(async () => {
     if (!text.trim()) {
-      toast.error("No text selected for explanation");
+      toast.error(t("explanation.noTextSelected"));
       return;
     }
 
     const apiKey = getApiKey(selectedProvider);
     if (!hasValidApiKey(selectedProvider)) {
-      toast.error(
-        `Please configure your ${selectedProvider.toUpperCase()} API key in settings`
-      );
+      toast.error(t("explanation.configureApiKey", { provider: selectedProvider.toUpperCase() }));
       return;
     }
 
@@ -259,13 +269,13 @@ Provide a clear, comprehensive explanation that would help someone understand th
       toast.success(
         <div className="flex items-center gap-2">
           <CheckCircle className="w-4 h-4" />
-          <span>Explanation ready!</span>
+          <span>{t("explanation.explanationReady")}</span>
         </div>,
         { duration: 2000 }
       );
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
+        error instanceof Error ? error.message : t("explanation.unknownError");
       setError(errorMessage);
 
       // Update global state
@@ -274,19 +284,19 @@ Provide a clear, comprehensive explanation that would help someone understand th
         error: errorMessage,
       });
 
-      toast.error(`Failed to generate explanation: ${errorMessage}`);
+      toast.error(t("explanation.generationFailed", { message: errorMessage }));
     } finally {
       setIsLoading(false);
       setCanCloseWhileLoading(false);
     }
-  };
+    }, [text, selectedProvider, selectedModel, targetLanguage, getApiKey, hasValidApiKey, t]);
 
   // Auto-generate explanation when drawer opens
   useEffect(() => {
     if (isOpen && text && !explanation && !isLoading && !error) {
       generateExplanation();
     }
-  }, [isOpen, text]);
+  }, [isOpen, text, explanation, isLoading, error, generateExplanation]);
 
   const handleProviderChange = (provider: AIProvider) => {
     setSelectedProvider(provider);
@@ -304,30 +314,21 @@ Provide a clear, comprehensive explanation that would help someone understand th
     setError(null);
   };
 
-  const handleClose = () => {
-    if (isLoading && canCloseWhileLoading) {
-      toast("Explanation will continue generating in background", {
-        icon: "ℹ️",
-        duration: 3000,
-      });
-    }
-    onClose();
-  };
-
+      
   const formatTokenUsage = (usage?: {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
   }) => {
     if (!usage) return null;
-    return `${usage.totalTokens} tokens (${usage.promptTokens} prompt + ${usage.completionTokens} completion)`;
+    return t("explanation.tokenUsage", { total: usage.totalTokens, prompt: usage.promptTokens, completion: usage.completionTokens });
   };
 
   return (
     <Drawer
       open={isOpen}
       onOpenChange={(open) => !open && handleClose()}
-      title="AI Explanation"
+      title={t("explanation.title")}
     >
       <div className="space-y-6 p-4">
         {/* Loading State with Close Option */}
@@ -337,19 +338,14 @@ Provide a clear, comprehensive explanation that would help someone understand th
               <div className="flex items-center gap-3">
                 <Loader className="w-5 h-5 animate-spin text-blue-600" />
                 <div>
-                  <h4 className="text-sm font-medium text-blue-800">
-                    Generating explanation...
-                  </h4>
-                  <p className="text-xs text-blue-600 mt-1">
-                    You can close this drawer and the explanation will continue
-                    in the background
-                  </p>
+                  <h4 className="text-sm font-medium text-blue-800">{t("explanation.generating")}</h4>
+                  <p className="text-xs text-blue-600 mt-1">{t("explanation.canCloseDrawer")}</p>
                 </div>
               </div>
               <button
                 onClick={handleClose}
                 className="text-blue-600 hover:text-blue-800 p-1"
-                title="Close and continue in background"
+                title={t("explanation.closeAndContinue")}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -360,24 +356,19 @@ Provide a clear, comprehensive explanation that would help someone understand th
         {/* Model Selection */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Brain className="w-5 h-5" />
-              AI Model Selection
-            </h3>
+            <h3 className="text-lg font-semibold flex items-center gap-2"><Brain className="w-5 h-5" />{t("explanation.aiModelSelection")}</h3>
             <button
               onClick={() => navigate("/ai-settings")}
               className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
             >
               <Settings className="w-4 h-4" />
-              Settings
+              {t("common.settings")}
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                AI Provider
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t("explanation.aiProvider")}</label>
               <select
                 value={selectedProvider}
                 onChange={(e) =>
@@ -386,21 +377,19 @@ Provide a clear, comprehensive explanation that would help someone understand th
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isLoading}
               >
-                <option value="openai">OpenAI</option>
-                <option value="gemini">Google Gemini</option>
-                <option value="grok">xAI Grok</option>
+                <option value="openai">{t("explanation.providers.openai")}</option>
+                <option value="gemini">{t("explanation.providers.gemini")}</option>
+                <option value="grok">{t("explanation.providers.grok")}</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Model
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t("explanation.model")}</label>
               <ModelSelector
                 selectedModel={selectedModel}
                 onModelSelect={handleModelChange}
                 provider={selectedProvider}
-                placeholder="Select model..."
+                placeholder={t("explanation.selectModel")}
                 compact={true}
                 showPricing={false}
                 showCapabilities={false}
@@ -414,14 +403,7 @@ Provide a clear, comprehensive explanation that would help someone understand th
               <div className="flex items-center gap-2 text-yellow-800">
                 <Settings className="w-4 h-4" />
                 <span className="text-sm">
-                  Please configure your {selectedProvider.toUpperCase()} API key
-                  in{" "}
-                  <button
-                    onClick={() => navigate("/ai-settings")}
-                    className="underline hover:no-underline"
-                  >
-                    settings
-                  </button>
+                  {t("explanation.configureApiKeyInSettings", { provider: selectedProvider.toUpperCase() })} <button onClick={() => navigate("/ai-settings")} className="underline hover:no-underline">{t("common.settings")}</button>
                 </span>
               </div>
             </div>
@@ -430,10 +412,7 @@ Provide a clear, comprehensive explanation that would help someone understand th
 
         {/* Selected Text */}
         <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Selected Text
-          </h3>
+          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><FileText className="w-5 h-5" />{t("explanation.selectedText")}</h3>
           <div className="p-4 bg-gray-50 rounded-lg border">
             <p className="text-gray-700 whitespace-pre-wrap">{text}</p>
           </div>
@@ -449,12 +428,12 @@ Provide a clear, comprehensive explanation that would help someone understand th
             {isLoading ? (
               <>
                 <Loader className="w-4 h-4 animate-spin" />
-                Generating...
+                {t("explanation.generating")}
               </>
             ) : (
               <>
                 <Zap className="w-4 h-4" />
-                {explanation ? "Regenerate" : "Generate"} Explanation
+                {t(explanation ? "explanation.regenerate" : "explanation.generate")} {t("explanation.explanation")}
               </>
             )}
           </button>
@@ -471,10 +450,7 @@ Provide a clear, comprehensive explanation that would help someone understand th
         {explanation && (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <BookOpen className="w-5 h-5" />
-                Explanation
-              </h3>
+              <h3 className="text-lg font-semibold flex items-center gap-2"><BookOpen className="w-5 h-5" />{t("explanation.explanation")}</h3>
               {explanation.usage && (
                 <span className="text-xs text-gray-500">
                   {formatTokenUsage(explanation.usage)}
@@ -505,14 +481,9 @@ Provide a clear, comprehensive explanation that would help someone understand th
 
         {/* Language Settings */}
         <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <Globe className="w-5 h-5" />
-            Language Settings
-          </h3>
+          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><Globe className="w-5 h-5" />{t("explanation.languageSettings")}</h3>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Target Language
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t("explanation.targetLanguage")}</label>
             <select
               value={targetLanguage}
               onChange={(e) => {
@@ -522,13 +493,13 @@ Provide a clear, comprehensive explanation that would help someone understand th
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isLoading}
             >
-              <option value="English">English</option>
-              <option value="Spanish">Spanish</option>
-              <option value="French">French</option>
-              <option value="German">German</option>
-              <option value="Chinese">Chinese</option>
-              <option value="Japanese">Japanese</option>
-              <option value="Korean">Korean</option>
+              <option value="English">{t("explanation.languages.english")}</option>
+              <option value="Spanish">{t("explanation.languages.spanish")}</option>
+              <option value="French">{t("explanation.languages.french")}</option>
+              <option value="German">{t("explanation.languages.german")}</option>
+              <option value="Chinese">{t("explanation.languages.chinese")}</option>
+              <option value="Japanese">{t("explanation.languages.japanese")}</option>
+              <option value="Korean">{t("explanation.languages.korean")}</option>
             </select>
           </div>
         </div>

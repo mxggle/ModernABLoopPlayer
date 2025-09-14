@@ -3,6 +3,7 @@ import { Button } from "../ui/button";
 import { cn } from "../../utils/cn";
 import { useNavigate } from "react-router-dom";
 import { usePlayerStore } from "../../stores/playerStore";
+import { useTranslation } from "react-i18next";
 import {
   X,
   LayoutDashboard,
@@ -16,6 +17,7 @@ import {
   Brain,
 } from "lucide-react";
 import { Input } from "../ui/input";
+import { LanguageSelector } from "../ui/LanguageSelector";
 
 interface LayoutSettings {
   showPlayer: boolean;
@@ -38,6 +40,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   setLayoutSettings,
 }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const {
     seekStepSeconds,
     seekSmallStepSeconds,
@@ -61,22 +64,22 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const layoutOptions = [
     {
       key: "showPlayer",
-      label: "Media Player",
+      label: t("settings.mediaPlayer"),
       icon: <Tv className="h-5 w-5 mr-3 text-sky-500" />,
     },
     {
       key: "showWaveform",
-      label: "Waveform Display",
+      label: t("settings.waveformDisplay"),
       icon: <Waves className="h-5 w-5 mr-3 text-teal-500" />,
     },
     {
       key: "showTranscript",
-      label: "Transcript Panel",
+      label: t("settings.transcriptPanel"),
       icon: <FileText className="h-5 w-5 mr-3 text-orange-500" />,
     },
     {
       key: "showControls",
-      label: "Playback Controls",
+      label: t("settings.playbackControls"),
       icon: <SlidersHorizontal className="h-5 w-5 mr-3 text-rose-500" />,
     },
   ];
@@ -93,7 +96,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold flex items-center">
             <LayoutDashboard className="h-5 w-5 mr-2 text-purple-500" />
-            Settings
+            {t("settings.title")}
           </h2>
           <Button
             variant="ghost"
@@ -110,12 +113,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           {/* Playback Settings */}
           <div>
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 px-1">
-              Playback
+              {t("settings.playback")}
             </h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <label className="text-sm text-gray-700 dark:text-gray-200 flex-1">
-                  Seek step (seconds)
+                  {t("settings.seekStep")}
                 </label>
                 <div className="w-28">
                   <Input
@@ -132,7 +135,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               </div>
               <div className="flex items-center justify-between gap-3">
                 <label className="text-sm text-gray-700 dark:text-gray-200 flex-1">
-                  Small step (Shift + arrows)
+                  {t("settings.smallStep")}
                 </label>
                 <div className="w-28">
                   <Input
@@ -149,11 +152,19 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               </div>
             </div>
           </div>
+          {/* Language Settings */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 px-1">
+              {t("settings.appearance")}
+            </h3>
+            <LanguageSelector />
+          </div>
+
           {/* Layout Settings Section - Only show when layoutSettings and setLayoutSettings are available */}
           {layoutSettings && setLayoutSettings && (
             <div>
               <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 px-1">
-                Interface Layout
+                {t("settings.interfaceLayout")}
               </h3>
               <div className="space-y-1">
                 {layoutOptions.map((option) => (
@@ -183,7 +194,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           {/* AI Settings Section */}
           <div>
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 px-1">
-              AI Services
+              {t("settings.aiServices")}
             </h3>
             <Button
               variant="outline"
@@ -191,14 +202,14 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               className="w-full justify-start text-sm"
             >
               <Brain className="h-5 w-5 mr-3 text-purple-500" />
-              AI Settings
+              {t("settings.aiSettings")}
             </Button>
           </div>
 
           {/* Media History Section */}
           <div>
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 px-1">
-              Media
+              {t("settings.media")}
             </h3>
             <Button
               variant="outline"
@@ -206,7 +217,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               className="w-full justify-start text-sm"
             >
               <HistoryIcon className="h-5 w-5 mr-3 text-indigo-500" />
-              View Media History
+              {t("settings.viewMediaHistory")}
             </Button>
           </div>
         </div>

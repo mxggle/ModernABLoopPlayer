@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
+import { useTranslation } from "react-i18next";
 import { formatTime } from "../../utils/formatTime";
 import {
   Play,
@@ -22,6 +23,7 @@ import {
 import { Button } from "../ui/button";
 
 export const MobileControls = () => {
+  const { t } = useTranslation();
   const {
     isPlaying,
     currentTime,
@@ -376,7 +378,7 @@ export const MobileControls = () => {
                 <ChevronLeft size={20} />
               </button>
               <span className="text-xs text-gray-500 dark:text-gray-400 px-2">
-                Bookmark Navigation
+                {t("player.bookmarkNavigation")}
               </span>
               <button
                 onClick={goToNextBookmark}
@@ -460,7 +462,7 @@ export const MobileControls = () => {
 
             <div className="px-4 py-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold">
-                Playlist{" "}
+                {t("player.playlist")}{" "}
                 {playbackQueue.length > 0 ? `(${playbackQueue.length})` : ""}
               </h2>
               <button
@@ -484,7 +486,7 @@ export const MobileControls = () => {
                   className="flex-1"
                 >
                   <Shuffle size={16} className="mr-1" />
-                  {playbackMode === "shuffle" ? "Shuffle" : "Order"}
+                  {playbackMode === "shuffle" ? t("player.shuffle") : t("player.order")}
                 </Button>
                 <Button
                   variant="outline"
@@ -492,7 +494,7 @@ export const MobileControls = () => {
                   onClick={stopPlaybackQueue}
                   className="px-3 text-red-600 dark:text-red-400"
                 >
-                  Clear
+                  {t("player.clear")}
                 </Button>
               </div>
             )}
@@ -501,7 +503,7 @@ export const MobileControls = () => {
               {playbackQueue.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <ListMusic size={48} className="mx-auto mb-2 opacity-30" />
-                  <p>No items in the playlist.</p>
+                  <p>{t("player.noItemsInPlaylist")}</p>
                 </div>
               ) : (
                 <ul className="max-h-64 overflow-y-auto space-y-2">
@@ -525,13 +527,13 @@ export const MobileControls = () => {
                             {item.name}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {item.type === "file" ? "Audio File" : "YouTube"}
+                            {item.type === "file" ? t("player.audioFile") : "YouTube"}
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
                           {isCurrentItem && (
                             <span className="text-xs bg-purple-600 text-white px-2 py-1 rounded-full">
-                              Now
+                              {t("player.now")}
                             </span>
                           )}
                           <Button
@@ -595,7 +597,7 @@ export const MobileControls = () => {
             <div className="h-1.5 w-12 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto my-2" />
 
             <div className="px-4 py-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold">Playback Speed</h2>
+              <h2 className="text-lg font-semibold">{t("player.playbackSpeed")}</h2>
               <button
                 onClick={() => setShowSpeedControls(false)}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"

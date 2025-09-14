@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import {
   Loader,
@@ -51,6 +52,7 @@ const TranscriptSegmentItem = ({
 }: {
   segment: TranscriptSegmentType;
 }) => {
+  const { t } = useTranslation();
   const [showExplanation, setShowExplanation] = useState(false);
 
   const {
@@ -203,11 +205,7 @@ const TranscriptSegmentItem = ({
                   ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
                   : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
               }`}
-              title={
-                shouldShowPauseButton
-                  ? "Pause playback"
-                  : "Play from this segment"
-              }
+              title={t(shouldShowPauseButton ? "transcript.pausePlayback" : "transcript.playSegment")}
             >
               {shouldShowPauseButton ? (
                 <Pause size={18} fill="currentColor" />
@@ -223,11 +221,7 @@ const TranscriptSegmentItem = ({
                   ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
                   : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
               }`}
-              title={
-                isCurrentlyLooping
-                  ? "Stop looping this segment"
-                  : "Loop this segment"
-              }
+              title={t(isCurrentlyLooping ? "transcript.stopLoopingSegment" : "transcript.loopSegment")}
             >
               <Repeat
                 size={18}
@@ -242,11 +236,7 @@ const TranscriptSegmentItem = ({
                   ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
                   : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
               }`}
-              title={
-                isBookmarked
-                  ? "Remove bookmark for this segment"
-                  : "Create bookmark from this segment"
-              }
+              title={t(isBookmarked ? "transcript.removeBookmark" : "transcript.createBookmark")}
             >
               <Bookmark
                 size={18}
@@ -257,7 +247,7 @@ const TranscriptSegmentItem = ({
             <button
               onClick={handleExplain}
               className="p-1 rounded transition-colors text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
-              title="Explain this text with AI"
+              title={t("transcript.explainWithAI")}
             >
               <Brain size={18} />
             </button>
@@ -278,19 +268,20 @@ const TranscriptSegmentItem = ({
 
 // TranscriptControlsPanel component
 const TranscriptControlsPanel = () => {
+  const { t } = useTranslation();
   const { transcriptLanguage, setTranscriptLanguage, exportTranscript } =
     usePlayerStore();
 
   const LANGUAGE_OPTIONS = [
-    { value: "en-US", label: "English (US)" },
-    { value: "en-GB", label: "English (UK)" },
-    { value: "es-ES", label: "Spanish" },
-    { value: "fr-FR", label: "French" },
-    { value: "de-DE", label: "German" },
-    { value: "ja-JP", label: "Japanese" },
-    { value: "ko-KR", label: "Korean" },
-    { value: "zh-CN", label: "Chinese (Simplified)" },
-    { value: "ru-RU", label: "Russian" },
+    { value: "en-US", label: t("transcript.languages.en-US") },
+    { value: "en-GB", label: t("transcript.languages.en-GB") },
+    { value: "es-ES", label: t("transcript.languages.es-ES") },
+    { value: "fr-FR", label: t("transcript.languages.fr-FR") },
+    { value: "de-DE", label: t("transcript.languages.de-DE") },
+    { value: "ja-JP", label: t("transcript.languages.ja-JP") },
+    { value: "ko-KR", label: t("transcript.languages.ko-KR") },
+    { value: "zh-CN", label: t("transcript.languages.zh-CN") },
+    { value: "ru-RU", label: t("transcript.languages.ru-RU") },
   ];
 
   return (
@@ -300,7 +291,7 @@ const TranscriptControlsPanel = () => {
           htmlFor="transcript-language"
           className="text-xs text-gray-600 dark:text-gray-400 mr-2"
         >
-          Language:
+          {t("transcript.language")}:
         </label>
         <select
           id="transcript-language"
@@ -333,11 +324,11 @@ const TranscriptControlsPanel = () => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            toast.success(`Transcript exported as TXT`);
+            toast.success(t("transcript.exportSuccess", { format: "TXT" }));
           }}
           className="px-2 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-gray-300"
         >
-          TXT
+          {t("transcript.exportAsTXT")}
         </button>
         <button
           onClick={() => {
@@ -355,11 +346,11 @@ const TranscriptControlsPanel = () => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            toast.success(`Transcript exported as SRT`);
+            toast.success(t("transcript.exportSuccess", { format: "SRT" }));
           }}
           className="px-2 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-gray-300"
         >
-          SRT
+          {t("transcript.exportAsSRT")}
         </button>
         <button
           onClick={() => {
@@ -377,11 +368,11 @@ const TranscriptControlsPanel = () => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            toast.success(`Transcript exported as VTT`);
+            toast.success(t("transcript.exportSuccess", { format: "VTT" }));
           }}
           className="px-2 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded text-gray-700 dark:text-gray-300"
         >
-          VTT
+          {t("transcript.exportAsVTT")}
         </button>
       </div>
     </div>
@@ -389,6 +380,7 @@ const TranscriptControlsPanel = () => {
 };
 
 export const TranscriptPanel = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const {
     getCurrentMediaTranscripts,
@@ -427,7 +419,7 @@ export const TranscriptPanel = () => {
     if (apiKey.trim()) {
       localStorage.setItem("openai_api_key", apiKey);
       setShowApiKeyInput(false);
-      toast.success("API key saved");
+      toast.success(t("transcript.apiKeySaved"));
 
       // Dispatch event to notify other components
       window.dispatchEvent(new CustomEvent("ai-settings-updated"));
@@ -466,7 +458,7 @@ export const TranscriptPanel = () => {
   const extractAudioFromMedia = async (): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       if (!currentFile) {
-        reject(new Error("No file loaded"));
+        reject(new Error(t("transcript.noFileLoaded")));
         return;
       }
 
@@ -520,13 +512,13 @@ export const TranscriptPanel = () => {
         };
 
         video.onerror = () => {
-          reject(new Error("Error loading video"));
+          reject(new Error(t("transcript.errorLoadingVideo")));
         };
 
         return;
       }
 
-      reject(new Error("Unsupported file type"));
+      reject(new Error(t("transcript.unsupportedFileType")));
     });
   };
 
@@ -534,7 +526,7 @@ export const TranscriptPanel = () => {
   const transcribeMedia = async () => {
     // Check if we have media to transcribe
     if (!currentFile && !currentYouTube) {
-      toast.error("No media loaded to transcribe");
+      toast.error(t("transcript.noMediaToTranscribe"));
       return;
     }
 
@@ -546,7 +538,7 @@ export const TranscriptPanel = () => {
 
     // Check if OpenAI client is initialized
     if (!openaiRef.current) {
-      toast.error("OpenAI client not initialized");
+      toast.error(t("transcript.openaiClientNotInitialized"));
       return;
     }
 
@@ -560,9 +552,7 @@ export const TranscriptPanel = () => {
       // For YouTube videos, we can't directly access the audio
       // We would need a server-side component to download and process the video
       if (currentYouTube) {
-        toast.error(
-          "YouTube transcription requires server-side processing. Using simulation instead."
-        );
+        toast.error(t("transcript.youtubeTranscriptionWarning"));
         await simulateTranscription();
         return;
       }
@@ -664,36 +654,34 @@ export const TranscriptPanel = () => {
       console.error("Error transcribing media:", error);
 
       // More detailed error handling
-      let errorMessage = "Failed to transcribe media. ";
+      let errorMessage = t("transcript.transcriptionFailed");
 
       if (error instanceof Error) {
         if (
           error.message.includes("401") ||
           error.message.includes("Unauthorized")
         ) {
-          errorMessage += "Invalid API key. Please check your OpenAI API key.";
+          errorMessage += t("transcript.invalidApiKey");
         } else if (
           error.message.includes("429") ||
           error.message.includes("rate limit")
         ) {
-          errorMessage += "Rate limit exceeded. Please try again later.";
+          errorMessage += t("transcript.rateLimitExceeded");
         } else if (
           error.message.includes("413") ||
           error.message.includes("too large")
         ) {
-          errorMessage +=
-            "Audio file is too large. Please use a shorter audio file.";
+          errorMessage += t("transcript.audioFileTooLarge");
         } else if (
           error.message.includes("network") ||
           error.message.includes("fetch")
         ) {
-          errorMessage +=
-            "Network error. Please check your internet connection.";
+          errorMessage += t("transcript.networkError");
         } else {
-          errorMessage += `Error: ${error.message}`;
+          errorMessage += t("transcript.genericError", { message: error.message });
         }
       } else {
-        errorMessage += "Unknown error occurred.";
+        errorMessage += t("transcript.unknownError");
       }
 
       setErrorMessage(errorMessage);
@@ -1230,7 +1218,7 @@ export const TranscriptPanel = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    toast.success(`Transcript exported as ${format.toUpperCase()}`);
+    toast.success(t("transcript.exportSuccess", { format: format.toUpperCase() }));
   };
 
   return (
@@ -1238,13 +1226,13 @@ export const TranscriptPanel = () => {
       <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center">
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Media Transcript (OpenAI Whisper)
+            {t("transcript.title")}
           </h3>
           {isProcessing && (
             <div className="ml-2 flex items-center">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
               <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
-                Processing {processingProgress}%
+                {t("transcript.processing", { progress: processingProgress })}
               </span>
             </div>
           )}
@@ -1252,7 +1240,7 @@ export const TranscriptPanel = () => {
             <div className="ml-2 flex items-center">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
-                Transcribed
+                {t("transcript.transcribed")}
               </span>
             </div>
           )}
@@ -1262,7 +1250,7 @@ export const TranscriptPanel = () => {
           <button
             onClick={() => setShowApiKeyInput(!showApiKeyInput)}
             className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            title="Set OpenAI API Key"
+            title={t("transcript.setOpenAiApiKey")}
           >
             <Key size={16} />
           </button>
@@ -1270,7 +1258,7 @@ export const TranscriptPanel = () => {
           <button
             onClick={handleOpenAISettings}
             className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            title="Open AI Settings"
+            title={t("transcript.openAiSettings")}
           >
             <Settings size={16} />
           </button>
@@ -1282,7 +1270,7 @@ export const TranscriptPanel = () => {
                 ? "bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
             }`}
-            title="Transcribe media with Whisper"
+            title={t("transcript.transcribeWithWhisper")}
             disabled={isProcessing || (!currentFile && !currentYouTube)}
           >
             <FileAudio size={16} />
@@ -1291,7 +1279,7 @@ export const TranscriptPanel = () => {
           <button
             onClick={() => handleExport("txt")}
             className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            title="Export transcript as TXT"
+            title={t("transcript.exportAsTxt")}
             disabled={transcriptSegments.length === 0}
           >
             <Save size={16} />
@@ -1300,7 +1288,7 @@ export const TranscriptPanel = () => {
           <button
             onClick={() => clearTranscript()}
             className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            title="Clear transcript"
+            title={t("transcript.clearTranscript")}
             disabled={transcriptSegments.length === 0}
           >
             <Trash size={16} />
@@ -1314,11 +1302,8 @@ export const TranscriptPanel = () => {
       >
         {showApiKeyInput && (
           <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-md mb-3">
-            <h4 className="font-medium mb-2">OpenAI API Key Required</h4>
-            <p className="text-xs mb-3">
-              To use Whisper for transcription, you need to provide your OpenAI
-              API key. This key is stored only in your browser's local storage.
-            </p>
+            <h4 className="font-medium mb-2">{t("transcript.apiKeyRequired")}</h4>
+            <p className="text-xs mb-3">{t("transcript.apiKeyNotice")}</p>
             <form
               onSubmit={handleApiKeySubmit}
               className="flex flex-col space-y-2"
@@ -1327,7 +1312,7 @@ export const TranscriptPanel = () => {
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
+                placeholder={t("transcript.apiKeyPlaceholder")}
                 className="px-3 py-2 border border-blue-300 dark:border-blue-700 rounded text-sm dark:bg-gray-800 dark:text-gray-200"
                 required
               />
@@ -1336,14 +1321,14 @@ export const TranscriptPanel = () => {
                   type="submit"
                   className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium"
                 >
-                  Save API Key
+                  {t("transcript.saveApiKey")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowApiKeyInput(false)}
                   className="px-3 py-1 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs font-medium"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -1353,7 +1338,7 @@ export const TranscriptPanel = () => {
                   rel="noopener noreferrer"
                   className="text-blue-600 dark:text-blue-400 hover:underline"
                 >
-                  Get an API key from OpenAI
+                  {t("transcript.getApiKey")}
                 </a>
               </p>
             </form>
@@ -1370,7 +1355,7 @@ export const TranscriptPanel = () => {
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <Loader size={24} className="animate-spin text-blue-500 mb-2" />
             <p className="text-gray-600 dark:text-gray-400">
-              Processing media with OpenAI Whisper...
+              {t("transcript.processingWithWhisper")}
             </p>
             <div className="w-full max-w-xs bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-3">
               <div
@@ -1386,18 +1371,16 @@ export const TranscriptPanel = () => {
           !showApiKeyInput && (
             <div className="text-gray-500 dark:text-gray-400 text-center py-6 space-y-4">
               <div>
-                {!currentFile && !currentYouTube
-                  ? "Load media first to generate a transcript"
-                  : "Click the transcribe button to generate a transcript of this media using OpenAI Whisper"}
+                {t(!currentFile && !currentYouTube ? "transcript.loadMediaFirst" : "transcript.clickToTranscribe")}
               </div>
               {(currentFile || currentYouTube) && (
                 <div className="space-y-2">
-                  <div className="text-sm">or</div>
+                  <div className="text-sm">{t("common.or")}</div>
                   <div className="flex justify-center">
                     <TranscriptUploader variant="prominent" />
                   </div>
                   <div className="text-xs text-gray-400 dark:text-gray-500">
-                    Upload an existing transcript file (.srt, .vtt, .txt)
+                    {t("transcript.uploadExisting")}
                   </div>
                 </div>
               )}

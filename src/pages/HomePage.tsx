@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../stores/playerStore";
 import { FileUploader } from "../components/player/FileUploader";
 import { YouTubeInput } from "../components/player/YouTubeInput";
@@ -9,6 +10,7 @@ import { AppLayout } from "../components/layout/AppLayout";
 
 export const HomePage = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { currentFile, currentYouTube, setCurrentYouTube } = usePlayerStore();
 
   // Navigate to player when media is loaded
@@ -35,7 +37,7 @@ export const HomePage = () => {
         <div className="relative z-10">
           {/* Section title */}
           <h2 className="text-xl sm:text-2xl font-bold text-center mb-6 bg-gradient-to-r from-purple-700 to-indigo-700 dark:from-purple-400 dark:to-indigo-400 bg-clip-text text-transparent">
-            Choose Your Media Source
+            {t("home.chooseMediaSource")}
           </h2>
 
           {/* Recent Media preview removed to avoid redundancy with Media Library */}
@@ -46,10 +48,7 @@ export const HomePage = () => {
             <div className="bg-white dark:bg-gray-800/90 backdrop-blur-sm p-4 sm:p-6 rounded-lg sm:rounded-xl shadow-md border border-gray-100 dark:border-gray-700/50 space-y-3 sm:space-y-4 transform transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                  <span className="text-purple-500 dark:text-purple-400">
-                    YouTube
-                  </span>{" "}
-                  Video
+                  {t("home.youtubeVideo")}
                 </h3>
                 <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full">
                   <svg
@@ -68,10 +67,7 @@ export const HomePage = () => {
             <div className="bg-white dark:bg-gray-800/90 backdrop-blur-sm p-4 sm:p-6 rounded-lg sm:rounded-xl shadow-md border border-gray-100 dark:border-gray-700/50 flex flex-col transform transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                  <span className="text-indigo-500 dark:text-indigo-400">
-                    Local
-                  </span>{" "}
-                  Media
+                  {t("home.localMedia")}
                 </h3>
                 <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-full">
                   <svg
@@ -98,7 +94,7 @@ export const HomePage = () => {
       </div>
 
       {/* Inline Library Manager - uses the same component as the file drawer */}
-      <MediaHistory embedded title="Media Library" />
+      <MediaHistory embedded title={t("home.mediaLibrary")} />
     </AppLayout>
   );
 };
