@@ -374,9 +374,9 @@ export const MediaHistory = ({
               </div>
             </div>
             {/* Main content area with sidebar */}
-            <div className="flex min-h-[360px]">
+            <div className="flex flex-col sm:flex-row min-h-[360px]">
               {/* Sidebar: same as drawer */}
-              <aside className="w-56 shrink-0 border-r border-gray-200 dark:border-gray-700 p-3 overflow-y-auto overscroll-contain hidden sm:block">
+              <aside className="w-full sm:w-56 shrink-0 border-r-0 sm:border-r border-gray-200 dark:border-gray-700 p-3 overflow-y-auto overscroll-contain block">
                 <div className="text-xs uppercase text-gray-500 mb-2">
                   Folders
                 </div>
@@ -447,7 +447,7 @@ export const MediaHistory = ({
                 </div>
               </aside>
               {/* Content */}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 border-t sm:border-t-0 border-gray-200 dark:border-gray-700">
                 <Tabs
                   defaultValue="all"
                   value={activeTab}

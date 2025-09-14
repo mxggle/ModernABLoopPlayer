@@ -26,7 +26,7 @@ export const HomePage = () => {
   return (
     <AppLayout>
       {/* Input Sections: File Uploader and YouTube Input */}
-      <div className="relative bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 p-3 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm mb-3 sm:mb-6 border border-purple-100/50 dark:border-purple-800/20 overflow-hidden flex-shrink-0 mt-0 sm:mt-8">
+      <div className="relative bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm mb-4 sm:mb-6 border border-purple-100/50 dark:border-purple-800/20 overflow-hidden flex-shrink-0 mt-4 sm:mt-8">
         {/* Background decorative elements */}
         <div className="absolute -top-10 -left-10 w-40 h-40 bg-gradient-to-br from-purple-200/30 to-indigo-200/30 dark:from-purple-700/10 dark:to-indigo-700/10 rounded-full blur-xl"></div>
         <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-gradient-to-tl from-purple-200/30 to-indigo-200/30 dark:from-purple-700/10 dark:to-indigo-700/10 rounded-full blur-xl"></div>
@@ -41,9 +41,9 @@ export const HomePage = () => {
           {/* Recent Media preview removed to avoid redundancy with Media Library */}
 
           {/* Tabs-style grid layout */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
             {/* YouTube Card */}
-            <div className="bg-white dark:bg-gray-800/90 backdrop-blur-sm p-3 sm:p-6 rounded-lg sm:rounded-xl shadow-md border border-gray-100 dark:border-gray-700/50 space-y-3 sm:space-y-4 transform transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
+            <div className="bg-white dark:bg-gray-800/90 backdrop-blur-sm p-4 sm:p-6 rounded-lg sm:rounded-xl shadow-md border border-gray-100 dark:border-gray-700/50 space-y-3 sm:space-y-4 transform transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                   <span className="text-purple-500 dark:text-purple-400">
@@ -65,7 +65,7 @@ export const HomePage = () => {
             </div>
 
             {/* File Upload Card */}
-            <div className="bg-white dark:bg-gray-800/90 backdrop-blur-sm p-3 sm:p-6 rounded-lg sm:rounded-xl shadow-md border border-gray-100 dark:border-gray-700/50 flex flex-col transform transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
+            <div className="bg-white dark:bg-gray-800/90 backdrop-blur-sm p-4 sm:p-6 rounded-lg sm:rounded-xl shadow-md border border-gray-100 dark:border-gray-700/50 flex flex-col transform transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                   <span className="text-indigo-500 dark:text-indigo-400">
