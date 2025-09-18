@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { usePlayerStore } from '../../stores/playerStore'
 import { YouTubePlayer } from './YouTubePlayer'
 import { MediaPlayer } from './MediaPlayer'
@@ -29,6 +30,7 @@ import { parseShareableUrl } from '../../utils/shareableUrl'
 import { toast } from 'react-hot-toast'
 
 export const ABLoopPlayer = () => {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<string>('youtube')
   
   const {
@@ -64,7 +66,8 @@ export const ABLoopPlayer = () => {
       
       // Handle bookmark data if present
       if (urlData.bookmark) {
-        toast.success(`Loaded shared bookmark: ${urlData.bookmark.name || 'Unnamed'}`, {
+        const bookmarkName = urlData.bookmark.name || t('player.unnamedBookmark')
+        toast.success(t('player.loadedSharedBookmark', { name: bookmarkName }), {
           duration: 3000,
           icon: '🔖'
         })
@@ -77,11 +80,15 @@ export const ABLoopPlayer = () => {
   // Set document title based on media
   useEffect(() => {
     if (currentYouTube?.title) {
-      document.title = `AB Loop Player - ${currentYouTube.title}`
+      document.title = t('player.windowTitleWithMedia', {
+        title: currentYouTube.title,
+      })
     } else if (currentFile?.name) {
-      document.title = `AB Loop Player - ${currentFile.name}`
+      document.title = t('player.windowTitleWithMedia', {
+        title: currentFile.name,
+      })
     } else {
-      document.title = 'AB Loop Player'
+      document.title = t('player.windowTitle')
     }
   }, [currentFile, currentYouTube])
   
@@ -171,7 +178,7 @@ export const ABLoopPlayer = () => {
     
     // Only share if we have a video and loop points
     if (!currentYouTube && !loopStart && !loopEnd) {
-      toast.error('Set loop points or load a video before sharing')
+      toast.error(t('player.shareSetupRequired'))
       return
     }
     
@@ -188,8 +195,8 @@ export const ABLoopPlayer = () => {
     
     // Copy to clipboard
     navigator.clipboard.writeText(url)
-      .then(() => toast.success('Shareable link copied to clipboard'))
-      .catch(() => toast.error('Failed to copy link'))
+      .then(() => toast.success(t('bookmarks.linkCopied')))
+      .catch(() => toast.error(t('bookmarks.copyFailed')))
   }
 
   // Get video size class
@@ -206,7 +213,7 @@ export const ABLoopPlayer = () => {
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">AB Loop Player</h1>
+        <h1 className="text-2xl font-bold">{t('player.abLoopPlayer')}</h1>
         <div className="flex items-center gap-2">
           <div className="flex items-center">
             <Button
@@ -214,10 +221,10 @@ export const ABLoopPlayer = () => {
               size="sm"
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               onClick={() => {}}
-              aria-label="Player info"
+              aria-label={t('player.playerInfo')}
             >
               <Info size={14} />
-              <span>Use keyboard shortcuts for better control</span>
+              <span>{t('player.keyboardShortcutsHint')}</span>
             </Button>
           </div>
           <Button
@@ -225,10 +232,10 @@ export const ABLoopPlayer = () => {
             size="sm"
             onClick={handleShareSettings}
             className="flex items-center gap-1"
-            aria-label="Share current settings"
+            aria-label={t('player.shareCurrentSettings')}
           >
             <Share2 size={16} />
-            <span>Share</span>
+            <span>{t('common.share')}</span>
           </Button>
           <KeyboardShortcutsHelp />
         </div>
@@ -236,8 +243,8 @@ export const ABLoopPlayer = () => {
       <div className="space-y-4">
         <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="youtube">YouTube</TabsTrigger>
-            <TabsTrigger value="local">Local Media</TabsTrigger>
+            <TabsTrigger value="youtube">{t('player.youtubeTab')}</TabsTrigger>
+            <TabsTrigger value="local">{t('player.localMediaTab')}</TabsTrigger>
           </TabsList>
           
           <TabsContent value="youtube" className="space-y-4">
@@ -269,7 +276,7 @@ export const ABLoopPlayer = () => {
                 <button 
                   onClick={toggleVideoSize}
                   className="absolute top-2 right-2 p-2 bg-black/70 text-white rounded-full hover:bg-black/90"
-                  aria-label="Toggle video size"
+                  aria-label={t('player.toggleVideoSize')}
                 >
                   {videoSize === 'xl' ? (
                     <Minimize2 size={18} />

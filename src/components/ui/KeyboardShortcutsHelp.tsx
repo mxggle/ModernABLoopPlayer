@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Keyboard } from 'lucide-react'
 import { 
   Dialog, 
@@ -9,21 +9,26 @@ import {
   DialogTrigger 
 } from './dialog'
 import { Button } from './button'
+import { useTranslation } from 'react-i18next'
 
 export const KeyboardShortcutsHelp = () => {
   const [isOpen, setIsOpen] = useState(false)
-  
-  const shortcuts = [
-    { key: 'Space', description: 'Play/Pause' },
-    { key: ',', description: 'Set loop start point (A) to current time' },
-    { key: '.', description: 'Set loop end point (B) to current time' },
-    { key: '/', description: 'Toggle looping on/off' },
-    { key: 'M', description: 'Quick add bookmark from current loop or time' },
-    { key: '↑', description: 'Increase volume' },
-    { key: '↓', description: 'Decrease volume' },
-    { key: 'Shift + →', description: 'Increase playback rate' },
-    { key: 'Shift + ←', description: 'Decrease playback rate' },
-  ]
+  const { t } = useTranslation()
+
+  const shortcuts = useMemo(
+    () => [
+      { key: 'Space', description: t('shortcuts.items.playPause') },
+      { key: ',', description: t('shortcuts.items.setLoopStart') },
+      { key: '.', description: t('shortcuts.items.setLoopEnd') },
+      { key: '/', description: t('shortcuts.items.toggleLoop') },
+      { key: 'M', description: t('shortcuts.items.quickBookmark') },
+      { key: '↑', description: t('shortcuts.items.increaseVolume') },
+      { key: '↓', description: t('shortcuts.items.decreaseVolume') },
+      { key: 'Shift + →', description: t('shortcuts.items.increaseSpeed') },
+      { key: 'Shift + ←', description: t('shortcuts.items.decreaseSpeed') },
+    ],
+    [t]
+  )
   
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -32,16 +37,16 @@ export const KeyboardShortcutsHelp = () => {
           variant="ghost" 
           size="icon" 
           className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-          aria-label="Keyboard shortcuts"
+          aria-label={t('shortcuts.ariaLabel')}
         >
           <Keyboard size={20} />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Keyboard Shortcuts</DialogTitle>
+          <DialogTitle>{t('shortcuts.title')}</DialogTitle>
           <DialogDescription>
-            Use these keyboard shortcuts to control the player more efficiently.
+            {t('shortcuts.description')}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

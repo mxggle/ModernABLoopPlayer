@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "@/stores/playerStore";
 import { formatTime } from "@/utils/formatTime";
 import {
@@ -18,6 +19,7 @@ import { useRef } from "react";
 import { cn } from "@/utils/cn";
 
 export const PlayerControls = () => {
+  const { t } = useTranslation();
   const timelineRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -126,7 +128,7 @@ export const PlayerControls = () => {
             variant="ghost"
             size="icon"
             onClick={toggleMute}
-            aria-label={muted ? "Unmute" : "Mute"}
+            aria-label={muted ? t("player.unmute") : t("player.mute")}
           >
             {muted || volume === 0 ? (
               <VolumeX size={18} />
@@ -151,7 +153,7 @@ export const PlayerControls = () => {
             variant="ghost"
             size="icon"
             onClick={seekBackward}
-            aria-label={`Seek backward ${seekStepSeconds} seconds`}
+            aria-label={t("player.seekBackwardSeconds", { seconds: seekStepSeconds })}
           >
             <SkipBack size={18} />
           </Button>
@@ -166,7 +168,7 @@ export const PlayerControls = () => {
                 : "bg-primary hover:bg-primary/90"
             )}
             onClick={togglePlay}
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? t("player.pause") : t("player.play")}
           >
             {isPlaying ? <Pause size={18} /> : <Play size={18} />}
           </Button>
@@ -175,7 +177,7 @@ export const PlayerControls = () => {
             variant="ghost"
             size="icon"
             onClick={seekForward}
-            aria-label={`Seek forward ${seekStepSeconds} seconds`}
+            aria-label={t("player.seekForwardSeconds", { seconds: seekStepSeconds })}
           >
             <SkipForward size={18} />
           </Button>
@@ -187,7 +189,7 @@ export const PlayerControls = () => {
             variant="ghost"
             size="icon"
             onClick={decreasePlaybackRate}
-            aria-label="Decrease playback rate"
+            aria-label={t("player.decreaseSpeed")}
             disabled={playbackRate <= playbackRates[0]}
           >
             <Minus size={16} />
@@ -201,7 +203,7 @@ export const PlayerControls = () => {
             variant="ghost"
             size="icon"
             onClick={increasePlaybackRate}
-            aria-label="Increase playback rate"
+            aria-label={t("player.increaseSpeed")}
             disabled={playbackRate >= playbackRates[playbackRates.length - 1]}
           >
             <Plus size={16} />
@@ -213,22 +215,22 @@ export const PlayerControls = () => {
               <Button
                 variant="outline"
                 size="sm"
-                title="Show playlist"
+                title={t("player.showPlaylist")}
                 className="ml-2"
               >
-                <ListMusic size={16} className="mr-1" /> Playlist
+                <ListMusic size={16} className="mr-1" /> {t("player.playlist")}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm font-semibold">
-                  Playlist {playbackQueue.length > 0 ? `(${playbackQueue.length})` : ""}
+                  {t("player.playlist")} {playbackQueue.length > 0 ? `(${playbackQueue.length})` : ""}
                 </div>
                 {playbackQueue.length > 0 && (
                   <div className="flex items-center gap-2">
                     {isQueueActive && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
-                        Playing
+                        {t("player.playing")}
                       </span>
                     )}
                     <Button
@@ -236,13 +238,13 @@ export const PlayerControls = () => {
                       variant="ghost"
                       onClick={() => stopPlaybackQueue()}
                     >
-                      Clear
+                      {t("player.clear")}
                     </Button>
                   </div>
                 )}
               </div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs text-gray-500">Mode:</span>
+                <span className="text-xs text-gray-500">{t("player.mode")}</span>
                 <div role="group" className="inline-flex rounded-md overflow-hidden border border-gray-200 dark:border-gray-700">
                   <Button
                     size="sm"
@@ -250,7 +252,7 @@ export const PlayerControls = () => {
                     className="h-7 px-2 text-xs rounded-none"
                     onClick={() => setPlaybackMode('order')}
                   >
-                    Order
+                    {t("player.order")}
                   </Button>
                   <div className="w-px bg-gray-200 dark:bg-gray-700" />
                   <Button
@@ -259,7 +261,7 @@ export const PlayerControls = () => {
                     className="h-7 px-2 text-xs rounded-none"
                     onClick={() => setPlaybackMode('shuffle')}
                   >
-                    Shuffle
+                    {t("player.shuffle")}
                   </Button>
                   <div className="w-px bg-gray-200 dark:bg-gray-700" />
                   <Button
@@ -268,7 +270,7 @@ export const PlayerControls = () => {
                     className="h-7 px-2 text-xs rounded-none"
                     onClick={() => setPlaybackMode('repeat-all')}
                   >
-                    Repeat All
+                    {t("player.repeatAll")}
                   </Button>
                   <div className="w-px bg-gray-200 dark:bg-gray-700" />
                   <Button
@@ -277,18 +279,18 @@ export const PlayerControls = () => {
                     className="h-7 px-2 text-xs rounded-none"
                     onClick={() => setPlaybackMode('repeat-one')}
                   >
-                    Repeat One
+                    {t("player.repeatOne")}
                   </Button>
                 </div>
               </div>
 
               {playbackQueue.length === 0 ? (
-                <div className="text-sm text-gray-500">No items in the playlist.</div>
+                <div className="text-sm text-gray-500">{t("player.noItemsInPlaylist")}</div>
               ) : (
                 <ul className="max-h-64 overflow-y-auto space-y-1">
                   {playbackQueue.map((id, idx) => {
                     const item = mediaHistory.find((h) => h.id === id);
-                    const title = item?.name || `Item ${idx + 1}`;
+                    const title = item?.name || t("player.queueItemFallback", { index: idx + 1 });
                     const isCurrent = idx === playbackIndex;
                     return (
                       <li key={`${id}-${idx}`}>
@@ -303,7 +305,7 @@ export const PlayerControls = () => {
                             <span className="text-xs w-6 text-gray-500">{idx + 1}.</span>
                             <span className="truncate flex-1">{title}</span>
                             {isCurrent && (
-                              <span className="text-xs text-primary">Now Playing</span>
+                              <span className="text-xs text-primary">{t("player.playing")}</span>
                             )}
                           </div>
                         </button>

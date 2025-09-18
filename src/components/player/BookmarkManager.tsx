@@ -63,7 +63,7 @@ export const BookmarkManager = () => {
   // Add a new bookmark
   const handleAddBookmark = () => {
     if (loopStart === null || loopEnd === null) {
-      toast.error("Please set loop points first");
+      toast.error(t("bookmarks.setLoopPointsFirst"));
       return;
     }
 
@@ -188,7 +188,7 @@ export const BookmarkManager = () => {
   // Generate a shareable URL with current loop settings
   const handleShareLoopSettings = () => {
     if (loopStart === null || loopEnd === null) {
-      toast.error("Please set loop points first");
+      toast.error(t("bookmarks.setLoopPointsFirst"));
       return;
     }
 

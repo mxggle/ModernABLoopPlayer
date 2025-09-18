@@ -8,12 +8,15 @@ import {
   Bookmark,
   X,
   Repeat,
-  Trash2,
   ChevronLeft,
   ChevronRight,
   ChevronsRight,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
+
+// Constant toast ID to ensure only one bookmark notification is shown at a time
+const BOOKMARK_TOAST_ID = "bookmark-action-toast";
 
 // Stable empty array used in selectors to avoid creating
 // a new [] on every render (prevents getSnapshot warnings)
@@ -32,13 +35,9 @@ const formatTime = (time: number): string => {
     .padStart(2, "0")}.${milliseconds}`;
 };
 
-// Safe formatter for zoom value display
-const formatZoom = (z: unknown): string => {
-  const n = typeof z === "number" && isFinite(z) ? z : 1;
-  return n.toFixed(1);
-};
 
 export const WaveformVisualizer = () => {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Track clickable bookmark lane rects (CSS pixel units)
@@ -122,19 +121,20 @@ export const WaveformVisualizer = () => {
 
   // Load audio/video file and analyze waveform
   useEffect(() => {
-    console.log('🔍 WaveformVisualizer useEffect triggered:', {
+    console.log("🔍 WaveformVisualizer useEffect triggered:", {
       currentFile: currentFile?.name,
       type: currentFile?.type,
-      url: currentFile?.url ? 'present' : 'missing',
-      showWaveform
+      url: currentFile?.url ? "present" : "missing",
+      showWaveform,
     });
-    
+
     if (
       !currentFile ||
       !currentFile.url ||
-      (!currentFile.type.includes("audio") && !currentFile.type.includes("video"))
+      (!currentFile.type.includes("audio") &&
+        !currentFile.type.includes("video"))
     ) {
-      console.log('❌ WaveformVisualizer: File validation failed');
+      console.log("❌ WaveformVisualizer: File validation failed");
       setWaveformData(null);
       return;
     }
@@ -145,7 +145,12 @@ export const WaveformVisualizer = () => {
       try {
         if (currentFile.type.includes("video")) {
           // For video files, extract audio using multiple methods
-          console.log('🎬 Loading video file for waveform:', currentFile.name, 'Type:', currentFile.type);
+          console.log(
+            "🎬 Loading video file for waveform:",
+            currentFile.name,
+            "Type:",
+            currentFile.type
+          );
           await loadVideoAudio(currentFile.url);
         } else {
           // For audio files, use Tone.js as before
@@ -164,120 +169,134 @@ export const WaveformVisualizer = () => {
     };
 
     const loadVideoAudio = async (videoUrl: string) => {
-      console.log('🎬 Starting video audio extraction for:', videoUrl);
-      
+      console.log("🎬 Starting video audio extraction for:", videoUrl);
+
       try {
         // Method 1: Try using fetch + decodeAudioData (works for some video formats)
-        console.log('🎵 Trying Method 1: Direct audio decoding...');
+        console.log("🎵 Trying Method 1: Direct audio decoding...");
         const response = await fetch(videoUrl);
         const arrayBuffer = await response.arrayBuffer();
-        
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-        
-        console.log('✅ Method 1 succeeded! Audio buffer created:', audioBuffer);
+
+        const audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(
+          arrayBuffer.slice(0)
+        );
+
+        console.log(
+          "✅ Method 1 succeeded! Audio buffer created:",
+          audioBuffer
+        );
         const channelData = audioBuffer.getChannelData(0);
         const downsampledData = downsampleAudioData(channelData, 2000);
         setWaveformData(downsampledData);
         audioContext.close();
         return;
-        
       } catch (error) {
-        console.log('❌ Method 1 failed:', (error as Error).message);
+        console.log("❌ Method 1 failed:", (error as Error).message);
       }
-      
+
       try {
         // Method 2: Use video element with Web Audio API
-        console.log('🎵 Trying Method 2: Video element extraction...');
-        
-        const video = document.createElement('video');
+        console.log("🎵 Trying Method 2: Video element extraction...");
+
+        const video = document.createElement("video");
         video.src = videoUrl;
         video.muted = true;
         video.volume = 0;
-        
+
         // Wait for video to be ready
         await new Promise((resolve, reject) => {
           video.oncanplaythrough = () => {
-            console.log('📹 Video ready for playback');
+            console.log("📹 Video ready for playback");
             resolve(true);
           };
           video.onerror = (e) => {
-            console.log('❌ Video loading error:', e);
+            console.log("❌ Video loading error:", e);
             reject(e);
           };
           video.load();
         });
-        
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        
+
+        const audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+
         // Resume audio context if suspended
-        if (audioContext.state === 'suspended') {
+        if (audioContext.state === "suspended") {
           await audioContext.resume();
         }
-        
+
         const source = audioContext.createMediaElementSource(video);
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 2048;
-        
+
         source.connect(analyser);
         // Don't connect to destination to avoid audio output
-        
+
         // Start video playback
         video.currentTime = 0;
         await video.play();
-        
-        console.log('🎬 Video playing, extracting audio data...');
-        
+
+        console.log("🎬 Video playing, extracting audio data...");
+
         // Extract frequency data to create waveform
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         const waveformSamples: number[] = [];
-        
+
         // Collect samples for 3 seconds or until video ends
         const maxSamples = 2000;
         const sampleInterval = 50; // ms
-        
-        for (let i = 0; i < maxSamples && video.currentTime < video.duration; i++) {
+
+        for (
+          let i = 0;
+          i < maxSamples && video.currentTime < video.duration;
+          i++
+        ) {
           analyser.getByteFrequencyData(dataArray);
-          
+
           // Convert frequency data to waveform-like data
           let sum = 0;
           for (let j = 0; j < bufferLength; j++) {
             sum += dataArray[j];
           }
-          const average = (sum / bufferLength) / 255; // Normalize to 0-1
+          const average = sum / bufferLength / 255; // Normalize to 0-1
           waveformSamples.push((average - 0.5) * 2); // Convert to -1 to 1 range
-          
-          await new Promise(resolve => setTimeout(resolve, sampleInterval));
+
+          await new Promise((resolve) => setTimeout(resolve, sampleInterval));
         }
-        
+
         video.pause();
         source.disconnect();
         audioContext.close();
-        
+
         if (waveformSamples.length > 0) {
-          console.log('✅ Method 2 succeeded! Extracted', waveformSamples.length, 'samples');
+          console.log(
+            "✅ Method 2 succeeded! Extracted",
+            waveformSamples.length,
+            "samples"
+          );
           const channelData = new Float32Array(waveformSamples);
           const downsampledData = downsampleAudioData(channelData, 2000);
           setWaveformData(downsampledData);
           return;
         }
-        
       } catch (error) {
-        console.log('❌ Method 2 failed:', (error as Error).message);
+        console.log("❌ Method 2 failed:", (error as Error).message);
       }
-      
+
       // Method 3: Generate placeholder waveform
-      console.log('🎵 Using Method 3: Generating placeholder waveform');
+      console.log("🎵 Using Method 3: Generating placeholder waveform");
       const placeholderData = new Float32Array(2000);
       for (let i = 0; i < placeholderData.length; i++) {
         // Create a more interesting placeholder pattern
         const t = i / 2000;
-        placeholderData[i] = Math.sin(t * Math.PI * 20) * Math.exp(-t * 2) * 0.3;
+        placeholderData[i] =
+          Math.sin(t * Math.PI * 20) * Math.exp(-t * 2) * 0.3;
       }
       setWaveformData(placeholderData);
-      console.log('✅ Placeholder waveform generated for video file');
-    }
+      console.log("✅ Placeholder waveform generated for video file");
+    };
 
     loadAudio();
 
@@ -716,12 +735,12 @@ export const WaveformVisualizer = () => {
 
         const added = storeAddBookmark(newBookmark);
         if (added) {
-          toast.success("Bookmark added");
+          toast.success(t("bookmarks.bookmarkAdded"), { id: BOOKMARK_TOAST_ID });
         }
       } else if (nearbyBookmarks.length === 1) {
         // One bookmark nearby - remove it
         deleteBookmark(nearbyBookmarks[0].id);
-        toast.success("Bookmark removed");
+        toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
       } else {
         // Multiple overlapping bookmarks - show selection menu
         const canvas = canvasRef.current;
@@ -736,7 +755,7 @@ export const WaveformVisualizer = () => {
           y: rect.top + rect.height / 2,
           items: nearbyBookmarks.map((bookmark) => ({
             id: bookmark.id,
-            name: bookmark.name || "Bookmark",
+            name: bookmark.name || t("bookmarks.clipFallback"),
             start: bookmark.start,
             end: bookmark.end,
           })),
@@ -752,6 +771,7 @@ export const WaveformVisualizer = () => {
       deleteBookmark,
       timeToPosition,
       setOverlapMenu,
+      t,
     ]
   );
 
@@ -834,7 +854,11 @@ export const WaveformVisualizer = () => {
     ]
   );
 
-  if (!showWaveform || !currentFile || (!currentFile.type.includes("audio") && !currentFile.type.includes("video"))) {
+  if (
+    !showWaveform ||
+    !currentFile ||
+    (!currentFile.type.includes("audio") && !currentFile.type.includes("video"))
+  ) {
     return null;
   }
 
@@ -1166,8 +1190,8 @@ export const WaveformVisualizer = () => {
                 isMobile ? "h-9 w-9" : "h-8 w-8"
               }`}
               onClick={() => setIsLooping(!isLooping)}
-              title={isLooping ? "Disable loop" : "Enable loop"}
-              aria-label="Toggle loop"
+              title={isLooping ? t("loop.disableLoop") : t("loop.enableLoop")}
+              aria-label={t("player.toggleLooping")}
             >
               <Repeat size={isMobile ? 16 : 14} />
             </button>
@@ -1182,10 +1206,10 @@ export const WaveformVisualizer = () => {
               onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}
               title={
                 autoAdvanceBookmarks
-                  ? "Auto-advance between bookmarks: On"
-                  : "Auto-advance between bookmarks: Off"
+                  ? t("player.autoAdvanceOn")
+                  : t("player.autoAdvanceOff")
               }
-              aria-label="Toggle auto-advance"
+              aria-label={t("player.toggleAutoAdvance")}
             >
               <ChevronsRight size={isMobile ? 16 : 14} />
             </button>
@@ -1203,8 +1227,8 @@ export const WaveformVisualizer = () => {
                   if (loopEnd !== null) setIsLooping(true);
                 }
               }}
-              title="Set A at current time"
-              aria-label="Set A"
+              title={t("loop.setStart")}
+              aria-label={t("loop.setStart")}
             >
               <AlignStartHorizontal size={isMobile ? 16 : 14} />
             </button>
@@ -1220,8 +1244,8 @@ export const WaveformVisualizer = () => {
                   setIsLooping(true);
                 }
               }}
-              title="Set B at current time"
-              aria-label="Set B"
+              title={t("loop.setEnd")}
+              aria-label={t("loop.setEnd")}
             >
               <AlignEndHorizontal size={isMobile ? 16 : 14} />
             </button>
@@ -1233,8 +1257,8 @@ export const WaveformVisualizer = () => {
                 setLoopPoints(null, null);
                 setIsLooping(false);
               }}
-              title="Clear loop"
-              aria-label="Clear loop"
+              title={t("loop.clearLoopPoints")}
+              aria-label={t("loop.clearLoopPoints")}
             >
               <X size={isMobile ? 16 : 14} />
             </button>
@@ -1243,8 +1267,8 @@ export const WaveformVisualizer = () => {
                 isMobile ? "h-9 w-9" : "h-8 w-8"
               }`}
               onClick={() => goToBookmark("prev")}
-              title="Previous bookmark"
-              aria-label="Previous bookmark"
+              title={t("player.previousBookmark")}
+              aria-label={t("player.previousBookmark")}
               disabled={(bookmarks?.length || 0) === 0}
             >
               <ChevronLeft size={isMobile ? 16 : 14} />
@@ -1254,60 +1278,62 @@ export const WaveformVisualizer = () => {
                 isMobile ? "h-9 w-9" : "h-8 w-8"
               }`}
               onClick={() => goToBookmark("next")}
-              title="Next bookmark"
-              aria-label="Next bookmark"
+              title={t("player.nextBookmark")}
+              aria-label={t("player.nextBookmark")}
               disabled={(bookmarks?.length || 0) === 0}
             >
               <ChevronRight size={isMobile ? 16 : 14} />
             </button>
 
             <button
-              disabled={!selectedBookmarkId}
               className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 ${
                 isMobile ? "h-9 w-9" : "h-8 w-8"
               } ${
                 selectedBookmarkId
-                  ? "hover:bg-red-500/20 active:bg-red-500/30"
-                  : "opacity-40 cursor-not-allowed"
+                  ? "bg-purple-700 hover:bg-red-500/80 active:bg-red-500/90" // Active/Delete mode
+                  : loopStart !== null && loopEnd !== null
+                  ? "bg-purple-600/50 hover:bg-purple-700 active:bg-purple-800" // Add mode
+                  : "bg-purple-600/40 cursor-not-allowed" // Disabled
               }`}
               onClick={() => {
-                if (!selectedBookmarkId) return;
-                deleteBookmark(selectedBookmarkId);
-                toast.success("Bookmark deleted");
+                if (selectedBookmarkId) {
+                  // Delete mode
+                  deleteBookmark(selectedBookmarkId);
+                  toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
+                } else if (loopStart !== null && loopEnd !== null) {
+                  // Check if a bookmark already exists for this range
+                  const TOL = 0.05; // 50ms tolerance (same as in playerStore)
+                  const existingBookmarks = usePlayerStore.getState().getCurrentMediaBookmarks();
+                  const existingBookmark = existingBookmarks.find(
+                    (b) => Math.abs(b.start - loopStart) < TOL && Math.abs(b.end - loopEnd) < TOL
+                  );
+                  
+                  if (existingBookmark) {
+                    // If a bookmark already exists, select it instead of showing an error
+                    loadBookmark(existingBookmark.id);
+                    toast.success(t("bookmarks.bookmarkSelected"), { id: BOOKMARK_TOAST_ID });
+                  } else {
+                    // Add mode - create new bookmark
+                    const added = storeAddBookmark({
+                      name: `Clip ${
+                        usePlayerStore.getState().getCurrentMediaBookmarks()
+                          .length + 1
+                      }`,
+                      start: loopStart,
+                      end: loopEnd,
+                      playbackRate,
+                      mediaName: currentFile?.name,
+                      mediaType: currentFile?.type,
+                      youtubeId: undefined,
+                      annotation: "",
+                    });
+                    if (added) toast.success(t("bookmarks.bookmarkAdded"), { id: BOOKMARK_TOAST_ID });
+                  }
+                }
               }}
-              title="Delete current bookmark"
-              aria-label="Delete current bookmark"
-            >
-              <Trash2 size={isMobile ? 16 : 14} />
-            </button>
-            <button
-              disabled={!(loopStart !== null && loopEnd !== null)}
-              className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                isMobile ? "h-9 w-9" : "h-8 w-8"
-              } ${
-                loopStart !== null && loopEnd !== null
-                  ? "bg-purple-600 hover:bg-purple-700 active:bg-purple-800"
-                  : "bg-purple-600/40 cursor-not-allowed"
-              }`}
-              onClick={() => {
-                if (loopStart === null || loopEnd === null) return;
-                const added = storeAddBookmark({
-                  name: `Clip ${
-                    usePlayerStore.getState().getCurrentMediaBookmarks()
-                      .length + 1
-                  }`,
-                  start: loopStart,
-                  end: loopEnd,
-                  playbackRate,
-                  mediaName: currentFile?.name,
-                  mediaType: currentFile?.type,
-                  youtubeId: undefined,
-                  annotation: "",
-                });
-                if (added) toast.success("Bookmark added");
-              }}
-              title="Add bookmark from loop"
-              aria-label="Add bookmark"
+              disabled={!selectedBookmarkId && !(loopStart !== null && loopEnd !== null)}
+              title={selectedBookmarkId ? t("bookmarks.removeBookmarkTooltip") : t("bookmarks.addBookmarkTooltip")}
+              aria-label={selectedBookmarkId ? t("bookmarks.removeBookmarkTooltip") : t("bookmarks.addBookmarkTooltip")}
             >
               <Bookmark size={isMobile ? 16 : 14} />
             </button>
@@ -1412,59 +1438,7 @@ export const WaveformVisualizer = () => {
         onClick={stopPropagation}
         onTouchStart={stopPropagation}
       >
-        {isMobile && (
-          <div className="mb-2">
-            {/* Simplified mobile controls - only bookmark management */}
-            <div className="flex items-center justify-center gap-3">
-              <button
-                disabled={!selectedBookmarkId}
-                className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 h-10 w-10 ${
-                  selectedBookmarkId
-                    ? "hover:bg-red-500/20 active:bg-red-500/30"
-                    : "opacity-40 cursor-not-allowed"
-                }`}
-                onClick={() => {
-                  if (!selectedBookmarkId) return;
-                  deleteBookmark(selectedBookmarkId);
-                  toast.success("Bookmark deleted");
-                }}
-                title="Delete current bookmark"
-                aria-label="Delete current bookmark"
-              >
-                <Trash2 size={18} />
-              </button>
-              <button
-                disabled={!(loopStart !== null && loopEnd !== null)}
-                className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 h-10 w-10 ${
-                  loopStart !== null && loopEnd !== null
-                    ? "bg-purple-600 hover:bg-purple-700 active:bg-purple-800"
-                    : "bg-purple-600/40 cursor-not-allowed"
-                }`}
-                onClick={() => {
-                  if (loopStart === null || loopEnd === null) return;
-                  const added = storeAddBookmark({
-                    name: `Clip ${
-                      usePlayerStore.getState().getCurrentMediaBookmarks()
-                        .length + 1
-                    }`,
-                    start: loopStart,
-                    end: loopEnd,
-                    playbackRate,
-                    mediaName: currentFile?.name,
-                    mediaType: currentFile?.type,
-                    youtubeId: undefined,
-                    annotation: "",
-                  });
-                  if (added) toast.success("Bookmark added");
-                }}
-                title="Add bookmark from loop"
-                aria-label="Add bookmark"
-              >
-                <Bookmark size={18} />
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Mobile bookmark controls moved to PlaybackControls component */}
         <div
           className={`flex items-center ${
             isMobile ? "mb-1 justify-between w-full" : "space-x-2"
@@ -1475,7 +1449,7 @@ export const WaveformVisualizer = () => {
               isMobile ? "text-sm text-white font-medium" : "text-xs text-white"
             }
           >
-            Loop:{" "}
+            {t("waveform.loopLabel")}{" "}
           </span>
           {loopStart !== null && loopEnd !== null ? (
             <div
@@ -1495,11 +1469,30 @@ export const WaveformVisualizer = () => {
                   isMobile ? "text-sm px-3 py-1 ml-2" : "text-xs px-2 py-0.5"
                 }`}
                 onClick={handleLoopSelection}
-                title={activeBookmark ? activeBookmark.name : "Loop Selection"}
+                title={
+                  activeBookmark
+                    ? activeBookmark.name
+                    : t("waveform.loopSelection")
+                }
               >
                 <span className="inline-block max-w-[50vw] sm:max-w-[220px] truncate align-middle">
-                  {activeBookmark ? activeBookmark.name : "Loop Selection"}
+                  {activeBookmark
+                    ? activeBookmark.name
+                    : t("waveform.loopSelection")}
                 </span>
+              </button>
+              <button
+                className={`bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded ${
+                  isMobile ? "text-sm px-2 py-1 ml-1" : "text-xs px-1.5 py-0.5 ml-1"
+                }`}
+                onClick={() => {
+                  setLoopPoints(null, null);
+                  setIsLooping(false);
+                }}
+                title={t("loop.clearLoopPoints")}
+                aria-label={t("loop.clearLoopPoints")}
+              >
+                <X size={isMobile ? 16 : 12} />
               </button>
             </div>
           ) : (
@@ -1511,22 +1504,11 @@ export const WaveformVisualizer = () => {
               }
             >
               {isMobile
-                ? "Tap and drag to select loop"
-                : "Drag on waveform to select loop region"}
+                ? t("waveform.touchSelectHint")
+                : t("waveform.desktopSelectHint")}
             </span>
           )}
         </div>
-
-        <span
-          className={
-            isMobile
-              ? "text-sm text-gray-400 w-full text-right"
-              : "text-xs text-gray-400"
-          }
-        >
-          Current zoom: {formatZoom(waveformZoom)}x
-          {isMobile && " (pinch to zoom)"}
-        </span>
       </div>
     </div>
   );

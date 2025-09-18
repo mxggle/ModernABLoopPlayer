@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { usePlayerStore } from '@/stores/playerStore'
 import { toast } from 'react-hot-toast'
 
 export const useKeyboardShortcuts = () => {
+  const { t } = useTranslation()
   const {
     isPlaying,
     currentTime,
@@ -150,7 +152,7 @@ export const useKeyboardShortcuts = () => {
           if (end <= start) return
 
           const count = getCurrentMediaBookmarks().length + 1
-          const name = `Clip ${count}`
+          const name = t('bookmarks.defaultClipName', { count })
 
           const added = storeAddBookmark({
             name,
@@ -163,7 +165,7 @@ export const useKeyboardShortcuts = () => {
             annotation: ''
           })
           if (added) {
-            toast.success('Bookmark added')
+            toast.success(t('bookmarks.bookmarkAdded'))
           }
           break
         }

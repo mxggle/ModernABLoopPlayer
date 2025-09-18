@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { toast } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 // Define YouTube player interface
 interface YTPlayer {
@@ -81,6 +82,7 @@ export const YouTubePlayer = ({
     setDuration,
     setIsPlaying,
   } = usePlayerStore();
+  const { t } = useTranslation();
 
   // Load YouTube API
   useEffect(() => {
@@ -142,7 +144,7 @@ export const YouTubePlayer = ({
           }
         },
         onError: () => {
-          toast.error("Error loading YouTube video");
+          toast.error(t("youtube.errorLoadingVideo"));
         },
       },
     });

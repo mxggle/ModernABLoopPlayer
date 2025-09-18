@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2025-09-19
+
+### Added
+- Enhanced Media History UI with folder navigation and sorting controls
+- Added i18n translations for player controls and loop components
+
+### Changed
+- Updated disabled bookmark button styling
+- Changed history icon to ListVideo for better visual representation
+
 ## [0.6.0] - 2025-09-14
 
 ### Added

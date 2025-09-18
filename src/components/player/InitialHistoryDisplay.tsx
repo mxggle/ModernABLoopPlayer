@@ -7,10 +7,12 @@ import { FileAudio, Youtube, Clock, History, Play } from "lucide-react";
 import { Button } from "../ui/button";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export const InitialHistoryDisplay = () => {
   const { mediaHistory } = usePlayerStore();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // If no history, don't display anything
   if (mediaHistory.length === 0) {
@@ -22,7 +24,7 @@ export const InitialHistoryDisplay = () => {
     try {
       return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
     } catch (error) {
-      return "Unknown time";
+      return t("history.unknownTime");
     }
   };
 
@@ -37,7 +39,7 @@ export const InitialHistoryDisplay = () => {
       navigate("/player");
     } catch (error) {
       console.error("Failed to load media:", error);
-      toast.error("Failed to load media");
+      toast.error(t("history.failedToLoadMedia"));
     }
   };
 
@@ -46,11 +48,11 @@ export const InitialHistoryDisplay = () => {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
           <History size={18} className="text-purple-500" />
-          Your Recent Media
+          {t("history.recentMedia")}
         </h3>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 bg-white/80 dark:bg-gray-800/80 px-2 py-1 rounded-full">
-            {mediaHistory.length} {mediaHistory.length === 1 ? "item" : "items"}
+            {t("history.itemCount", { count: mediaHistory.length })}
           </span>
           <Button
             variant="ghost"
@@ -59,7 +61,7 @@ export const InitialHistoryDisplay = () => {
               document.getElementById("historyDrawerToggle")?.click()
             }
           >
-            Manage
+            {t("history.manage")}
           </Button>
         </div>
       </div>
@@ -108,7 +110,9 @@ export const InitialHistoryDisplay = () => {
 
       {mediaHistory.length > 6 && (
         <div className="text-center text-sm text-gray-500">
-          <span>+ {mediaHistory.length - 6} more items in history</span>
+          <span>
+            {t("history.moreItems", { count: mediaHistory.length - 6 })}
+          </span>
         </div>
       )}
 

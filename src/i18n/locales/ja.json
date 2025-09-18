@@ -14,7 +14,12 @@
     "share": "共有",
     "export": "エクスポート",
     "import": "インポート",
-    "upload": "アップロード"
+    "upload": "アップロード",
+    "create": "作成",
+    "back": "戻る"
+  },
+  "app": {
+    "logoLabel": "LoopMateロゴ"
   },
   "navigation": {
     "home": "ホーム",
@@ -39,6 +44,49 @@
     "appearance": "外観",
     "colorTheme": "カラーテーマ"
   },
+  "aiSettingsPage": {
+    "title": "AI設定",
+    "subtitle": "AIプロバイダーとモデルを設定します",
+    "generalSettings": "全般設定",
+    "preferredProvider": "優先するAIプロバイダー",
+    "targetLanguage": "ターゲット言語",
+    "temperature": "温度 ({{value}})",
+    "temperatureFocused": "集中",
+    "temperatureBalanced": "バランス",
+    "temperatureCreative": "クリエイティブ",
+    "maxTokens": "最大トークン数",
+    "providersSection": "AIプロバイダー",
+    "providers": {
+      "openai": "OpenAI",
+      "gemini": "Google Gemini",
+      "grok": "xAI Grok"
+    },
+    "providerDescriptions": {
+      "openai": "OpenAI GPTモデル",
+      "gemini": "Google Geminiモデル",
+      "grok": "xAI Grokモデル"
+    },
+    "apiKeyLabel": "APIキー",
+    "apiKeyPlaceholderLabel": "{{provider}}のAPIキーを入力してください",
+    "invalidApiKeyFormat": "APIキーの形式が正しくありません",
+    "defaultModel": "デフォルトモデル",
+    "selectModelPlaceholder": "{{provider}}のモデルを選択...",
+    "enterApiKeyFirst": "まず{{provider}}のAPIキーを入力してください",
+    "connectionSuccess": "{{provider}}との接続に成功しました",
+    "connectionFailed": "{{provider}}との接続に失敗しました",
+    "connectionFailedWithError": "{{provider}}との接続に失敗しました: {{message}}",
+    "saveSuccess": "AI設定を保存しました",
+    "saveSettings": "設定を保存",
+    "languages": {
+      "english": "英語",
+      "spanish": "スペイン語",
+      "french": "フランス語",
+      "german": "ドイツ語",
+      "chinese": "中国語",
+      "japanese": "日本語",
+      "korean": "韓国語"
+    }
+  },
   "home": {
     "chooseMediaSource": "メディアソースを選択",
     "youtubeVideo": "YouTube動画",
@@ -61,10 +109,14 @@
     "mute": "ミュート",
     "unmute": "ミュート解除",
     "seekBackward": "後方にシーク",
+    "seekBackwardSeconds": "再生位置を{{seconds}}秒戻す",
     "seekForward": "前方にシーク",
+    "seekForwardSeconds": "再生位置を{{seconds}}秒進める",
     "decreaseSpeed": "再生速度を下げる",
     "increaseSpeed": "再生速度を上げる",
     "playlist": "プレイリスト",
+    "youtubeTab": "YouTube",
+    "localMediaTab": "ローカルメディア",
     "playbackSpeed": "再生速度",
     "noItemsInPlaylist": "プレイリストにアイテムがありません。",
     "bookmarkNavigation": "ブックマークナビゲーション",
@@ -76,11 +128,34 @@
     "clear": "クリア",
     "now": "再生中",
     "audioFile": "音声ファイル",
+    "youtube": "YouTube",
     "showPlaylist": "プレイリストを表示",
+    "openPlaylist": "プレイリストを開く",
+    "closePlaylist": "プレイリストを閉じる",
     "playing": "再生中",
     "toggleLooping": "ループの切り替え",
     "loopOn": "ループオン",
-    "quickAddBookmark": "クイックブックマーク追加"
+    "loopStatusOn": "ループ: オン",
+    "loopStatusOff": "ループ: オフ",
+    "toggleVideoSize": "動画サイズを切り替え",
+    "playerInfo": "プレイヤー情報",
+    "keyboardShortcutsHint": "キーボードショートカットを活用すると操作がよりスムーズになります",
+    "shareCurrentSettings": "現在の設定を共有",
+    "toggleAutoAdvance": "自動移動を切り替え",
+    "autoAdvanceOn": "ブックマーク間の自動移動: オン",
+    "autoAdvanceOff": "ブックマーク間の自動移動: オフ",
+    "previousBookmark": "前のブックマーク",
+    "nextBookmark": "次のブックマーク",
+    "quickAddBookmark": "クイックブックマーク追加",
+    "queueItemFallback": "項目 {{index}}",
+    "unnamedBookmark": "名称未設定",
+    "loadedSharedBookmark": "共有ブックマークを読み込み: {{name}}",
+    "windowTitle": "A-Bループプレーヤー",
+    "windowTitleWithMedia": "A-Bループプレーヤー - {{title}}",
+    "shareSetupRequired": "共有する前にループポイントを設定するか動画を読み込んでください",
+    "abLoopPlayer": "A-Bループプレーヤー",
+    "couldNotRetrieveMedia": "メディアファイルを取得できませんでした",
+    "noMediaLoadedSimple": "メディアが読み込まれていません"
   },
   "upload": {
     "dragDrop": "音声/動画ファイルをここにドラッグ＆ドロップ",
@@ -96,18 +171,24 @@
   "youtube": {
     "enterUrl": "YouTubeのURLまたは動画IDを入力",
     "loadVideo": "動画を読み込む",
-    "invalidUrl": "無効なYouTube URL"
+    "invalidUrl": "無効なYouTube URL",
+    "errorLoadingVideo": "YouTube動画の読み込みに失敗しました"
   },
   "loop": {
     "title": "A-Bループ",
+    "controlsTitle": "A-Bループコントロール",
     "looping": "ループ中",
     "loop": "ループ",
+    "loopOff": "ループオフ",
     "disableLoop": "A-Bループを無効にする",
     "enableLoop": "A-Bループを有効にする",
     "loopStart": "ループ開始",
     "loopEnd": "ループ終了",
     "setStart": "現在時刻をループ開始点に設定",
     "setEnd": "現在時刻をループ終了点に設定",
+    "jumpToStart": "ループ開始位置へ移動",
+    "jumpToEnd": "ループ終了位置へ移動",
+    "clearLoopPoints": "ループポイントをクリア",
     "timePlaceholder": "00:00.000",
     "moveLeft": "ループウィンドウを左に移動",
     "moveRight": "ループウィンドウを右に移動",
@@ -130,6 +211,8 @@
     "generationFailed": "説明の生成に失敗しました：{{message}}",
     "generatingInBackground": "説明はバックグラウンドで生成され続けます",
     "generating": "生成中...",
+    "viewExplanation": "説明を見る",
+    "errorRetry": "説明の生成でエラーが発生しました。クリックして再試行してください。",
     "canCloseDrawer": "このドロワーを閉じても、説明はバックグラウンドで続行されます",
     "closeAndContinue": "閉じてバックグラウンドで続行",
     "aiModelSelection": "AIモデルの選択",
@@ -157,7 +240,8 @@
       "chinese": "中国語",
       "japanese": "日本語",
       "korean": "韓国語"
-    }
+    },
+    "mockExplanation": "生成された説明: \"{{snippet}}\""
   },
   "transcript": {
     "title": "メディアトランスクリプト (OpenAI Whisper)",
@@ -175,6 +259,7 @@
     "removeBookmark": "このセグメントのブックマークを削除",
     "createBookmark": "このセグメントからブックマークを作成",
     "explainWithAI": "AIでこのテキストを説明",
+    "segmentBookmarkName": "セグメント {{time}} 秒",
     "apiKeySaved": "APIキーが保存されました",
     "noFileLoaded": "ファイルが読み込まれていません",
     "errorLoadingVideo": "動画の読み込み中にエラーが発生しました",
@@ -197,6 +282,9 @@
     "apiKeyRequired": "OpenAI APIキーが必要です",
     "apiKeyNotice": "Whisperを使用して文字起こしを行うには、OpenAI APIキーを提供する必要があります。このキーはブラウザのローカルストレージにのみ保存されます。",
     "apiKeyPlaceholder": "sk-...",
+    "noDataToExport": "エクスポートできる文字起こしデータがありません",
+    "importError": "文字起こしファイルのインポートに失敗しました",
+    "segmentNotFound": "該当する文字起こしセグメントが見つかりません",
     "saveApiKey": "APIキーを保存",
     "getApiKey": "OpenAIからAPIキーを取得",
     "processingWithWhisper": "OpenAI Whisperでメディアを処理中...",
@@ -229,6 +317,10 @@
   "bookmarks": {
     "title": "ブックマーク",
     "addBookmark": "ブックマークを追加",
+    "bookmarkRemoved": "ブックマークを削除しました",
+    "bookmarkSelected": "既存のブックマークを選択しました",
+    "removeBookmarkTooltip": "ブックマークを削除",
+    "addBookmarkTooltip": "ループからブックマークを追加",
     "noBookmarks": "ブックマークはまだありません",
     "createFirstBookmark": "上の + ボタンをクリックして最初のブックマークを作成してください",
     "bookmarkName": "ブックマーク名",
@@ -258,7 +350,9 @@
     "drawerTitle": "ループブックマーク",
     "loadMediaFirst": "ブックマークを追加する前にメディアを読み込んでください",
     "setValidRange": "有効なA-B範囲を最初に設定してください",
-    "defaultClipName": "クリップ {{count}}"
+    "defaultClipName": "クリップ {{count}}",
+    "duplicateRange": "このA-B範囲のブックマークは既に存在します",
+    "clipFallback": "クリップ"
   },
   "history": {
     "recentMedia": "最近のメディア",
@@ -281,17 +375,45 @@
     "asc": "昇順",
     "desc": "降順",
     "playAll": "すべて再生",
+    "libraryRoot": "ライブラリのルート",
+    "goBack": "一つ上に戻る",
+    "back": "戻る",
+    "folder": "フォルダ",
+    "goToRoot": "ルートへ戻る",
+    "toRoot": "ルートへ戻る",
+    "noSubfolders": "この階層にサブフォルダーはありません",
     "folders": "フォルダ",
     "all": "すべて",
     "audioFiles": "オーディオファイル",
     "youtube": "YouTube",
     "editFolderName": "フォルダ名を編集",
+    "rename": "名前を変更",
     "clearAllHistory": "すべての履歴をクリア",
+    "clearAllHistoryDescription": "すべてのメディア項目を削除し、保存されたファイルをクリアします。",
     "failedToLoadMedia": "メディアの読み込みに失敗しました",
     "newFolder": "新規フォルダ",
     "new": "新規",
     "enterFolderName": "フォルダの名前を入力してください。",
-    "enterFolderNameAndMove": "名前を入力すると、アイテムをそこに移動します。"
+    "enterFolderNameAndMove": "名前を入力すると、アイテムをそこに移動します。",
+    "folderNamePlaceholder": "フォルダ名",
+    "renameFolderDescription": "フォルダ名を更新します。",
+    "renameItem": "項目名を変更",
+    "renameItemDescription": "項目の名前を更新します。",
+    "createAndMove": "作成して移動",
+    "unknownTime": "時刻不明",
+    "manage": "管理",
+    "itemCount": "{{count}} 件",
+    "moreItems": "+ {{count}} 件の履歴があります"
+  },
+  "storage": {
+    "storage": "ストレージ",
+    "clearStorage": "ストレージをクリア",
+    "clearAllStoredMedia": "保存されたメディアをすべてクリア",
+    "clearStorageDescription": "ブラウザストレージからすべてのメディアファイルを削除します。この操作は元に戻せません。",
+    "clearStorageSuccess": "メディアストレージがクリアされました",
+    "clearStorageError": "ストレージのクリアに失敗しました",
+    "clearAllStoredMediaTitle": "保存されたメディアをすべてクリア",
+    "percentUsed": "{{percent}}%使用中"
   },
   "layout": {
     "layoutSettings": "レイアウト設定",
@@ -313,5 +435,51 @@
     "seekBackwardForwardSmall": "後方/前方に{{seconds}}秒シーク",
     "volumeUpDown": "音量アップ/ダウン",
     "jumpToPercent": "トラックの0-90%にジャンプ"
+  },
+  "modelSelector": {
+    "placeholder": "モデルを選択...",
+    "moreCapabilities": "+{{count}} 件",
+    "inputPrice": "入力: {{price}}/100万トークン",
+    "outputPrice": "出力: {{price}}/100万トークン",
+    "contextWindow": "{{value}}K コンテキスト",
+    "noModels": "利用可能なモデルがありません",
+    "selectProvider": "まずプロバイダーを選択してください",
+    "capabilities": {
+      "vision": "画像",
+      "audio": "音声",
+      "video": "映像",
+      "function-calling": "関数呼び出し",
+      "reasoning": "推論",
+      "thinking": "思考"
+    }
+  },
+  "shortcuts": {
+    "title": "キーボードショートカット",
+    "description": "プレイヤーを効率的に操作するためのキーボードショートカットです。",
+    "ariaLabel": "キーボードショートカット",
+    "items": {
+      "playPause": "再生/一時停止",
+      "setLoopStart": "現在位置をループ開始地点 (A) に設定",
+      "setLoopEnd": "現在位置をループ終了地点 (B) に設定",
+      "toggleLoop": "ループのオン/オフを切り替え",
+      "quickBookmark": "現在のループまたは位置からブックマークをすばやく追加",
+      "increaseVolume": "音量を上げる",
+      "decreaseVolume": "音量を下げる",
+      "increaseSpeed": "再生速度を上げる",
+      "decreaseSpeed": "再生速度を下げる"
+    }
+  },
+  "markdown": {
+    "copySuccess": "コードをクリップボードにコピーしました！",
+    "copyError": "コードをコピーできませんでした",
+    "copyCode": "コードをコピー",
+    "copy": "コピー",
+    "copied": "コピーしました"
+  },
+  "waveform": {
+    "loopLabel": "ループ:",
+    "loopSelection": "ループ選択",
+    "touchSelectHint": "タップしてドラッグするとループを選択できます",
+    "desktopSelectHint": "波形をドラッグしてループ範囲を選択します"
   }
 }

@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   usePlayerStore,
   type MediaHistoryItem,
+  type MediaFolder,
 } from "../../stores/playerStore";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import {
-  History,
+  ListVideo,
   Play,
   Trash2,
   X,
@@ -17,7 +18,11 @@ import {
   Folder,
   FolderPlus,
   Pencil,
-  Filter,
+  ArrowUpDown,
+  PlayCircle,
+  ChevronLeft,
+  ChevronRight,
+  Home,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../utils/cn";
@@ -35,6 +40,55 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 
+// Folder item component for displaying folders in the main area
+interface FolderItemProps {
+  folder: MediaFolder;
+  onNavigate: (folderId: string) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragEnter?: () => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: React.DragEvent) => void;
+  isHovered?: boolean;
+}
+
+const FolderItem = ({
+  folder,
+  onNavigate,
+  onDragOver,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
+  isHovered,
+}: FolderItemProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <div
+      onClick={() => onNavigate(folder.id)}
+      onDragOver={onDragOver}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={cn(
+        "flex items-center gap-3 p-4 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 mb-2 group border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800",
+        isHovered ? "ring-2 ring-purple-500" : ""
+      )}
+    >
+      <div className="shrink-0">
+        <Folder size={24} className="text-blue-500" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="text-sm font-medium truncate">{folder.name}</h3>
+        <p className="text-xs text-gray-500">{t("history.folder")}</p>
+      </div>
+      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <RenameFolderButton folderId={folder.id} />
+        <ChevronRight size={16} className="text-gray-400" />
+      </div>
+    </div>
+  );
+};
+
 // History list component
 interface HistoryListProps {
   historyItems: MediaHistoryItem[];
@@ -43,7 +97,72 @@ interface HistoryListProps {
   formatDate: (timestamp: number) => string;
   onDragStartItem?: (id: string) => void;
   onDragEndItem?: () => void;
+  currentFolderId?: string | null;
 }
+
+// Breadcrumb navigation component
+interface BreadcrumbNavProps {
+  currentFolderId: string | null;
+  folderBreadcrumb: MediaFolder[];
+  onNavigateToFolder: (folderId: string | null) => void;
+  onNavigateUp: () => void;
+  canNavigateUp: boolean;
+}
+
+const BreadcrumbNav = ({
+  folderBreadcrumb,
+  onNavigateToFolder,
+  onNavigateUp,
+  canNavigateUp,
+}: BreadcrumbNavProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex items-center gap-2 p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onNavigateUp}
+        disabled={!canNavigateUp}
+        title={t("history.goBack")}
+        className="shrink-0"
+      >
+        <ChevronLeft size={16} className="mr-1" />
+        {t("history.back")}
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onNavigateToFolder(null)}
+        title={t("history.goToRoot")}
+        className="shrink-0"
+      >
+        <Home size={16} />
+      </Button>
+
+      <div className="flex items-center gap-1 min-w-0 text-sm text-gray-600 dark:text-gray-400">
+        <button
+          onClick={() => onNavigateToFolder(null)}
+          className="hover:text-gray-900 dark:hover:text-gray-200 truncate"
+        >
+          {t("history.libraryRoot")}
+        </button>
+        {folderBreadcrumb.map((folder) => (
+          <div key={folder.id} className="flex items-center gap-1">
+            <span>/</span>
+            <button
+              onClick={() => onNavigateToFolder(folder.id)}
+              className="hover:text-gray-900 dark:hover:text-gray-200 truncate"
+            >
+              {folder.name}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const HistoryList = ({
   historyItems,
@@ -52,6 +171,7 @@ const HistoryList = ({
   formatDate,
   onDragStartItem,
   onDragEndItem,
+  currentFolderId,
 }: HistoryListProps) => {
   const { t } = useTranslation();
   const { mediaFolders, moveHistoryItemToFolder } = usePlayerStore();
@@ -123,7 +243,9 @@ const HistoryList = ({
               </PopoverTrigger>
               <PopoverContent onClick={(e) => e.stopPropagation()}>
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{t("history.moveToFolder")}</div>
+                  <div className="text-sm font-medium">
+                    {t("history.moveToFolder")}
+                  </div>
                   <div className="flex flex-col gap-2">
                     <Button
                       variant={!item.folderId ? "default" : "outline"}
@@ -142,7 +264,10 @@ const HistoryList = ({
                         <Folder size={14} className="mr-1" /> {f.name}
                       </Button>
                     ))}
-                    <NewFolderForMoveButton itemId={item.id} />
+                    <NewFolderForMoveButton
+                      itemId={item.id}
+                      parentFolderId={currentFolderId ?? null}
+                    />
                   </div>
                 </div>
               </PopoverContent>
@@ -196,6 +321,88 @@ export const MediaHistory = ({
 
   const navigate = useNavigate();
 
+  const currentFolderId =
+    historyFolderFilter === "all" || historyFolderFilter === "unfiled"
+      ? null
+      : historyFolderFilter;
+
+  const foldersByParent = useMemo(() => {
+    const map = new Map<string | null, MediaFolder[]>();
+    Object.values(mediaFolders).forEach((folder) => {
+      const parentKey = folder.parentId ?? null;
+      const list = map.get(parentKey);
+      if (list) {
+        list.push(folder);
+      } else {
+        map.set(parentKey, [folder]);
+      }
+    });
+    map.forEach((list) => {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    });
+    return map;
+  }, [mediaFolders]);
+
+  // Get folders and files for the current level
+  const currentLevelFolders =
+    foldersByParent.get(currentFolderId ?? null) ?? [];
+
+  const folderBreadcrumb = useMemo(() => {
+    if (!currentFolderId) return [];
+    const path: MediaFolder[] = [];
+    let nextId: string | null = currentFolderId;
+    while (nextId) {
+      const currentFolder: MediaFolder | undefined =
+        mediaFolders[nextId as string];
+      if (!currentFolder) break;
+      path.unshift(currentFolder);
+      nextId = currentFolder.parentId ?? null;
+    }
+    return path;
+  }, [currentFolderId, mediaFolders]);
+
+  const handleNavigateToFolder = (folderId: string | null) => {
+    if (!folderId) {
+      setHistoryFolderFilter("unfiled");
+      return;
+    }
+    setHistoryFolderFilter(folderId);
+  };
+
+  const handleNavigateUp = () => {
+    if (!currentFolderId) {
+      return; // Already at root
+    }
+    const parentId = mediaFolders[currentFolderId]?.parentId ?? null;
+    handleNavigateToFolder(parentId);
+  };
+
+  const canNavigateUp = currentFolderId !== null;
+
+  const sortHistoryItems = (items: MediaHistoryItem[]) => {
+    const dir = historySortOrder === "asc" ? 1 : -1;
+    return items.slice().sort((a, b) => {
+      if (historySortBy === "date") {
+        return (a.accessedAt - b.accessedAt) * dir;
+      }
+      if (historySortBy === "name") {
+        const an = (a.name || "").toLowerCase();
+        const bn = (b.name || "").toLowerCase();
+        if (an < bn) return -1 * dir;
+        if (an > bn) return 1 * dir;
+        return 0;
+      }
+      if (historySortBy === "type") {
+        const at = a.type;
+        const bt = b.type;
+        if (at < bt) return -1 * dir;
+        if (at > bt) return 1 * dir;
+        return 0;
+      }
+      return 0;
+    });
+  };
+
   // Toggle drawer (no-op in embedded mode)
   const toggleDrawer = () => {
     if (embedded) return;
@@ -214,43 +421,38 @@ export const MediaHistory = ({
     }
   }, [isDrawerOpen]);
 
-  // Filter by tab
-  const byTab = mediaHistory.filter((item) => {
-    if (activeTab === "all") return true;
-    if (activeTab === "files") return item.type === "file";
-    if (activeTab === "youtube") return item.type === "youtube";
-    return true;
-  });
+  const byTab = useMemo(() => {
+    return mediaHistory.filter((item) => {
+      if (activeTab === "all") return true;
+      if (activeTab === "files") return item.type === "file";
+      if (activeTab === "youtube") return item.type === "youtube";
+      return true;
+    });
+  }, [mediaHistory, activeTab]);
 
-  // Filter by folder
-  const byFolder = byTab.filter((item) => {
-    if (historyFolderFilter === "all") return true;
-    if (historyFolderFilter === "unfiled") return !item.folderId;
-    return item.folderId === historyFolderFilter;
-  });
+  const byFolder = useMemo(() => {
+    return byTab.filter((item) => {
+      if (historyFolderFilter === "all") return true;
+      if (historyFolderFilter === "unfiled") return !item.folderId;
+      return item.folderId === historyFolderFilter;
+    });
+  }, [byTab, historyFolderFilter]);
 
-  // Sort
-  const sortedHistory = byFolder.slice().sort((a, b) => {
-    const dir = historySortOrder === "asc" ? 1 : -1;
-    if (historySortBy === "date") {
-      return (a.accessedAt - b.accessedAt) * dir;
-    }
-    if (historySortBy === "name") {
-      const an = (a.name || "").toLowerCase();
-      const bn = (b.name || "").toLowerCase();
-      if (an < bn) return -1 * dir;
-      if (an > bn) return 1 * dir;
-      return 0;
-    }
-    if (historySortBy === "type") {
-      const at = a.type;
-      const bt = b.type;
-      if (at < bt) return -1 * dir;
-      if (at > bt) return 1 * dir;
-      return 0;
-    }
-    return 0;
-  });
+  const sortedHistory = useMemo(
+    () => sortHistoryItems(byFolder),
+    [byFolder, historySortBy, historySortOrder]
+  );
+
+  const currentFolderHistory = useMemo(() => {
+    const targetFolderId = currentFolderId ?? null;
+    const filtered = byTab.filter((item) =>
+      targetFolderId ? item.folderId === targetFolderId : !item.folderId
+    );
+    return sortHistoryItems(filtered);
+  }, [byTab, currentFolderId, historySortBy, historySortOrder]);
+
+  const displayedHistory =
+    historyFolderFilter === "all" ? sortedHistory : currentFolderHistory;
 
   // Load media from history and navigate
   const handleLoadFromHistory = async (item: MediaHistoryItem) => {
@@ -296,7 +498,11 @@ export const MediaHistory = ({
           id="historyDrawerToggle"
           onClick={toggleDrawer}
           className="hidden"
-          aria-label={isDrawerOpen ? t("history.closeRecentMedia") : t("history.openRecentMedia")}
+          aria-label={
+            isDrawerOpen
+              ? t("history.closeRecentMedia")
+              : t("history.openRecentMedia")
+          }
         />
       )}
 
@@ -306,19 +512,26 @@ export const MediaHistory = ({
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <History size={18} /> {t("history.mediaLibrary")}
+                <ListVideo size={18} /> {t("history.mediaLibrary")}
               </h2>
               <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm" title={t("history.sort")}>
-                      <Filter size={16} className="mr-1" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title={t("history.sort")}
+                      className="hidden sm:flex"
+                    >
+                      <ArrowUpDown size={16} className="mr-1" />
                       {t("history.sort")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-56">
                     <div className="space-y-2">
-                      <div className="text-sm font-medium">Sort by</div>
+                      <div className="text-sm font-medium">
+                        {t("history.sortBy")}
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {["date", "name", "type"].map((k) => (
                           <Button
@@ -333,11 +546,13 @@ export const MediaHistory = ({
                               setHistorySort(k as any, historySortOrder)
                             }
                           >
-                            {k}
+                            {t(`history.${k}`)}
                           </Button>
                         ))}
                       </div>
-                      <div className="text-sm font-medium">Order</div>
+                      <div className="text-sm font-medium">
+                        {t("history.order")}
+                      </div>
                       <div className="flex gap-2">
                         {["asc", "desc"].map((o) => (
                           <Button
@@ -352,101 +567,110 @@ export const MediaHistory = ({
                               setHistorySort(historySortBy, o as any)
                             }
                           >
-                            {o}
+                            {t(`history.${o}`)}
                           </Button>
                         ))}
                       </div>
                     </div>
                   </PopoverContent>
                 </Popover>
-                <NewFolderButton />
+                <NewFolderButton parentId={currentFolderId} />
+                {/* Mobile-only icon buttons */}
+                <div className="flex sm:hidden items-center gap-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title={t("history.sort")}
+                      >
+                        <ArrowUpDown size={18} />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56">
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">
+                          {t("history.sortBy")}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {["date", "name", "type"].map((k) => (
+                            <Button
+                              key={k}
+                              variant={
+                                historySortBy === (k as any)
+                                  ? "default"
+                                  : "outline"
+                              }
+                              size="sm"
+                              onClick={() =>
+                                setHistorySort(k as any, historySortOrder)
+                              }
+                            >
+                              {t(`history.${k}`)}
+                            </Button>
+                          ))}
+                        </div>
+                        <div className="text-sm font-medium">
+                          {t("history.order")}
+                        </div>
+                        <div className="flex gap-2">
+                          {["asc", "desc"].map((o) => (
+                            <Button
+                              key={o}
+                              variant={
+                                historySortOrder === (o as any)
+                                  ? "default"
+                                  : "outline"
+                              }
+                              size="sm"
+                              onClick={() =>
+                                setHistorySort(historySortBy, o as any)
+                              }
+                            >
+                              {t(`history.${o}`)}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <Button
+                    variant="default"
+                    size="icon"
+                    onClick={() =>
+                      startPlaybackQueue(displayedHistory.map((i) => i.id))
+                    }
+                    title={t("history.playAll")}
+                  >
+                    <PlayCircle size={18} />
+                  </Button>
+                </div>
                 <Button
                   variant="default"
                   size="sm"
                   onClick={() =>
-                    startPlaybackQueue(sortedHistory.map((i) => i.id))
+                    startPlaybackQueue(displayedHistory.map((i) => i.id))
                   }
                   title={t("history.playAll")}
+                  className="hidden sm:flex"
                 >
-                  <Play size={16} className="mr-1" /> {t("history.playAll")}
+                  <PlayCircle size={16} className="mr-1" />{" "}
+                  {t("history.playAll")}
                 </Button>
               </div>
             </div>
-            {/* Main content area with sidebar */}
-            <div className="flex flex-col sm:flex-row min-h-[360px]">
-              {/* Sidebar: same as drawer */}
-              <aside className="w-full sm:w-56 shrink-0 border-r-0 sm:border-r border-gray-200 dark:border-gray-700 p-3 overflow-y-auto overscroll-contain block">
-                <div className="text-xs uppercase text-gray-500 mb-2">
-                  {t("history.folders")}
-                </div>
-                <div className="space-y-1">
-                  {[
-                    { id: "all", name: t("history.all") },
-                    { id: "unfiled", name: t("history.unfiled") },
-                    ...Object.values(mediaFolders),
-                  ].map((f: any) => (
-                    <button
-                      key={f.id}
-                      onClick={() => setHistoryFolderFilter(f.id as any)}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                      }}
-                      onDragEnter={() => setHoveredFolder(f.id)}
-                      onDragLeave={() => setHoveredFolder(null)}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const id =
-                          e.dataTransfer.getData("text/plain") || draggingId;
-                        if (!id) return;
-                        if (f.id === "all") return;
-                        moveHistoryItemToFolder(
-                          id,
-                          f.id === "unfiled" ? null : f.id
-                        );
-                        setHoveredFolder(null);
-                        setDraggingId(null);
-                      }}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-gray-700 group",
-                        historyFolderFilter === f.id
-                          ? "bg-gray-100 dark:bg-gray-700 font-medium"
-                          : "",
-                        hoveredFolder === f.id ? "ring-2 ring-purple-500" : ""
-                      )}
-                    >
-                      {f.id !== "all" && f.id !== "unfiled" && (
-                        <Folder size={14} />
-                      )}
-                      <span className="truncate">{f.name}</span>
-                      {f.id !== "all" && f.id !== "unfiled" && (
-                        <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              // Open rename dialog for this folder
-                              const dialog = document.getElementById(
-                                `rename-folder-${f.id}`
-                              ) as HTMLButtonElement;
-                              if (dialog) dialog.click();
-                            }}
-                            title="Edit folder name"
-                          >
-                            <Pencil size={12} />
-                          </Button>
-                          <RenameFolderButton folderId={f.id} />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </aside>
-              {/* Content */}
-              <div className="flex-1 min-w-0 border-t sm:border-t-0 border-gray-200 dark:border-gray-700">
+            {/* Breadcrumb Navigation */}
+            <BreadcrumbNav
+              currentFolderId={currentFolderId}
+              folderBreadcrumb={folderBreadcrumb}
+              onNavigateToFolder={handleNavigateToFolder}
+              onNavigateUp={handleNavigateUp}
+              canNavigateUp={canNavigateUp}
+            />
+
+            {/* Main content area */}
+            <div className="flex flex-col min-h-[360px]">
+              <div className="flex-1 min-w-0">
                 <Tabs
                   defaultValue="all"
                   value={activeTab}
@@ -466,38 +690,131 @@ export const MediaHistory = ({
                       </TabsTrigger>
                     </TabsList>
                   </div>
+
                   <TabsContent value="all" className="flex-1 overflow-y-auto">
-                    <HistoryList
-                      historyItems={sortedHistory}
-                      onLoadItem={handleLoadFromHistory}
-                      onRemoveItem={handleRemoveFromHistory}
-                      formatDate={formatDate}
-                      onDragStartItem={(id) => setDraggingId(id)}
-                      onDragEndItem={() => setDraggingId(null)}
-                    />
+                    <div className="p-2">
+                      {/* Show folders first */}
+                      {currentLevelFolders.map((folder) => (
+                        <FolderItem
+                          key={folder.id}
+                          folder={folder}
+                          onNavigate={handleNavigateToFolder}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                          }}
+                          onDragEnter={() => setHoveredFolder(folder.id)}
+                          onDragLeave={() => setHoveredFolder(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const id =
+                              e.dataTransfer.getData("text/plain") ||
+                              draggingId;
+                            if (!id) return;
+                            moveHistoryItemToFolder(id, folder.id);
+                            setHoveredFolder(null);
+                            setDraggingId(null);
+                          }}
+                          isHovered={hoveredFolder === folder.id}
+                        />
+                      ))}
+
+                      {/* Then show media files */}
+                      <HistoryList
+                        historyItems={displayedHistory}
+                        onLoadItem={handleLoadFromHistory}
+                        onRemoveItem={handleRemoveFromHistory}
+                        formatDate={formatDate}
+                        onDragStartItem={(id) => setDraggingId(id)}
+                        onDragEndItem={() => setDraggingId(null)}
+                        currentFolderId={currentFolderId}
+                      />
+                    </div>
                   </TabsContent>
+
                   <TabsContent value="files" className="flex-1 overflow-y-auto">
-                    <HistoryList
-                      historyItems={sortedHistory}
-                      onLoadItem={handleLoadFromHistory}
-                      onRemoveItem={handleRemoveFromHistory}
-                      formatDate={formatDate}
-                      onDragStartItem={(id) => setDraggingId(id)}
-                      onDragEndItem={() => setDraggingId(null)}
-                    />
+                    <div className="p-2">
+                      {/* Show folders first */}
+                      {currentLevelFolders.map((folder) => (
+                        <FolderItem
+                          key={folder.id}
+                          folder={folder}
+                          onNavigate={handleNavigateToFolder}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                          }}
+                          onDragEnter={() => setHoveredFolder(folder.id)}
+                          onDragLeave={() => setHoveredFolder(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const id =
+                              e.dataTransfer.getData("text/plain") ||
+                              draggingId;
+                            if (!id) return;
+                            moveHistoryItemToFolder(id, folder.id);
+                            setHoveredFolder(null);
+                            setDraggingId(null);
+                          }}
+                          isHovered={hoveredFolder === folder.id}
+                        />
+                      ))}
+
+                      {/* Then show media files */}
+                      <HistoryList
+                        historyItems={displayedHistory}
+                        onLoadItem={handleLoadFromHistory}
+                        onRemoveItem={handleRemoveFromHistory}
+                        formatDate={formatDate}
+                        onDragStartItem={(id) => setDraggingId(id)}
+                        onDragEndItem={() => setDraggingId(null)}
+                        currentFolderId={currentFolderId}
+                      />
+                    </div>
                   </TabsContent>
+
                   <TabsContent
                     value="youtube"
                     className="flex-1 overflow-y-auto"
                   >
-                    <HistoryList
-                      historyItems={sortedHistory}
-                      onLoadItem={handleLoadFromHistory}
-                      onRemoveItem={handleRemoveFromHistory}
-                      formatDate={formatDate}
-                      onDragStartItem={(id) => setDraggingId(id)}
-                      onDragEndItem={() => setDraggingId(null)}
-                    />
+                    <div className="p-2">
+                      {/* Show folders first */}
+                      {currentLevelFolders.map((folder) => (
+                        <FolderItem
+                          key={folder.id}
+                          folder={folder}
+                          onNavigate={handleNavigateToFolder}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                          }}
+                          onDragEnter={() => setHoveredFolder(folder.id)}
+                          onDragLeave={() => setHoveredFolder(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const id =
+                              e.dataTransfer.getData("text/plain") ||
+                              draggingId;
+                            if (!id) return;
+                            moveHistoryItemToFolder(id, folder.id);
+                            setHoveredFolder(null);
+                            setDraggingId(null);
+                          }}
+                          isHovered={hoveredFolder === folder.id}
+                        />
+                      ))}
+
+                      {/* Then show media files */}
+                      <HistoryList
+                        historyItems={displayedHistory}
+                        onLoadItem={handleLoadFromHistory}
+                        onRemoveItem={handleRemoveFromHistory}
+                        formatDate={formatDate}
+                        onDragStartItem={(id) => setDraggingId(id)}
+                        onDragEndItem={() => setDraggingId(null)}
+                        currentFolderId={currentFolderId}
+                      />
+                    </div>
                   </TabsContent>
                 </Tabs>
               </div>
@@ -532,20 +849,27 @@ export const MediaHistory = ({
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <History size={20} />
+                  <ListVideo size={20} />
                   {title || t("history.recentMedia")}
                 </h2>
                 <div className="flex items-center gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" title={t("history.sort")}>
-                        <Filter size={16} className="mr-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title={t("history.sort")}
+                        className="hidden sm:flex"
+                      >
+                        <ArrowUpDown size={16} className="mr-1" />
                         {t("history.sort")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-56">
                       <div className="space-y-2">
-                        <div className="text-sm font-medium">{t("history.sortBy")}</div>
+                        <div className="text-sm font-medium">
+                          {t("history.sortBy")}
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {["date", "name", "type"].map((k) => (
                             <Button
@@ -564,7 +888,9 @@ export const MediaHistory = ({
                             </Button>
                           ))}
                         </div>
-                        <div className="text-sm font-medium">{t("history.order")}</div>
+                        <div className="text-sm font-medium">
+                          {t("history.order")}
+                        </div>
                         <div className="flex gap-2">
                           {["asc", "desc"].map((o) => (
                             <Button
@@ -586,16 +912,88 @@ export const MediaHistory = ({
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <NewFolderButton />
+                  <NewFolderButton parentId={currentFolderId} />
+                  {/* Mobile-only icon buttons */}
+                  <div className="flex sm:hidden items-center gap-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title={t("history.sort")}
+                        >
+                          <ArrowUpDown size={18} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56">
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">
+                            {t("history.sortBy")}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {["date", "name", "type"].map((k) => (
+                              <Button
+                                key={k}
+                                variant={
+                                  historySortBy === (k as any)
+                                    ? "default"
+                                    : "outline"
+                                }
+                                size="sm"
+                                onClick={() =>
+                                  setHistorySort(k as any, historySortOrder)
+                                }
+                              >
+                                {t(`history.${k}`)}
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="text-sm font-medium">
+                            {t("history.order")}
+                          </div>
+                          <div className="flex gap-2">
+                            {["asc", "desc"].map((o) => (
+                              <Button
+                                key={o}
+                                variant={
+                                  historySortOrder === (o as any)
+                                    ? "default"
+                                    : "outline"
+                                }
+                                size="sm"
+                                onClick={() =>
+                                  setHistorySort(historySortBy, o as any)
+                                }
+                              >
+                                {t(`history.${o}`)}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <Button
+                      variant="default"
+                      size="icon"
+                      onClick={() =>
+                        startPlaybackQueue(displayedHistory.map((i) => i.id))
+                      }
+                      title={t("history.playAll")}
+                    >
+                      <PlayCircle size={18} />
+                    </Button>
+                  </div>
                   <Button
                     variant="default"
                     size="sm"
                     onClick={() =>
-                      startPlaybackQueue(sortedHistory.map((i) => i.id))
+                      startPlaybackQueue(displayedHistory.map((i) => i.id))
                     }
                     title={t("history.playAll")}
+                    className="hidden sm:flex"
                   >
-                    <Play size={16} className="mr-1" /> {t("history.playAll")}
+                    <PlayCircle size={16} className="mr-1" />{" "}
+                    {t("history.playAll")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -616,157 +1014,18 @@ export const MediaHistory = ({
                   </Button>
                 </div>
               </div>
-              {/* Main content area with sidebar */}
-              <div className="flex flex-1 min-h-0">
-                {/* Sidebar: folders (hidden on mobile) */}
-                <aside className="hidden sm:block w-56 shrink-0 border-r border-gray-200 dark:border-gray-700 p-3 overflow-y-auto overscroll-contain">
-                  <div className="text-xs uppercase text-gray-500 mb-2">
-                    {t("history.folders")}
-                  </div>
-                  <div className="space-y-1">
-                    {[
-                      { id: "all", name: t("history.all") },
-                      { id: "unfiled", name: t("history.unfiled") },
-                      ...Object.values(mediaFolders),
-                    ].map((f: any) => (
-                      <button
-                        key={f.id}
-                        onClick={() => setHistoryFolderFilter(f.id as any)}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = "move";
-                        }}
-                        onDragEnter={() => setHoveredFolder(f.id)}
-                        onDragLeave={() => setHoveredFolder(null)}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          const id =
-                            e.dataTransfer.getData("text/plain") || draggingId;
-                          if (!id) return;
-                          if (f.id === "all") return;
-                          moveHistoryItemToFolder(
-                            id,
-                            f.id === "unfiled" ? null : f.id
-                          );
-                          setHoveredFolder(null);
-                          setDraggingId(null);
-                        }}
-                        className={cn(
-                          "w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-gray-700 group",
-                          historyFolderFilter === f.id
-                            ? "bg-gray-100 dark:bg-gray-700 font-medium"
-                            : "",
-                          hoveredFolder === f.id ? "ring-2 ring-purple-500" : ""
-                        )}
-                      >
-                        {f.id !== "all" && f.id !== "unfiled" && (
-                          <Folder size={14} />
-                        )}
-                        <span className="truncate">{f.name}</span>
-                        {f.id !== "all" && f.id !== "unfiled" && (
-                          <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                // Open rename dialog for this folder
-                                const dialog = document.getElementById(
-                                  `rename-folder-${f.id}`
-                                ) as HTMLButtonElement;
-                                if (dialog) dialog.click();
-                              }}
-                              title="Edit folder name"
-                            >
-                              <Pencil size={12} />
-                            </Button>
-                            <RenameFolderButton folderId={f.id} />
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </aside>
+              {/* Breadcrumb Navigation */}
+              <BreadcrumbNav
+                currentFolderId={currentFolderId}
+                folderBreadcrumb={folderBreadcrumb}
+                onNavigateToFolder={handleNavigateToFolder}
+                onNavigateUp={handleNavigateUp}
+                canNavigateUp={canNavigateUp}
+              />
 
-                {/* Content */}
+              {/* Main content area */}
+              <div className="flex flex-1 min-h-0">
                 <div className="flex-1 flex flex-col min-w-0 min-h-0">
-                  {/* Mobile folder chips */}
-                  <div className="sm:hidden px-3 py-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-                    <div className="flex items-center gap-2">
-                      {(
-                        [
-                          { id: "all", name: t("history.all") },
-                          { id: "unfiled", name: t("history.unfiled") },
-                          ...Object.values(mediaFolders),
-                        ] as { id: string; name: string }[]
-                      ).map((f) => (
-                        <button
-                          key={f.id}
-                          onClick={() => setHistoryFolderFilter(f.id as any)}
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = "move";
-                          }}
-                          onDragEnter={() => setHoveredFolder(f.id)}
-                          onDragLeave={() => setHoveredFolder(null)}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            const id =
-                              e.dataTransfer.getData("text/plain") ||
-                              draggingId;
-                            if (!id) return;
-                            if (f.id === "all") return;
-                            moveHistoryItemToFolder(
-                              id,
-                              f.id === "unfiled" ? null : f.id
-                            );
-                            setHoveredFolder(null);
-                            setDraggingId(null);
-                          }}
-                          className={cn(
-                            "px-3 py-1.5 rounded-full text-sm border group relative",
-                            historyFolderFilter === f.id
-                              ? "bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100"
-                              : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700",
-                            hoveredFolder === f.id
-                              ? "ring-2 ring-purple-500"
-                              : ""
-                          )}
-                        >
-                          {f.id !== "all" && f.id !== "unfiled" && (
-                            <span className="inline-flex items-center mr-1 align-middle">
-                              <Folder size={14} />
-                            </span>
-                          )}
-                          <span className="align-middle">{f.name}</span>
-                          {f.id !== "all" && f.id !== "unfiled" && (
-                            <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5 p-0 align-middle"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                  // Open rename dialog for this folder
-                                  const dialog = document.getElementById(
-                                    `rename-folder-${f.id}`
-                                  ) as HTMLButtonElement;
-                                  if (dialog) dialog.click();
-                                }}
-                                title={t("history.editFolderName")}
-                              >
-                                <Pencil size={10} />
-                              </Button>
-                              <RenameFolderButton folderId={f.id} />
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                   <Tabs
                     defaultValue="all"
                     value={activeTab}
@@ -793,40 +1052,132 @@ export const MediaHistory = ({
                       value="all"
                       className="flex-1 overflow-y-auto overscroll-contain"
                     >
-                      <HistoryList
-                        historyItems={sortedHistory}
-                        onLoadItem={handleLoadFromHistory}
-                        onRemoveItem={handleRemoveFromHistory}
-                        formatDate={formatDate}
-                        onDragStartItem={(id) => setDraggingId(id)}
-                        onDragEndItem={() => setDraggingId(null)}
-                      />
+                      <div className="p-2">
+                        {/* Show folders first */}
+                        {currentLevelFolders.map((folder) => (
+                          <FolderItem
+                            key={folder.id}
+                            folder={folder}
+                            onNavigate={handleNavigateToFolder}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "move";
+                            }}
+                            onDragEnter={() => setHoveredFolder(folder.id)}
+                            onDragLeave={() => setHoveredFolder(null)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const id =
+                                e.dataTransfer.getData("text/plain") ||
+                                draggingId;
+                              if (!id) return;
+                              moveHistoryItemToFolder(id, folder.id);
+                              setHoveredFolder(null);
+                              setDraggingId(null);
+                            }}
+                            isHovered={hoveredFolder === folder.id}
+                          />
+                        ))}
+
+                        {/* Then show media files */}
+                        <HistoryList
+                          historyItems={displayedHistory}
+                          onLoadItem={handleLoadFromHistory}
+                          onRemoveItem={handleRemoveFromHistory}
+                          formatDate={formatDate}
+                          onDragStartItem={(id) => setDraggingId(id)}
+                          onDragEndItem={() => setDraggingId(null)}
+                          currentFolderId={currentFolderId}
+                        />
+                      </div>
                     </TabsContent>
+
                     <TabsContent
                       value="files"
                       className="flex-1 overflow-y-auto overscroll-contain"
                     >
-                      <HistoryList
-                        historyItems={sortedHistory}
-                        onLoadItem={handleLoadFromHistory}
-                        onRemoveItem={handleRemoveFromHistory}
-                        formatDate={formatDate}
-                        onDragStartItem={(id) => setDraggingId(id)}
-                        onDragEndItem={() => setDraggingId(null)}
-                      />
+                      <div className="p-2">
+                        {/* Show folders first */}
+                        {currentLevelFolders.map((folder) => (
+                          <FolderItem
+                            key={folder.id}
+                            folder={folder}
+                            onNavigate={handleNavigateToFolder}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "move";
+                            }}
+                            onDragEnter={() => setHoveredFolder(folder.id)}
+                            onDragLeave={() => setHoveredFolder(null)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const id =
+                                e.dataTransfer.getData("text/plain") ||
+                                draggingId;
+                              if (!id) return;
+                              moveHistoryItemToFolder(id, folder.id);
+                              setHoveredFolder(null);
+                              setDraggingId(null);
+                            }}
+                            isHovered={hoveredFolder === folder.id}
+                          />
+                        ))}
+
+                        {/* Then show media files */}
+                        <HistoryList
+                          historyItems={displayedHistory}
+                          onLoadItem={handleLoadFromHistory}
+                          onRemoveItem={handleRemoveFromHistory}
+                          formatDate={formatDate}
+                          onDragStartItem={(id) => setDraggingId(id)}
+                          onDragEndItem={() => setDraggingId(null)}
+                          currentFolderId={currentFolderId}
+                        />
+                      </div>
                     </TabsContent>
+
                     <TabsContent
                       value="youtube"
                       className="flex-1 overflow-y-auto overscroll-contain"
                     >
-                      <HistoryList
-                        historyItems={sortedHistory}
-                        onLoadItem={handleLoadFromHistory}
-                        onRemoveItem={handleRemoveFromHistory}
-                        formatDate={formatDate}
-                        onDragStartItem={(id) => setDraggingId(id)}
-                        onDragEndItem={() => setDraggingId(null)}
-                      />
+                      <div className="p-2">
+                        {/* Show folders first */}
+                        {currentLevelFolders.map((folder) => (
+                          <FolderItem
+                            key={folder.id}
+                            folder={folder}
+                            onNavigate={handleNavigateToFolder}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "move";
+                            }}
+                            onDragEnter={() => setHoveredFolder(folder.id)}
+                            onDragLeave={() => setHoveredFolder(null)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const id =
+                                e.dataTransfer.getData("text/plain") ||
+                                draggingId;
+                              if (!id) return;
+                              moveHistoryItemToFolder(id, folder.id);
+                              setHoveredFolder(null);
+                              setDraggingId(null);
+                            }}
+                            isHovered={hoveredFolder === folder.id}
+                          />
+                        ))}
+
+                        {/* Then show media files */}
+                        <HistoryList
+                          historyItems={displayedHistory}
+                          onLoadItem={handleLoadFromHistory}
+                          onRemoveItem={handleRemoveFromHistory}
+                          formatDate={formatDate}
+                          onDragStartItem={(id) => setDraggingId(id)}
+                          onDragEndItem={() => setDraggingId(null)}
+                          currentFolderId={currentFolderId}
+                        />
+                      </div>
                     </TabsContent>
                   </Tabs>
                 </div>
@@ -854,7 +1205,13 @@ export const MediaHistory = ({
 };
 
 // Small components for cleaner JSX
-function NewFolderButton({ fullWidth = false }: { fullWidth?: boolean }) {
+function NewFolderButton({
+  fullWidth = false,
+  parentId = null,
+}: {
+  fullWidth?: boolean;
+  parentId?: string | null;
+}) {
   const { t } = useTranslation();
   const { createMediaFolder } = usePlayerStore();
   const [open, setOpen] = useState(false);
@@ -864,27 +1221,39 @@ function NewFolderButton({ fullWidth = false }: { fullWidth?: boolean }) {
       <Button
         variant="ghost"
         size="sm"
-        className={fullWidth ? "w-full" : undefined}
+        className={cn(fullWidth ? "w-full" : undefined, "hidden sm:flex")}
         onClick={() => setOpen(true)}
         title={t("history.newFolder")}
       >
         <FolderPlus size={16} className="mr-1" /> {t("history.new")}
       </Button>
+      {/* Mobile icon-only version */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="flex sm:hidden"
+        onClick={() => setOpen(true)}
+        title={t("history.newFolder")}
+      >
+        <FolderPlus size={18} />
+      </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("history.newFolder")}</DialogTitle>
-            <DialogDescription>{t("history.enterFolderName")}</DialogDescription>
+            <DialogDescription>
+              {t("history.enterFolderName")}
+            </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
-            placeholder="Folder name"
+            placeholder={t("history.folderNamePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 if (name.trim()) {
-                  createMediaFolder(name.trim());
+                  createMediaFolder(name.trim(), parentId ?? null);
                   setName("");
                   setOpen(false);
                 }
@@ -893,19 +1262,19 @@ function NewFolderButton({ fullWidth = false }: { fullWidth?: boolean }) {
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
                 if (name.trim()) {
-                  createMediaFolder(name.trim());
+                  createMediaFolder(name.trim(), parentId ?? null);
                   setName("");
                   setOpen(false);
                 }
               }}
               disabled={!name.trim()}
             >
-              Create
+              {t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -915,6 +1284,7 @@ function NewFolderButton({ fullWidth = false }: { fullWidth?: boolean }) {
 }
 
 function RenameFolderButton({ folderId }: { folderId: string }) {
+  const { t } = useTranslation();
   const { mediaFolders, renameMediaFolder } = usePlayerStore();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -932,17 +1302,19 @@ function RenameFolderButton({ folderId }: { folderId: string }) {
         id={`rename-folder-${folderId}`}
         variant="outline"
         size="sm"
-        title="Rename folder"
+        title={t("history.editFolderName")}
         onClick={() => setOpen(true)}
         className="hidden"
       >
-        <Pencil size={16} className="mr-1" /> Rename
+        <Pencil size={16} className="mr-1" /> {t("history.rename")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename Folder</DialogTitle>
-            <DialogDescription>Update the folder name.</DialogDescription>
+            <DialogTitle>{t("history.editFolderName")}</DialogTitle>
+            <DialogDescription>
+              {t("history.renameFolderDescription")}
+            </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
@@ -959,7 +1331,7 @@ function RenameFolderButton({ folderId }: { folderId: string }) {
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -970,7 +1342,7 @@ function RenameFolderButton({ folderId }: { folderId: string }) {
               }}
               disabled={!name.trim()}
             >
-              Save
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1032,21 +1404,22 @@ function ConfirmClearDialog({
   onOpenChange: (v: boolean) => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Clear All History</DialogTitle>
+          <DialogTitle>{t("history.clearAllHistory")}</DialogTitle>
           <DialogDescription>
-            This will remove all media entries and clear stored files.
+            {t("history.clearAllHistoryDescription")}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button className="bg-red-600 hover:bg-red-700" onClick={onConfirm}>
-            Clear
+            {t("common.clear")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1058,6 +1431,7 @@ function RenameItemButton({ item }: { item: MediaHistoryItem }) {
   const { renameHistoryItem } = usePlayerStore();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(item.name);
+  const { t } = useTranslation();
   return (
     <>
       <Button
@@ -1068,15 +1442,17 @@ function RenameItemButton({ item }: { item: MediaHistoryItem }) {
           e.stopPropagation();
           setOpen(true);
         }}
-        title="Rename item"
+        title={t("history.renameItem")}
       >
         <Pencil size={16} />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename Item</DialogTitle>
-            <DialogDescription>Update the item name.</DialogDescription>
+            <DialogTitle>{t("history.renameItem")}</DialogTitle>
+            <DialogDescription>
+              {t("history.renameItemDescription")}
+            </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
@@ -1091,7 +1467,7 @@ function RenameItemButton({ item }: { item: MediaHistoryItem }) {
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -1102,7 +1478,7 @@ function RenameItemButton({ item }: { item: MediaHistoryItem }) {
               }}
               disabled={!name.trim()}
             >
-              Save
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1111,7 +1487,13 @@ function RenameItemButton({ item }: { item: MediaHistoryItem }) {
   );
 }
 
-function NewFolderForMoveButton({ itemId }: { itemId: string }) {
+function NewFolderForMoveButton({
+  itemId,
+  parentFolderId,
+}: {
+  itemId: string;
+  parentFolderId: string | null;
+}) {
   const { t } = useTranslation();
   const { createMediaFolder, moveHistoryItemToFolder } = usePlayerStore();
   const [open, setOpen] = useState(false);
@@ -1131,12 +1513,15 @@ function NewFolderForMoveButton({ itemId }: { itemId: string }) {
           </DialogHeader>
           <Input
             autoFocus
-            placeholder="Folder name"
+            placeholder={t("history.folderNamePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && name.trim()) {
-                const id = createMediaFolder(name.trim());
+                const id = createMediaFolder(
+                  name.trim(),
+                  parentFolderId ?? null
+                );
                 moveHistoryItemToFolder(itemId, id);
                 setOpen(false);
                 setName("");
@@ -1145,12 +1530,15 @@ function NewFolderForMoveButton({ itemId }: { itemId: string }) {
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
                 if (name.trim()) {
-                  const id = createMediaFolder(name.trim());
+                  const id = createMediaFolder(
+                    name.trim(),
+                    parentFolderId ?? null
+                  );
                   moveHistoryItemToFolder(itemId, id);
                   setOpen(false);
                   setName("");
@@ -1158,7 +1546,7 @@ function NewFolderForMoveButton({ itemId }: { itemId: string }) {
               }}
               disabled={!name.trim()}
             >
-              Create & Move
+              {t("history.createAndMove")}
             </Button>
           </DialogFooter>
         </DialogContent>

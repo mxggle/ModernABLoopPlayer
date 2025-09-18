@@ -1,4 +1,5 @@
 import { toast } from "react-hot-toast";
+import i18n from "../i18n";
 
 // Default limits (can be made configurable in settings)
 const DEFAULT_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB per file
@@ -414,10 +415,10 @@ export const clearAllMediaFiles = async (): Promise<void> => {
       lastCleanup: Date.now(),
     });
 
-    toast.success("Media storage cleared");
+    toast.success(i18n.t("storage.clearStorageSuccess"));
   } catch (error) {
     console.error("Error clearing media storage", error);
-    toast.error("Failed to clear media storage");
+    toast.error(i18n.t("storage.clearStorageError"));
   }
 };
 
