@@ -1247,7 +1247,7 @@ function NewFolderButton({
           </DialogHeader>
           <Input
             autoFocus
-            placeholder="Folder name"
+            placeholder={t("history.folderNamePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -1262,7 +1262,7 @@ function NewFolderButton({
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -1274,7 +1274,7 @@ function NewFolderButton({
               }}
               disabled={!name.trim()}
             >
-              Create
+              {t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1284,6 +1284,7 @@ function NewFolderButton({
 }
 
 function RenameFolderButton({ folderId }: { folderId: string }) {
+  const { t } = useTranslation();
   const { mediaFolders, renameMediaFolder } = usePlayerStore();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -1301,17 +1302,19 @@ function RenameFolderButton({ folderId }: { folderId: string }) {
         id={`rename-folder-${folderId}`}
         variant="outline"
         size="sm"
-        title="Rename folder"
+        title={t("history.editFolderName")}
         onClick={() => setOpen(true)}
         className="hidden"
       >
-        <Pencil size={16} className="mr-1" /> Rename
+        <Pencil size={16} className="mr-1" /> {t("history.rename")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename Folder</DialogTitle>
-            <DialogDescription>Update the folder name.</DialogDescription>
+            <DialogTitle>{t("history.editFolderName")}</DialogTitle>
+            <DialogDescription>
+              {t("history.renameFolderDescription")}
+            </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
@@ -1328,7 +1331,7 @@ function RenameFolderButton({ folderId }: { folderId: string }) {
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -1339,7 +1342,7 @@ function RenameFolderButton({ folderId }: { folderId: string }) {
               }}
               disabled={!name.trim()}
             >
-              Save
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1401,21 +1404,22 @@ function ConfirmClearDialog({
   onOpenChange: (v: boolean) => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Clear All History</DialogTitle>
+          <DialogTitle>{t("history.clearAllHistory")}</DialogTitle>
           <DialogDescription>
-            This will remove all media entries and clear stored files.
+            {t("history.clearAllHistoryDescription")}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button className="bg-red-600 hover:bg-red-700" onClick={onConfirm}>
-            Clear
+            {t("common.clear")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1427,6 +1431,7 @@ function RenameItemButton({ item }: { item: MediaHistoryItem }) {
   const { renameHistoryItem } = usePlayerStore();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(item.name);
+  const { t } = useTranslation();
   return (
     <>
       <Button
@@ -1437,15 +1442,17 @@ function RenameItemButton({ item }: { item: MediaHistoryItem }) {
           e.stopPropagation();
           setOpen(true);
         }}
-        title="Rename item"
+        title={t("history.renameItem")}
       >
         <Pencil size={16} />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename Item</DialogTitle>
-            <DialogDescription>Update the item name.</DialogDescription>
+            <DialogTitle>{t("history.renameItem")}</DialogTitle>
+            <DialogDescription>
+              {t("history.renameItemDescription")}
+            </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
@@ -1460,7 +1467,7 @@ function RenameItemButton({ item }: { item: MediaHistoryItem }) {
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -1471,7 +1478,7 @@ function RenameItemButton({ item }: { item: MediaHistoryItem }) {
               }}
               disabled={!name.trim()}
             >
-              Save
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1506,7 +1513,7 @@ function NewFolderForMoveButton({
           </DialogHeader>
           <Input
             autoFocus
-            placeholder="Folder name"
+            placeholder={t("history.folderNamePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -1523,7 +1530,7 @@ function NewFolderForMoveButton({
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -1539,7 +1546,7 @@ function NewFolderForMoveButton({
               }}
               disabled={!name.trim()}
             >
-              Create & Move
+              {t("history.createAndMove")}
             </Button>
           </DialogFooter>
         </DialogContent>

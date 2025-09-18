@@ -366,7 +366,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             });
           } catch (error) {
             console.error("Error setting current file:", error);
-            toast.error("Failed to load media file");
+            toast.error(i18n.t("history.failedToLoadMedia"));
 
             set({
               currentFile: null,
@@ -549,7 +549,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           // Show at most once every 1.5s and reuse the same toast id
           if (now - lastDuplicateToastAt > 1500) {
             lastDuplicateToastAt = now;
-            toast.error("A bookmark for this A–B range already exists", {
+            toast.error(i18n.t("bookmarks.duplicateRange"), {
               id: DUPLICATE_TOAST_ID,
               duration: 1500,
             });
@@ -816,7 +816,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
               setTimeout(() => {
                 const { currentFile } = get();
                 if (!currentFile || !currentFile.url) {
-                  toast.error("Could not retrieve media file");
+                  toast.error(i18n.t("player.couldNotRetrieveMedia"));
                 }
               }, 1000);
             }
@@ -1201,7 +1201,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           : [];
 
         if (transcriptSegments.length === 0) {
-          toast.error("No transcript data to export");
+          toast.error(i18n.t("transcript.noDataToExport"));
           return "";
         }
 
@@ -1288,7 +1288,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           const mediaId = getCurrentMediaId();
 
           if (!mediaId) {
-            toast.error("No media loaded");
+            toast.error(i18n.t("player.noMediaLoadedSimple"));
             return;
           }
 
@@ -1333,7 +1333,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           });
         } catch (error) {
           console.error("Error importing transcript:", error);
-          toast.error("Failed to import transcript file");
+          toast.error(i18n.t("transcript.importError"));
         }
 
         // Helper functions for parsing different formats
@@ -1530,7 +1530,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         );
 
         if (!segment) {
-          toast.error("Transcript segment not found");
+          toast.error(i18n.t("transcript.segmentNotFound"));
           return;
         }
 

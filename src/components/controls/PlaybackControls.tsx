@@ -113,7 +113,7 @@ export const PlaybackControls = () => {
           <button
             onClick={seekBackward}
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label={`${t("player.seekBackward")} ${seekStepSeconds} ${t("common.seconds")}`}
+            aria-label={t("player.seekBackwardSeconds", { seconds: seekStepSeconds })}
           >
             <SkipBack size={20} />
           </button>
@@ -129,7 +129,7 @@ export const PlaybackControls = () => {
           <button
             onClick={seekForward}
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label={`${t("player.seekForward")} ${seekStepSeconds} ${t("common.seconds")}`}
+            aria-label={t("player.seekForwardSeconds", { seconds: seekStepSeconds })}
           >
             <SkipForward size={20} />
           </button>

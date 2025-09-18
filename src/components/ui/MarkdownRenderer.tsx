@@ -5,6 +5,7 @@ import rehypeHighlight from "rehype-highlight";
 import { Copy, Check } from "lucide-react";
 import { toast } from "react-hot-toast";
 import "highlight.js/styles/github.css";
+import { useTranslation } from "react-i18next";
 
 interface MarkdownRendererProps {
   content: string;
@@ -23,6 +24,7 @@ const CodeBlock = ({
   [key: string]: unknown;
 }) => {
   const [copied, setCopied] = useState(false);
+  const { t } = useTranslation();
   const match = /language-(\w+)/.exec(className || "");
   const language = match ? match[1] : "";
   const codeContent = String(children).replace(/\n$/, "");
@@ -31,10 +33,10 @@ const CodeBlock = ({
     try {
       await navigator.clipboard.writeText(codeContent);
       setCopied(true);
-      toast.success("Code copied to clipboard!");
+      toast.success(t("markdown.copySuccess"));
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      toast.error("Failed to copy code");
+      toast.error(t("markdown.copyError"));
     }
   };
 
@@ -49,17 +51,17 @@ const CodeBlock = ({
             <button
               onClick={handleCopy}
               className="copy-button flex items-center gap-1 text-xs"
-              title="Copy code"
+              title={t("markdown.copyCode")}
             >
               {copied ? (
                 <>
                   <Check className="w-3 h-3" />
-                  Copied
+                  {t("markdown.copied")}
                 </>
               ) : (
                 <>
                   <Copy className="w-3 h-3" />
-                  Copy
+                  {t("markdown.copy")}
                 </>
               )}
             </button>

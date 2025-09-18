@@ -14,7 +14,12 @@
     "share": "分享",
     "export": "导出",
     "import": "导入",
-    "upload": "上传"
+    "upload": "上传",
+    "create": "创建",
+    "back": "返回"
+  },
+  "app": {
+    "logoLabel": "LoopMate 标志"
   },
   "navigation": {
     "home": "首页",
@@ -39,6 +44,49 @@
     "appearance": "外观",
     "colorTheme": "颜色主题"
   },
+  "aiSettingsPage": {
+    "title": "AI 设置",
+    "subtitle": "配置您的 AI 提供方和模型",
+    "generalSettings": "常规设置",
+    "preferredProvider": "首选 AI 提供方",
+    "targetLanguage": "目标语言",
+    "temperature": "温度 ({{value}})",
+    "temperatureFocused": "专注",
+    "temperatureBalanced": "平衡",
+    "temperatureCreative": "创造",
+    "maxTokens": "最大 Tokens",
+    "providersSection": "AI 提供方",
+    "providers": {
+      "openai": "OpenAI",
+      "gemini": "Google Gemini",
+      "grok": "xAI Grok"
+    },
+    "providerDescriptions": {
+      "openai": "OpenAI GPT 模型",
+      "gemini": "Google Gemini 模型",
+      "grok": "xAI Grok 模型"
+    },
+    "apiKeyLabel": "API 密钥",
+    "apiKeyPlaceholderLabel": "请输入 {{provider}} 的 API 密钥",
+    "invalidApiKeyFormat": "API 密钥格式无效",
+    "defaultModel": "默认模型",
+    "selectModelPlaceholder": "请选择 {{provider}} 模型...",
+    "enterApiKeyFirst": "请先输入 {{provider}} 的 API 密钥",
+    "connectionSuccess": "{{provider}} 连接成功！",
+    "connectionFailed": "{{provider}} 连接失败",
+    "connectionFailedWithError": "{{provider}} 连接失败：{{message}}",
+    "saveSuccess": "AI 设置已保存！",
+    "saveSettings": "保存设置",
+    "languages": {
+      "english": "英语",
+      "spanish": "西班牙语",
+      "french": "法语",
+      "german": "德语",
+      "chinese": "中文",
+      "japanese": "日语",
+      "korean": "韩语"
+    }
+  },
   "home": {
     "chooseMediaSource": "选择媒体源",
     "youtubeVideo": "YouTube视频",
@@ -61,10 +109,14 @@
     "mute": "静音",
     "unmute": "取消静音",
     "seekBackward": "向后寻找",
+    "seekBackwardSeconds": "后退 {{seconds}} 秒",
     "seekForward": "向前寻找",
+    "seekForwardSeconds": "前进 {{seconds}} 秒",
     "decreaseSpeed": "降低播放速度",
     "increaseSpeed": "提高播放速度",
     "playlist": "播放列表",
+    "youtubeTab": "YouTube",
+    "localMediaTab": "本地媒体",
     "playbackSpeed": "播放速度",
     "noItemsInPlaylist": "播放列表中没有项目。",
     "bookmarkNavigation": "书签导航",
@@ -76,11 +128,34 @@
     "clear": "清除",
     "now": "正在播放",
     "audioFile": "音频文件",
+    "youtube": "YouTube",
     "showPlaylist": "显示播放列表",
+    "openPlaylist": "打开播放列表",
+    "closePlaylist": "关闭播放列表",
     "playing": "正在播放",
     "toggleLooping": "切换循环",
     "loopOn": "循环开启",
-    "quickAddBookmark": "快速添加书签"
+    "loopStatusOn": "循环：开启",
+    "loopStatusOff": "循环：关闭",
+    "toggleVideoSize": "切换视频大小",
+    "playerInfo": "播放器信息",
+    "keyboardShortcutsHint": "通过键盘快捷键可以更高效地操作",
+    "toggleAutoAdvance": "切换自动跳转",
+    "shareCurrentSettings": "分享当前设置",
+    "autoAdvanceOn": "书签自动跳转：开启",
+    "autoAdvanceOff": "书签自动跳转：关闭",
+    "previousBookmark": "上一个书签",
+    "nextBookmark": "下一个书签",
+    "quickAddBookmark": "快速添加书签",
+    "queueItemFallback": "条目 {{index}}",
+    "unnamedBookmark": "未命名",
+    "loadedSharedBookmark": "已载入共享书签：{{name}}",
+    "windowTitle": "A-B 循环播放器",
+    "windowTitleWithMedia": "A-B 循环播放器 - {{title}}",
+    "shareSetupRequired": "分享前请设置循环区间或加载视频",
+    "abLoopPlayer": "A-B 循环播放器",
+    "couldNotRetrieveMedia": "无法获取媒体文件",
+    "noMediaLoadedSimple": "没有加载媒体"
   },
   "upload": {
     "dragDrop": "拖放音频/视频文件到此处",
@@ -96,18 +171,23 @@
   "youtube": {
     "enterUrl": "输入YouTube链接或视频ID",
     "loadVideo": "加载视频",
-    "invalidUrl": "无效的YouTube链接"
+    "invalidUrl": "无效的YouTube链接",
+    "errorLoadingVideo": "加载YouTube视频时出错"
   },
   "loop": {
     "title": "A-B循环",
+    "controlsTitle": "A-B 循环控制",
     "looping": "循环中",
     "loop": "循环",
+    "loopOff": "循环关闭",
     "disableLoop": "禁用A-B循环",
     "enableLoop": "启用A-B循环",
     "loopStart": "循环开始",
     "loopEnd": "循环结束",
     "setStart": "将当前时间设为循环起点",
     "setEnd": "将当前时间设为循环终点",
+    "jumpToStart": "跳到循环起点",
+    "jumpToEnd": "跳到循环终点",
     "clearLoopPoints": "清除循环点",
     "timePlaceholder": "00:00.000",
     "moveLeft": "向左移动循环窗口",
@@ -131,6 +211,8 @@
     "generationFailed": "生成解释失败：{{message}}",
     "generatingInBackground": "解释将在后台继续生成",
     "generating": "生成中...",
+    "viewExplanation": "查看解释",
+    "errorRetry": "生成解释时出错 - 点击重试",
     "canCloseDrawer": "您可以关闭此抽屉，解释将在后台继续进行",
     "closeAndContinue": "关闭并在后台继续",
     "aiModelSelection": "AI模型选择",
@@ -158,7 +240,8 @@
       "chinese": "中文",
       "japanese": "日语",
       "korean": "韩语"
-    }
+    },
+    "mockExplanation": "这是针对“{{snippet}}”生成的说明"
   },
   "transcript": {
     "title": "媒体转录 (OpenAI Whisper)",
@@ -176,6 +259,7 @@
     "removeBookmark": "删除此片段的书签",
     "createBookmark": "从此片段创建书签",
     "explainWithAI": "使用AI解释此文本",
+    "segmentBookmarkName": "片段 {{time}} 秒",
     "apiKeySaved": "API密钥已保存",
     "noFileLoaded": "未加载文件",
     "errorLoadingVideo": "加载视频时出错",
@@ -198,6 +282,9 @@
     "apiKeyRequired": "需要OpenAI API密钥",
     "apiKeyNotice": "要使用Whisper进行转录，您需要提供您的OpenAI API密钥。此密钥仅存储在您浏览器的本地存储中。",
     "apiKeyPlaceholder": "sk-...",
+    "noDataToExport": "没有可导出的转录数据",
+    "importError": "导入转录文件失败",
+    "segmentNotFound": "未找到对应的转录片段",
     "saveApiKey": "保存API密钥",
     "getApiKey": "从OpenAI获取API密钥",
     "processingWithWhisper": "正在使用OpenAI Whisper处理媒体...",
@@ -263,7 +350,9 @@
     "drawerTitle": "循环书签",
     "loadMediaFirst": "添加书签前请先加载媒体",
     "setValidRange": "请先设置有效的A-B范围",
-    "defaultClipName": "片段 {{count}}"
+    "defaultClipName": "片段 {{count}}",
+    "duplicateRange": "此A-B区间的书签已存在",
+    "clipFallback": "片段"
   },
   "history": {
     "recentMedia": "最近媒体",
@@ -298,12 +387,23 @@
     "audioFiles": "音频文件",
     "youtube": "YouTube",
     "editFolderName": "编辑文件夹名称",
+    "rename": "重命名",
     "clearAllHistory": "清除所有历史",
+    "clearAllHistoryDescription": "这将移除所有媒体条目并清除已存储的文件。",
     "failedToLoadMedia": "加载媒体失败",
     "newFolder": "新文件夹",
     "new": "新建",
     "enterFolderName": "请输入文件夹名称。",
-    "enterFolderNameAndMove": "输入名称，我们将把项目移动到那里。"
+    "enterFolderNameAndMove": "输入名称，我们将把项目移动到那里。",
+    "folderNamePlaceholder": "文件夹名称",
+    "renameFolderDescription": "更新文件夹名称。",
+    "renameItem": "重命名项目",
+    "renameItemDescription": "更新项目名称。",
+    "createAndMove": "创建并移动",
+    "unknownTime": "时间未知",
+    "manage": "管理",
+    "itemCount": "{{count}} 项",
+    "moreItems": "+ {{count}} 条更多历史记录"
   },
   "storage": {
     "storage": "存储",
@@ -335,5 +435,51 @@
     "seekBackwardForwardSmall": "向后/向前跳转{{seconds}}秒",
     "volumeUpDown": "音量增加/减少",
     "jumpToPercent": "跳转到音轨的0-90%"
+  },
+  "modelSelector": {
+    "placeholder": "选择一个模型...",
+    "moreCapabilities": "+{{count}} 个",
+    "inputPrice": "输入：{{price}}/百万",
+    "outputPrice": "输出：{{price}}/百万",
+    "contextWindow": "{{value}}K 上下文",
+    "noModels": "没有可用的模型",
+    "selectProvider": "请先选择提供方",
+    "capabilities": {
+      "vision": "视觉",
+      "audio": "音频",
+      "video": "视频",
+      "function-calling": "函数调用",
+      "reasoning": "推理",
+      "thinking": "思考"
+    }
+  },
+  "shortcuts": {
+    "title": "键盘快捷键",
+    "description": "使用这些键盘快捷键更高效地控制播放器。",
+    "ariaLabel": "键盘快捷键",
+    "items": {
+      "playPause": "播放/暂停",
+      "setLoopStart": "将当前位置设为循环起点 (A)",
+      "setLoopEnd": "将当前位置设为循环终点 (B)",
+      "toggleLoop": "开启/关闭循环",
+      "quickBookmark": "从当前循环或时间快速添加书签",
+      "increaseVolume": "提高音量",
+      "decreaseVolume": "降低音量",
+      "increaseSpeed": "提高播放速度",
+      "decreaseSpeed": "降低播放速度"
+    }
+  },
+  "markdown": {
+    "copySuccess": "代码已复制到剪贴板！",
+    "copyError": "复制代码失败",
+    "copyCode": "复制代码",
+    "copy": "复制",
+    "copied": "已复制"
+  },
+  "waveform": {
+    "loopLabel": "循环：",
+    "loopSelection": "循环选择",
+    "touchSelectHint": "轻触并拖动以选择循环",
+    "desktopSelectHint": "在波形上拖动以选择循环区域"
   }
 }

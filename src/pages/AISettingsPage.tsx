@@ -21,8 +21,10 @@ import {
   DEFAULT_MODELS,
 } from "../types/aiService";
 import { aiService } from "../services/aiService";
+import { useTranslation } from "react-i18next";
 
 export const AISettingsPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   // API Keys state
@@ -62,6 +64,9 @@ export const AISettingsPage: React.FC = () => {
     gemini: "idle",
     grok: "idle",
   });
+
+  const providerDisplayName = (provider: AIProvider) =>
+    t(`aiSettingsPage.providers.${provider}`);
 
   // Load settings from localStorage
   useEffect(() => {
@@ -117,7 +122,7 @@ export const AISettingsPage: React.FC = () => {
     // Dispatch custom event to notify other components
     window.dispatchEvent(new CustomEvent("aiSettingsUpdated"));
 
-    toast.success("AI settings saved successfully!");
+    toast.success(t("aiSettingsPage.saveSuccess"));
   };
 
   const testConnection = async (provider: AIProvider) => {
@@ -135,7 +140,11 @@ export const AISettingsPage: React.FC = () => {
         : grokModel;
 
     if (!apiKey.trim()) {
-      toast.error(`Please enter ${provider.toUpperCase()} API key first`);
+      toast.error(
+        t("aiSettingsPage.enterApiKeyFirst", {
+          provider: providerDisplayName(provider),
+        })
+      );
       return;
     }
 
@@ -155,17 +164,29 @@ export const AISettingsPage: React.FC = () => {
 
       if (success) {
         setConnectionStatus((prev) => ({ ...prev, [provider]: "success" }));
-        toast.success(`${provider.toUpperCase()} connection successful!`);
+        toast.success(
+          t("aiSettingsPage.connectionSuccess", {
+            provider: providerDisplayName(provider),
+          })
+        );
       } else {
         setConnectionStatus((prev) => ({ ...prev, [provider]: "error" }));
-        toast.error(`${provider.toUpperCase()} connection failed`);
+        toast.error(
+          t("aiSettingsPage.connectionFailed", {
+            provider: providerDisplayName(provider),
+          })
+        );
       }
     } catch (error) {
       setConnectionStatus((prev) => ({ ...prev, [provider]: "error" }));
       toast.error(
-        `${provider.toUpperCase()} connection failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+        t("aiSettingsPage.connectionFailedWithError", {
+          provider: providerDisplayName(provider),
+          message:
+            error instanceof Error
+              ? error.message
+              : t("explanation.unknownError"),
+        })
       );
     } finally {
       setTestingConnection((prev) => ({ ...prev, [provider]: false }));
@@ -194,7 +215,7 @@ export const AISettingsPage: React.FC = () => {
     model: string,
     setModel: (model: string) => void
   ) => {
-    const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+    const providerName = providerDisplayName(provider);
     const isValidKey = aiService.validateApiKey(provider, apiKey);
 
     return (
@@ -215,9 +236,7 @@ export const AISettingsPage: React.FC = () => {
             <div>
               <h3 className="text-lg font-semibold">{providerName}</h3>
               <p className="text-sm text-gray-600">
-                {provider === "openai" && "OpenAI GPT models"}
-                {provider === "gemini" && "Google Gemini models"}
-                {provider === "grok" && "xAI Grok models"}
+                {t(`aiSettingsPage.providerDescriptions.${provider}`)}
               </p>
             </div>
           </div>
@@ -228,14 +247,16 @@ export const AISettingsPage: React.FC = () => {
           {/* API Key Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              API Key
+              {t("aiSettingsPage.apiKeyLabel")}
             </label>
             <div className="relative">
               <input
                 type={showApiKeys[provider] ? "text" : "password"}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder={`Enter your ${providerName} API key`}
+                placeholder={t("aiSettingsPage.apiKeyPlaceholderLabel", {
+                  provider: providerName,
+                })}
                 className={`w-full px-3 py-2 pr-20 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   apiKey && !isValidKey ? "border-red-300" : "border-gray-300"
                 }`}
@@ -269,7 +290,7 @@ export const AISettingsPage: React.FC = () => {
             </div>
             {apiKey && !isValidKey && (
               <p className="text-xs text-red-600 mt-1">
-                Invalid API key format
+                {t("aiSettingsPage.invalidApiKeyFormat")}
               </p>
             )}
           </div>
@@ -277,13 +298,15 @@ export const AISettingsPage: React.FC = () => {
           {/* Model Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Default Model
+              {t("aiSettingsPage.defaultModel")}
             </label>
             <ModelSelector
               selectedModel={model}
               onModelSelect={setModel}
               provider={provider}
-              placeholder={`Select ${providerName} model...`}
+              placeholder={t("aiSettingsPage.selectModelPlaceholder", {
+                provider: providerName,
+              })}
               showPricing={true}
               showCapabilities={true}
             />
@@ -305,12 +328,12 @@ export const AISettingsPage: React.FC = () => {
             className="flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back
+            {t("common.back")}
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">AI Settings</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{t("aiSettingsPage.title")}</h1>
             <p className="text-gray-600">
-              Configure your AI providers and models
+              {t("aiSettingsPage.subtitle")}
             </p>
           </div>
         </div>
@@ -320,13 +343,13 @@ export const AISettingsPage: React.FC = () => {
           <div className="bg-white rounded-lg p-6 shadow-sm">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Globe className="w-5 h-5" />
-              General Settings
+              {t("aiSettingsPage.generalSettings")}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Preferred AI Provider
+                  {t("aiSettingsPage.preferredProvider")}
                 </label>
                 <select
                   value={preferredProvider}
@@ -335,34 +358,34 @@ export const AISettingsPage: React.FC = () => {
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="openai">OpenAI</option>
-                  <option value="gemini">Google Gemini</option>
-                  <option value="grok">xAI Grok</option>
+                  <option value="openai">{providerDisplayName("openai")}</option>
+                  <option value="gemini">{providerDisplayName("gemini")}</option>
+                  <option value="grok">{providerDisplayName("grok")}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Target Language
+                  {t("aiSettingsPage.targetLanguage")}
                 </label>
                 <select
                   value={targetLanguage}
                   onChange={(e) => setTargetLanguage(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="English">English</option>
-                  <option value="Spanish">Spanish</option>
-                  <option value="French">French</option>
-                  <option value="German">German</option>
-                  <option value="Chinese">Chinese</option>
-                  <option value="Japanese">Japanese</option>
-                  <option value="Korean">Korean</option>
+                  <option value="English">{t("aiSettingsPage.languages.english")}</option>
+                  <option value="Spanish">{t("aiSettingsPage.languages.spanish")}</option>
+                  <option value="French">{t("aiSettingsPage.languages.french")}</option>
+                  <option value="German">{t("aiSettingsPage.languages.german")}</option>
+                  <option value="Chinese">{t("aiSettingsPage.languages.chinese")}</option>
+                  <option value="Japanese">{t("aiSettingsPage.languages.japanese")}</option>
+                  <option value="Korean">{t("aiSettingsPage.languages.korean")}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Temperature ({temperature})
+                  {t("aiSettingsPage.temperature", { value: temperature })}
                 </label>
                 <input
                   type="range"
@@ -374,15 +397,15 @@ export const AISettingsPage: React.FC = () => {
                   className="w-full"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>Focused</span>
-                  <span>Balanced</span>
-                  <span>Creative</span>
+                  <span>{t("aiSettingsPage.temperatureFocused")}</span>
+                  <span>{t("aiSettingsPage.temperatureBalanced")}</span>
+                  <span>{t("aiSettingsPage.temperatureCreative")}</span>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Max Tokens
+                  {t("aiSettingsPage.maxTokens")}
                 </label>
                 <input
                   type="number"
@@ -400,7 +423,7 @@ export const AISettingsPage: React.FC = () => {
           <div className="space-y-6">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <Key className="w-5 h-5" />
-              AI Providers
+              {t("aiSettingsPage.providersSection")}
             </h2>
 
             {renderProviderSection(
@@ -430,7 +453,7 @@ export const AISettingsPage: React.FC = () => {
           <div className="flex justify-end">
             <Button onClick={handleSave} className="flex items-center gap-2">
               <Save className="w-4 h-4" />
-              Save Settings
+              {t("aiSettingsPage.saveSettings")}
             </Button>
           </div>
         </div>

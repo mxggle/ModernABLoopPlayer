@@ -138,8 +138,9 @@ export const MobileControls = () => {
         });
       } else {
         // Add mode - create new bookmark
+        const bookmarkCount = existingBookmarks.length + 1;
         const added = storeAddBookmark({
-          name: `Clip ${getCurrentMediaBookmarks().length + 1}`,
+          name: t("bookmarks.defaultClipName", { count: bookmarkCount }),
           start: loopStart,
           end: loopEnd,
           playbackRate,
@@ -279,7 +280,7 @@ export const MobileControls = () => {
             <button
               onClick={() => setShowPlaylistDrawer(true)}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 relative"
-              aria-label="Open playlist"
+              aria-label={t("player.openPlaylist")}
             >
               <ListMusic size={20} />
               {playbackQueue.length > 0 && (
@@ -291,7 +292,7 @@ export const MobileControls = () => {
             <button
               onClick={seekBackward}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label={`Seek backward ${seekStepSeconds} seconds`}
+              aria-label={t("player.seekBackwardSeconds", { seconds: seekStepSeconds })}
             >
               <SkipBack size={24} />
             </button>
@@ -299,7 +300,7 @@ export const MobileControls = () => {
             <button
               onClick={togglePlayPause}
               className="p-4 bg-purple-600 rounded-full text-white hover:bg-purple-700 shadow-md"
-              aria-label={isPlaying ? "Pause" : "Play"}
+              aria-label={isPlaying ? t("player.pause") : t("player.play")}
             >
               {isPlaying ? (
                 <Pause size={32} />
@@ -311,14 +312,14 @@ export const MobileControls = () => {
             <button
               onClick={seekForward}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label={`Seek forward ${seekStepSeconds} seconds`}
+              aria-label={t("player.seekForwardSeconds", { seconds: seekStepSeconds })}
             >
               <SkipForward size={24} />
             </button>
             <button
               onClick={() => setShowSpeedControls(true)}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label="Playback speed"
+              aria-label={t("player.playbackSpeed")}
             >
               <span className="text-sm font-bold">{playbackRate}x</span>
             </button>
@@ -334,7 +335,7 @@ export const MobileControls = () => {
                 bookmarkToggle?.click();
               }}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 relative"
-              aria-label="Open bookmarks"
+              aria-label={t("bookmarks.openDrawer")}
             >
               <Bookmark size={20} />
               {bookmarks.length > 0 && (
@@ -353,8 +354,8 @@ export const MobileControls = () => {
               }`}
               aria-label={
                 autoAdvanceBookmarks
-                  ? "Auto-advance between bookmarks: On"
-                  : "Auto-advance between bookmarks: Off"
+                  ? t("player.autoAdvanceOn")
+                  : t("player.autoAdvanceOff")
               }
             >
               <ChevronsRight size={20} />
@@ -367,7 +368,9 @@ export const MobileControls = () => {
                   ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
                   : "hover:bg-gray-200 dark:hover:bg-gray-700"
               }`}
-              aria-label={isLooping ? "Loop: On" : "Loop: Off"}
+              aria-label={
+                isLooping ? t("player.loopStatusOn") : t("player.loopStatusOff")
+              }
             >
               <Repeat size={20} />
             </button>
@@ -375,7 +378,7 @@ export const MobileControls = () => {
             <button
               onClick={setLoopStartAtCurrentTime}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label="Set A point at current time"
+              aria-label={t("loop.setStart")}
             >
               <AlignStartHorizontal size={20} />
             </button>
@@ -383,7 +386,7 @@ export const MobileControls = () => {
             <button
               onClick={setLoopEndAtCurrentTime}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label="Set B point at current time"
+              aria-label={t("loop.setEnd")}
             >
               <AlignEndHorizontal size={20} />
             </button>
@@ -416,7 +419,7 @@ export const MobileControls = () => {
               <button
                 onClick={goToPreviousBookmark}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-                aria-label="Previous bookmark"
+                aria-label={t("player.previousBookmark")}
               >
                 <ChevronLeft size={20} />
               </button>
@@ -426,7 +429,7 @@ export const MobileControls = () => {
               <button
                 onClick={goToNextBookmark}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-                aria-label="Next bookmark"
+                aria-label={t("player.nextBookmark")}
               >
                 <ChevronRight size={20} />
               </button>
@@ -448,10 +451,11 @@ export const MobileControls = () => {
             <div className="h-1.5 w-12 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto my-2" />
 
             <div className="px-4 py-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold">Volume</h2>
+              <h2 className="text-lg font-semibold">{t("player.volume")}</h2>
               <button
                 onClick={() => setShowVolumeDrawer(false)}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                aria-label={t("common.close")}
               >
                 <X size={20} />
               </button>
@@ -462,6 +466,7 @@ export const MobileControls = () => {
                 <button
                   onClick={toggleMute}
                   className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 mr-4"
+                  aria-label={volume > 0 ? t("player.mute") : t("player.unmute")}
                 >
                   {volume > 0 ? <Volume2 size={24} /> : <VolumeX size={24} />}
                 </button>
@@ -510,6 +515,7 @@ export const MobileControls = () => {
               <button
                 onClick={() => setShowPlaylistDrawer(false)}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                aria-label={t("player.closePlaylist")}
               >
                 <X size={20} />
               </button>
@@ -573,7 +579,7 @@ export const MobileControls = () => {
                           <div className="text-xs text-gray-500">
                             {item.type === "file"
                               ? t("player.audioFile")
-                              : "YouTube"}
+                              : t("player.youtube")}
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -649,6 +655,7 @@ export const MobileControls = () => {
               <button
                 onClick={() => setShowSpeedControls(false)}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                aria-label={t("common.close")}
               >
                 <X size={20} />
               </button>

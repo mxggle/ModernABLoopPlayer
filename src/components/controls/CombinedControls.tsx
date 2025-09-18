@@ -297,7 +297,7 @@ export const CombinedControls = () => {
             <button
               onClick={seekBackward}
               className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              aria-label={t("player.seekBackward", { seconds: seekStepSeconds })}
+              aria-label={t("player.seekBackwardSeconds", { seconds: seekStepSeconds })}
             >
               <SkipBack size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>
@@ -320,7 +320,7 @@ export const CombinedControls = () => {
             <button
               onClick={seekForward}
               className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              aria-label={t("player.seekForward", { seconds: seekStepSeconds })}
+              aria-label={t("player.seekForwardSeconds", { seconds: seekStepSeconds })}
             >
               <SkipForward size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>

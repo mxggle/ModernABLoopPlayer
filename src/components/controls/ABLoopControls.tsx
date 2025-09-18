@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { usePlayerStore } from '../../stores/playerStore'
 import { formatTime } from '../../utils/formatTime'
 import { 
@@ -13,6 +14,7 @@ import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 
 export const ABLoopControls = () => {
+  const { t } = useTranslation()
   const {
     currentTime,
     duration,
@@ -160,16 +162,16 @@ export const ABLoopControls = () => {
   return (
     <div className="space-y-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">A-B Loop Controls</h3>
+        <h3 className="text-lg font-medium">{t("loop.controlsTitle")}</h3>
         <Button 
           variant={isLooping ? "default" : "outline"}
           size="sm"
           onClick={toggleLooping}
           className="gap-1"
-          aria-label="Toggle looping"
+          aria-label={t("player.toggleLooping")}
         >
           <Repeat size={16} />
-          <span>{isLooping ? 'Looping' : 'Loop Off'}</span>
+          <span>{t(isLooping ? "loop.looping" : "loop.loopOff")}</span>
         </Button>
       </div>
       
@@ -178,7 +180,7 @@ export const ABLoopControls = () => {
           variant="outline"
           size="sm"
           onClick={setLoopStartAtCurrentTime}
-          aria-label="Set loop start at current time"
+          aria-label={t("loop.setStart")}
         >
           <AlignStartHorizontal size={16} />
         </Button>
@@ -198,7 +200,7 @@ export const ABLoopControls = () => {
           variant="outline"
           size="sm"
           onClick={setLoopEndAtCurrentTime}
-          aria-label="Set loop end at current time"
+          aria-label={t("loop.setEnd")}
         >
           <AlignEndHorizontal size={16} />
         </Button>
@@ -206,7 +208,7 @@ export const ABLoopControls = () => {
       
       <div className="grid grid-cols-2 gap-4">
         <div className="flex items-center space-x-2">
-          <span className="text-sm font-medium">A:</span>
+          <span className="text-sm font-medium">{t("loop.loopStart")}</span>
           <Input
             value={loopStart !== null ? formatTime(loopStart) : "--:--"}
             readOnly
@@ -216,7 +218,7 @@ export const ABLoopControls = () => {
             variant="outline"
             size="icon"
             onClick={jumpToLoopStart}
-            aria-label="Jump to loop start"
+            aria-label={t("loop.jumpToStart")}
             disabled={loopStart === null}
           >
             <SkipBack size={16} />
@@ -224,7 +226,7 @@ export const ABLoopControls = () => {
         </div>
         
         <div className="flex items-center space-x-2">
-          <span className="text-sm font-medium">B:</span>
+          <span className="text-sm font-medium">{t("loop.loopEnd")}</span>
           <Input
             value={loopEnd !== null ? formatTime(loopEnd) : "--:--"}
             readOnly
@@ -234,7 +236,7 @@ export const ABLoopControls = () => {
             variant="outline"
             size="icon"
             onClick={jumpToLoopEnd}
-            aria-label="Jump to loop end"
+            aria-label={t("loop.jumpToEnd")}
             disabled={loopEnd === null}
           >
             <SkipForward size={16} />
@@ -247,28 +249,28 @@ export const ABLoopControls = () => {
           <button 
             onClick={moveLoopLeft}
             className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
-            aria-label="Move loop left"
+            aria-label={t("loop.moveLeft")}
           >
             «
           </button>
           <button 
             onClick={halveLoopDuration}
             className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
-            aria-label="Halve loop duration"
+            aria-label={t("loop.halveLength")}
           >
             ×½
           </button>
           <button 
             onClick={doubleLoopDuration}
             className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
-            aria-label="Double loop duration"
+            aria-label={t("loop.doubleLength")}
           >
             ×2
           </button>
           <button 
             onClick={moveLoopRight}
             className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
-            aria-label="Move loop right"
+            aria-label={t("loop.moveRight")}
           >
             »
           </button>
@@ -277,9 +279,9 @@ export const ABLoopControls = () => {
         <button 
           onClick={clearLoopPoints}
           className="px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
-          aria-label="Clear loop points"
+          aria-label={t("loop.clearLoopPoints")}
         >
-          Clear
+          {t("loop.clearLoopPoints")}
         </button>
       </div>
     </div>

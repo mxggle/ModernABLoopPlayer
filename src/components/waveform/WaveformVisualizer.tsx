@@ -755,7 +755,7 @@ export const WaveformVisualizer = () => {
           y: rect.top + rect.height / 2,
           items: nearbyBookmarks.map((bookmark) => ({
             id: bookmark.id,
-            name: bookmark.name || "Bookmark",
+            name: bookmark.name || t("bookmarks.clipFallback"),
             start: bookmark.start,
             end: bookmark.end,
           })),
@@ -1190,8 +1190,8 @@ export const WaveformVisualizer = () => {
                 isMobile ? "h-9 w-9" : "h-8 w-8"
               }`}
               onClick={() => setIsLooping(!isLooping)}
-              title={isLooping ? "Disable loop" : "Enable loop"}
-              aria-label="Toggle loop"
+              title={isLooping ? t("loop.disableLoop") : t("loop.enableLoop")}
+              aria-label={t("player.toggleLooping")}
             >
               <Repeat size={isMobile ? 16 : 14} />
             </button>
@@ -1206,10 +1206,10 @@ export const WaveformVisualizer = () => {
               onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}
               title={
                 autoAdvanceBookmarks
-                  ? "Auto-advance between bookmarks: On"
-                  : "Auto-advance between bookmarks: Off"
+                  ? t("player.autoAdvanceOn")
+                  : t("player.autoAdvanceOff")
               }
-              aria-label="Toggle auto-advance"
+              aria-label={t("player.toggleAutoAdvance")}
             >
               <ChevronsRight size={isMobile ? 16 : 14} />
             </button>
@@ -1227,8 +1227,8 @@ export const WaveformVisualizer = () => {
                   if (loopEnd !== null) setIsLooping(true);
                 }
               }}
-              title="Set A at current time"
-              aria-label="Set A"
+              title={t("loop.setStart")}
+              aria-label={t("loop.setStart")}
             >
               <AlignStartHorizontal size={isMobile ? 16 : 14} />
             </button>
@@ -1244,8 +1244,8 @@ export const WaveformVisualizer = () => {
                   setIsLooping(true);
                 }
               }}
-              title="Set B at current time"
-              aria-label="Set B"
+              title={t("loop.setEnd")}
+              aria-label={t("loop.setEnd")}
             >
               <AlignEndHorizontal size={isMobile ? 16 : 14} />
             </button>
@@ -1257,8 +1257,8 @@ export const WaveformVisualizer = () => {
                 setLoopPoints(null, null);
                 setIsLooping(false);
               }}
-              title="Clear loop"
-              aria-label="Clear loop"
+              title={t("loop.clearLoopPoints")}
+              aria-label={t("loop.clearLoopPoints")}
             >
               <X size={isMobile ? 16 : 14} />
             </button>
@@ -1267,8 +1267,8 @@ export const WaveformVisualizer = () => {
                 isMobile ? "h-9 w-9" : "h-8 w-8"
               }`}
               onClick={() => goToBookmark("prev")}
-              title="Previous bookmark"
-              aria-label="Previous bookmark"
+              title={t("player.previousBookmark")}
+              aria-label={t("player.previousBookmark")}
               disabled={(bookmarks?.length || 0) === 0}
             >
               <ChevronLeft size={isMobile ? 16 : 14} />
@@ -1278,8 +1278,8 @@ export const WaveformVisualizer = () => {
                 isMobile ? "h-9 w-9" : "h-8 w-8"
               }`}
               onClick={() => goToBookmark("next")}
-              title="Next bookmark"
-              aria-label="Next bookmark"
+              title={t("player.nextBookmark")}
+              aria-label={t("player.nextBookmark")}
               disabled={(bookmarks?.length || 0) === 0}
             >
               <ChevronRight size={isMobile ? 16 : 14} />
@@ -1449,7 +1449,7 @@ export const WaveformVisualizer = () => {
               isMobile ? "text-sm text-white font-medium" : "text-xs text-white"
             }
           >
-            Loop:{" "}
+            {t("waveform.loopLabel")}{" "}
           </span>
           {loopStart !== null && loopEnd !== null ? (
             <div
@@ -1469,10 +1469,16 @@ export const WaveformVisualizer = () => {
                   isMobile ? "text-sm px-3 py-1 ml-2" : "text-xs px-2 py-0.5"
                 }`}
                 onClick={handleLoopSelection}
-                title={activeBookmark ? activeBookmark.name : "Loop Selection"}
+                title={
+                  activeBookmark
+                    ? activeBookmark.name
+                    : t("waveform.loopSelection")
+                }
               >
                 <span className="inline-block max-w-[50vw] sm:max-w-[220px] truncate align-middle">
-                  {activeBookmark ? activeBookmark.name : "Loop Selection"}
+                  {activeBookmark
+                    ? activeBookmark.name
+                    : t("waveform.loopSelection")}
                 </span>
               </button>
               <button
@@ -1483,8 +1489,8 @@ export const WaveformVisualizer = () => {
                   setLoopPoints(null, null);
                   setIsLooping(false);
                 }}
-                title="Clear loop points"
-                aria-label="Clear loop points"
+                title={t("loop.clearLoopPoints")}
+                aria-label={t("loop.clearLoopPoints")}
               >
                 <X size={isMobile ? 16 : 12} />
               </button>
@@ -1498,8 +1504,8 @@ export const WaveformVisualizer = () => {
               }
             >
               {isMobile
-                ? "Tap and drag to select loop"
-                : "Drag on waveform to select loop region"}
+                ? t("waveform.touchSelectHint")
+                : t("waveform.desktopSelectHint")}
             </span>
           )}
         </div>

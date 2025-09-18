@@ -15,6 +15,7 @@ import {
 import { useState, useEffect } from "react";
 import { ExplanationDrawer } from "./ExplanationDrawer";
 import { toast } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 interface TranscriptSegmentProps {
   segment: TranscriptSegmentType;
@@ -49,6 +50,7 @@ const getGlobalExplanationState = (text: string): ExplanationState => {
 };
 
 export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
+  const { t } = useTranslation();
   const {
     currentTime,
     isPlaying,
@@ -132,7 +134,9 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
       }
     } else {
       addBookmark({
-        name: `Segment ${segment.startTime.toFixed(1)}s`,
+        name: t("transcript.segmentBookmarkName", {
+          time: segment.startTime.toFixed(1),
+        }),
         start: segment.startTime,
         end: segment.endTime,
         annotation: segment.text,
@@ -149,7 +153,7 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
     } else if (currentState.status === "loading") {
       // If currently loading, show drawer to see progress
       setShowExplanation(true);
-      toast("Explanation is being generated...", {
+      toast(t("explanation.generating"), {
         icon: "⏳",
         duration: 2000,
       });
@@ -171,7 +175,7 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
     setGlobalExplanationState(segment.text, { status: "loading" });
 
     // Show toast notification
-    const toastId = toast.loading("Generating explanation in background...", {
+    const toastId = toast.loading(t("explanation.generatingInBackground"), {
       duration: 4000,
     });
 
@@ -180,30 +184,40 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
       // Mock successful response
-      const mockExplanation = `This is a generated explanation for: "${segment.text.substring(
-        0,
-        50
-      )}..."`;
+      const mockExplanation = t("explanation.mockExplanation", {
+        snippet: `${segment.text.substring(0, 50)}...`,
+      });
 
       setGlobalExplanationState(segment.text, {
         status: "completed",
         result: mockExplanation,
       });
 
-      toast.success("Explanation ready!", {
+      toast.success(t("explanation.explanationReady"), {
         id: toastId,
         duration: 2000,
       });
     } catch (error) {
       setGlobalExplanationState(segment.text, {
         status: "error",
-        error: error instanceof Error ? error.message : "Unknown error",
+        error:
+          error instanceof Error
+            ? error.message
+            : t("explanation.unknownError"),
       });
 
-      toast.error("Failed to generate explanation", {
-        id: toastId,
-        duration: 3000,
-      });
+      toast.error(
+        t("explanation.generationFailed", {
+          message:
+            error instanceof Error
+              ? error.message
+              : t("explanation.unknownError"),
+        }),
+        {
+          id: toastId,
+          duration: 3000,
+        }
+      );
     }
   };
 
@@ -245,13 +259,13 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
   const getBrainTooltip = () => {
     switch (explanationState.status) {
       case "loading":
-        return "Generating explanation...";
+        return t("explanation.generating");
       case "completed":
-        return "View explanation";
+        return t("explanation.viewExplanation");
       case "error":
-        return "Error generating explanation - click to retry";
+        return t("explanation.errorRetry");
       default:
-        return "Explain this text with AI";
+        return t("transcript.explainWithAI");
     }
   };
 
@@ -284,7 +298,7 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
                 ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
                 : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
             }`}
-            title="Play this segment"
+            title={t("transcript.playSegment")}
           >
             {isCurrentSegment && isPlaying ? (
               <Pause size={12} />
@@ -302,8 +316,8 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
             }`}
             title={
               isCurrentlyLooping
-                ? "Stop looping this segment"
-                : "Loop this segment"
+                ? t("transcript.stopLoopingSegment")
+                : t("transcript.loopSegment")
             }
           >
             <Repeat
@@ -321,8 +335,8 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
             }`}
             title={
               isBookmarked
-                ? "Remove bookmark for this segment"
-                : "Create bookmark from this segment"
+                ? t("transcript.removeBookmark")
+                : t("transcript.createBookmark")
             }
           >
             <Bookmark size={12} fill={isBookmarked ? "currentColor" : "none"} />

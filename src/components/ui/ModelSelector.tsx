@@ -18,6 +18,7 @@ import {
   getAllModels,
   getModelsByProvider,
 } from "../../types/aiService";
+import { useTranslation } from "react-i18next";
 
 interface ModelSelectorProps {
   selectedModel?: string;
@@ -39,15 +40,17 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   showAllProviders = false,
   className,
   disabled = false,
-  placeholder = "Select a model...",
+  placeholder,
   showPricing = true,
   showCapabilities = true,
   compact = false,
 }) => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [models, setModels] = useState<ModelOption[]>([]);
   const [selectedModelInfo, setSelectedModelInfo] =
     useState<ModelOption | null>(null);
+  const placeholderText = placeholder ?? t("modelSelector.placeholder");
 
   useEffect(() => {
     if (showAllProviders) {
@@ -120,6 +123,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     }
   };
 
+  const getCapabilityLabel = (capability: string) =>
+    t(`modelSelector.capabilities.${capability}`, capability);
+
   const groupedModels = models.reduce((acc, model) => {
     if (!acc[model.provider]) {
       acc[model.provider] = [];
@@ -160,7 +166,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
               )}
             </>
           ) : (
-            <span>{placeholder}</span>
+            <span>{placeholderText}</span>
           )}
         </div>
         <ChevronDown
@@ -200,7 +206,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1">
                           {!showAllProviders && (
                             <div
                               className={cn(
@@ -233,12 +239,14 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                                   className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-700 text-xs rounded"
                                 >
                                   {getCapabilityIcon(capability)}
-                                  {capability}
+                                  {getCapabilityLabel(capability)}
                                 </span>
                               ))}
                             {model.capabilities.length > 4 && (
                               <span className="text-xs text-gray-500">
-                                +{model.capabilities.length - 4} more
+                                {t("modelSelector.moreCapabilities", {
+                                  count: model.capabilities.length - 4,
+                                })}
                               </span>
                             )}
                           </div>
@@ -247,15 +255,21 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                           <div className="flex items-center gap-4 text-xs text-gray-500">
                             <div className="flex items-center gap-1">
                               <DollarSign className="w-3 h-3" />
-                              Input: {formatPrice(model.pricing.input)}/1M
+                              {t("modelSelector.inputPrice", {
+                                price: formatPrice(model.pricing.input),
+                              })}
                             </div>
                             <div className="flex items-center gap-1">
                               <DollarSign className="w-3 h-3" />
-                              Output: {formatPrice(model.pricing.output)}/1M
+                              {t("modelSelector.outputPrice", {
+                                price: formatPrice(model.pricing.output),
+                              })}
                             </div>
                             <div className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {(model.contextWindow / 1000).toFixed(0)}K context
+                              {t("modelSelector.contextWindow", {
+                                value: (model.contextWindow / 1000).toFixed(0),
+                              })}
                             </div>
                           </div>
                         )}
@@ -269,9 +283,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           {models.length === 0 && (
             <div className="px-3 py-4 text-center text-gray-500">
               <AlertCircle className="w-6 h-6 mx-auto mb-2" />
-              <p className="text-sm">No models available</p>
+              <p className="text-sm">{t("modelSelector.noModels")}</p>
               {!showAllProviders && !provider && (
-                <p className="text-xs">Please select a provider first</p>
+                <p className="text-xs">{t("modelSelector.selectProvider")}</p>
               )}
             </div>
           )}

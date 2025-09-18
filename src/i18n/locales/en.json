@@ -14,7 +14,12 @@
     "share": "Share",
     "export": "Export",
     "import": "Import",
-    "upload": "Upload"
+    "upload": "Upload",
+    "create": "Create",
+    "back": "Back"
+  },
+  "app": {
+    "logoLabel": "LoopMate logo"
   },
   "navigation": {
     "home": "Home",
@@ -39,6 +44,49 @@
     "appearance": "Appearance",
     "colorTheme": "Color Theme"
   },
+  "aiSettingsPage": {
+    "title": "AI Settings",
+    "subtitle": "Configure your AI providers and models",
+    "generalSettings": "General Settings",
+    "preferredProvider": "Preferred AI Provider",
+    "targetLanguage": "Target Language",
+    "temperature": "Temperature ({{value}})",
+    "temperatureFocused": "Focused",
+    "temperatureBalanced": "Balanced",
+    "temperatureCreative": "Creative",
+    "maxTokens": "Max Tokens",
+    "providersSection": "AI Providers",
+    "providers": {
+      "openai": "OpenAI",
+      "gemini": "Google Gemini",
+      "grok": "xAI Grok"
+    },
+    "providerDescriptions": {
+      "openai": "OpenAI GPT models",
+      "gemini": "Google Gemini models",
+      "grok": "xAI Grok models"
+    },
+    "apiKeyLabel": "API Key",
+    "apiKeyPlaceholderLabel": "Enter your {{provider}} API key",
+    "invalidApiKeyFormat": "Invalid API key format",
+    "defaultModel": "Default Model",
+    "selectModelPlaceholder": "Select {{provider}} model...",
+    "enterApiKeyFirst": "Please enter the {{provider}} API key first",
+    "connectionSuccess": "{{provider}} connection successful!",
+    "connectionFailed": "{{provider}} connection failed",
+    "connectionFailedWithError": "{{provider}} connection failed: {{message}}",
+    "saveSuccess": "AI settings saved successfully!",
+    "saveSettings": "Save Settings",
+    "languages": {
+      "english": "English",
+      "spanish": "Spanish",
+      "french": "French",
+      "german": "German",
+      "chinese": "Chinese",
+      "japanese": "Japanese",
+      "korean": "Korean"
+    }
+  },
   "home": {
     "chooseMediaSource": "Choose Your Media Source",
     "youtubeVideo": "YouTube Video",
@@ -61,10 +109,14 @@
     "mute": "Mute",
     "unmute": "Unmute",
     "seekBackward": "Seek backward",
+    "seekBackwardSeconds": "Seek backward {{seconds}} seconds",
     "seekForward": "Seek forward",
+    "seekForwardSeconds": "Seek forward {{seconds}} seconds",
     "decreaseSpeed": "Decrease playback rate",
     "increaseSpeed": "Increase playback rate",
     "playlist": "Playlist",
+    "youtubeTab": "YouTube",
+    "localMediaTab": "Local Media",
     "playbackSpeed": "Playback Speed",
     "noItemsInPlaylist": "No items in the playlist.",
     "bookmarkNavigation": "Bookmark Navigation",
@@ -76,11 +128,34 @@
     "clear": "Clear",
     "now": "Now",
     "audioFile": "Audio File",
+    "youtube": "YouTube",
     "showPlaylist": "Show playlist",
+    "openPlaylist": "Open playlist",
+    "closePlaylist": "Close playlist",
     "playing": "Playing",
     "toggleLooping": "Toggle looping",
     "loopOn": "Loop On",
-    "quickAddBookmark": "Quick add bookmark"
+    "loopStatusOn": "Loop: On",
+    "loopStatusOff": "Loop: Off",
+    "autoAdvanceOn": "Auto-advance between bookmarks: On",
+    "autoAdvanceOff": "Auto-advance between bookmarks: Off",
+    "toggleVideoSize": "Toggle video size",
+    "playerInfo": "Player info",
+    "keyboardShortcutsHint": "Use keyboard shortcuts for better control",
+    "toggleAutoAdvance": "Toggle auto-advance",
+    "shareCurrentSettings": "Share current settings",
+    "previousBookmark": "Previous bookmark",
+    "nextBookmark": "Next bookmark",
+    "quickAddBookmark": "Quick add bookmark",
+    "queueItemFallback": "Item {{index}}",
+    "unnamedBookmark": "Unnamed",
+    "loadedSharedBookmark": "Loaded shared bookmark: {{name}}",
+    "windowTitle": "AB Loop Player",
+    "windowTitleWithMedia": "AB Loop Player - {{title}}",
+    "shareSetupRequired": "Set loop points or load a video before sharing",
+    "abLoopPlayer": "AB Loop Player",
+    "couldNotRetrieveMedia": "Could not retrieve media file",
+    "noMediaLoadedSimple": "No media loaded"
   },
   "upload": {
     "dragDrop": "Drag & drop audio/video files here",
@@ -96,18 +171,23 @@
   "youtube": {
     "enterUrl": "Enter YouTube URL or Video ID",
     "loadVideo": "Load Video",
-    "invalidUrl": "Invalid YouTube URL"
+    "invalidUrl": "Invalid YouTube URL",
+    "errorLoadingVideo": "Error loading YouTube video"
   },
     "loop": {
     "title": "A-B Loop",
+    "controlsTitle": "A-B Loop Controls",
     "looping": "Looping",
     "loop": "Loop",
+    "loopOff": "Loop Off",
     "disableLoop": "Disable A-B loop",
     "enableLoop": "Enable A-B loop",
     "loopStart": "Loop Start",
     "loopEnd": "Loop End",
     "setStart": "Set current time as loop start",
     "setEnd": "Set current time as loop end",
+    "jumpToStart": "Jump to loop start",
+    "jumpToEnd": "Jump to loop end",
     "clearLoopPoints": "Clear loop points",
     "timePlaceholder": "00:00.000",
     "moveLeft": "Move loop window left",
@@ -131,6 +211,8 @@
     "generationFailed": "Failed to generate explanation: {{message}}",
     "generatingInBackground": "Explanation will continue generating in background",
     "generating": "Generating...",
+    "viewExplanation": "View explanation",
+    "errorRetry": "Error generating explanation - click to retry",
     "canCloseDrawer": "You can close this drawer and the explanation will continue in the background",
     "closeAndContinue": "Close and continue in background",
     "aiModelSelection": "AI Model Selection",
@@ -158,7 +240,8 @@
       "chinese": "Chinese",
       "japanese": "Japanese",
       "korean": "Korean"
-    }
+    },
+    "mockExplanation": "This is a generated explanation for: \"{{snippet}}\""
   },
   "transcript": {
     "title": "Media Transcript (OpenAI Whisper)",
@@ -176,6 +259,7 @@
     "removeBookmark": "Remove bookmark for this segment",
     "createBookmark": "Create bookmark from this segment",
     "explainWithAI": "Explain this text with AI",
+    "segmentBookmarkName": "Segment {{time}}s",
     "apiKeySaved": "API key saved",
     "noFileLoaded": "No file loaded",
     "errorLoadingVideo": "Error loading video",
@@ -198,6 +282,9 @@
     "apiKeyRequired": "OpenAI API Key Required",
     "apiKeyNotice": "To use Whisper for transcription, you need to provide your OpenAI API key. This key is stored only in your browser's local storage.",
     "apiKeyPlaceholder": "sk-...",
+    "noDataToExport": "No transcript data to export",
+    "importError": "Failed to import transcript file",
+    "segmentNotFound": "Transcript segment not found",
     "saveApiKey": "Save API Key",
     "getApiKey": "Get an API key from OpenAI",
     "processingWithWhisper": "Processing media with OpenAI Whisper...",
@@ -263,7 +350,9 @@
     "drawerTitle": "Loop Bookmarks",
     "loadMediaFirst": "Load media before adding bookmarks",
     "setValidRange": "Set a valid A-B range first",
-    "defaultClipName": "Clip {{count}}"
+    "defaultClipName": "Clip {{count}}",
+    "duplicateRange": "A bookmark for this A–B range already exists",
+    "clipFallback": "Clip"
   },
   "history": {
     "recentMedia": "Recent Media",
@@ -298,12 +387,23 @@
     "audioFiles": "Audio Files",
     "youtube": "YouTube",
     "editFolderName": "Edit folder name",
+    "rename": "Rename",
     "clearAllHistory": "Clear all history",
+    "clearAllHistoryDescription": "This will remove all media entries and clear stored files.",
     "failedToLoadMedia": "Failed to load media",
     "newFolder": "New Folder",
     "new": "New",
     "enterFolderName": "Enter a name for the folder.",
-    "enterFolderNameAndMove": "Enter a name and we'll move the item there."
+    "enterFolderNameAndMove": "Enter a name and we'll move the item there.",
+    "folderNamePlaceholder": "Folder name",
+    "renameFolderDescription": "Update the folder name.",
+    "renameItem": "Rename item",
+    "renameItemDescription": "Update the item name.",
+    "createAndMove": "Create & Move",
+    "unknownTime": "Unknown time",
+    "manage": "Manage",
+    "itemCount": "{{count}} {{count, plural, one {item} other {items}}}",
+    "moreItems": "+ {{count}} more items in history"
   },
   "storage": {
     "storage": "Storage",
@@ -335,5 +435,51 @@
     "seekBackwardForwardSmall": "Seek backward/forward {{seconds}} seconds",
     "volumeUpDown": "Volume up/down",
     "jumpToPercent": "Jump to 0-90% of track"
+  },
+  "modelSelector": {
+    "placeholder": "Select a model...",
+    "moreCapabilities": "+{{count}} more",
+    "inputPrice": "Input: {{price}}/1M",
+    "outputPrice": "Output: {{price}}/1M",
+    "contextWindow": "{{value}}K context",
+    "noModels": "No models available",
+    "selectProvider": "Please select a provider first",
+    "capabilities": {
+      "vision": "Vision",
+      "audio": "Audio",
+      "video": "Video",
+      "function-calling": "Function calling",
+      "reasoning": "Reasoning",
+      "thinking": "Thinking"
+    }
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "description": "Use these keyboard shortcuts to control the player more efficiently.",
+    "ariaLabel": "Keyboard shortcuts",
+    "items": {
+      "playPause": "Play/Pause",
+      "setLoopStart": "Set loop start point (A) to current time",
+      "setLoopEnd": "Set loop end point (B) to current time",
+      "toggleLoop": "Toggle looping on/off",
+      "quickBookmark": "Quick add bookmark from current loop or time",
+      "increaseVolume": "Increase volume",
+      "decreaseVolume": "Decrease volume",
+      "increaseSpeed": "Increase playback rate",
+      "decreaseSpeed": "Decrease playback rate"
+    }
+  },
+  "markdown": {
+    "copySuccess": "Code copied to clipboard!",
+    "copyError": "Failed to copy code",
+    "copyCode": "Copy code",
+    "copy": "Copy",
+    "copied": "Copied"
+  },
+  "waveform": {
+    "loopLabel": "Loop:",
+    "loopSelection": "Loop Selection",
+    "touchSelectHint": "Tap and drag to select loop",
+    "desktopSelectHint": "Drag on waveform to select loop region"
   }
 }
