@@ -6,6 +6,7 @@ import {
   deleteMediaFile,
 } from "../utils/mediaStorage";
 import { toast } from "react-hot-toast";
+import i18n from "../i18n";
 
 // Prevent noisy duplicate toasts for existing A–B ranges
 let lastDuplicateToastAt = 0;
