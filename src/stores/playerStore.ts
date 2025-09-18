@@ -61,6 +61,7 @@ export interface MediaFolder {
   id: string;
   name: string;
   createdAt: number;
+  parentId: string | null;
 }
 
 export interface TranscriptSegment {
@@ -218,7 +219,7 @@ export interface PlayerActions {
   setHistoryLimit: (limit: number) => void;
 
   // Folder & item management
-  createMediaFolder: (name: string) => string;
+  createMediaFolder: (name: string, parentId?: string | null) => string;
   renameMediaFolder: (folderId: string, newName: string) => void;
   deleteMediaFolder: (folderId: string) => void;
   moveHistoryItemToFolder: (historyItemId: string, folderId: string | null) => void;
@@ -275,7 +276,7 @@ const initialState: PlayerState = {
   mediaFolders: {},
   historySortBy: "date",
   historySortOrder: "desc",
-  historyFolderFilter: "all",
+  historyFolderFilter: "unfiled",
   // Queue defaults
   playbackQueue: [],
   playbackQueueOriginal: [],
@@ -912,14 +913,19 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       },
 
       // Folder & item management
-      createMediaFolder: (name) => {
+      createMediaFolder: (name, parentId = null) => {
         const id = `folder-${Date.now()}-${Math.random()
           .toString(36)
           .substring(2, 8)}`;
         set((state) => ({
           mediaFolders: {
             ...state.mediaFolders,
-            [id]: { id, name, createdAt: Date.now() },
+            [id]: {
+              id,
+              name,
+              createdAt: Date.now(),
+              parentId: parentId ?? null,
+            },
           },
         }));
         return id;
@@ -935,16 +941,44 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           },
         })),
       deleteMediaFolder: (folderId) =>
-        set((state) => ({
-          mediaFolders: Object.fromEntries(
-            Object.entries(state.mediaFolders).filter(([id]) => id !== folderId)
-          ),
-          mediaHistory: state.mediaHistory.map((item) =>
-            item.folderId === folderId ? { ...item, folderId: null } : item
-          ),
-          historyFolderFilter:
-            state.historyFolderFilter === folderId ? "all" : state.historyFolderFilter,
-        })),
+        set((state) => {
+          const removalSet = new Set<string>();
+          const stack = [folderId];
+
+          while (stack.length) {
+            const current = stack.pop()!;
+            removalSet.add(current);
+            Object.values(state.mediaFolders).forEach((folder) => {
+              if (folder.parentId === current) {
+                stack.push(folder.id);
+              }
+            });
+          }
+
+          const mediaFolders = Object.fromEntries(
+            Object.entries(state.mediaFolders).filter(
+              ([id]) => !removalSet.has(id)
+            )
+          );
+
+          const mediaHistory = state.mediaHistory.map((item) =>
+            item.folderId && removalSet.has(item.folderId)
+              ? { ...item, folderId: null }
+              : item
+          );
+
+          const shouldResetFilter =
+            state.historyFolderFilter !== "all" &&
+            state.historyFolderFilter !== "unfiled" &&
+            typeof state.historyFolderFilter === "string" &&
+            removalSet.has(state.historyFolderFilter);
+
+          const historyFolderFilter = shouldResetFilter
+            ? "unfiled"
+            : state.historyFolderFilter;
+
+          return { mediaFolders, mediaHistory, historyFolderFilter };
+        }),
       moveHistoryItemToFolder: (historyItemId, folderId) =>
         set((state) => ({
           mediaHistory: state.mediaHistory.map((item) =>
@@ -1568,6 +1602,33 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
     }),
     {
       name: "abloop-player-storage",
+      version: 2,
+      migrate: (persistedState: any, version) => {
+        if (!persistedState) return persistedState;
+
+        if (version < 2 && persistedState.mediaFolders) {
+          persistedState.mediaFolders = Object.fromEntries(
+            Object.entries(persistedState.mediaFolders).map(
+              ([id, folder]: [string, any]) => [
+                id,
+                {
+                  ...folder,
+                  parentId:
+                    folder && "parentId" in folder ? folder.parentId ?? null : null,
+                },
+              ]
+            )
+          );
+        }
+
+        if (version < 2) {
+          if (persistedState.historyFolderFilter === "all") {
+            persistedState.historyFolderFilter = "unfiled";
+          }
+        }
+
+        return persistedState;
+      },
       partialize: (state) => ({
         volume: state.volume,
         muted: state.muted,

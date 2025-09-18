@@ -12,8 +12,10 @@ import {
   DialogTitle,
 } from '../ui/dialog'
 import { toast } from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 
 export const StorageUsageInfo = () => {
+  const { t } = useTranslation()
   const [storageInfo, setStorageInfo] = useState<{
     used: number;
     total: number;
@@ -49,11 +51,11 @@ export const StorageUsageInfo = () => {
     try {
       await clearAllMediaFiles()
       await clearMediaHistory()
-      toast.success('Media storage cleared')
+      toast.success(t('storage.clearStorageSuccess'))
       loadStorageInfo()
     } catch (error) {
       console.error('Failed to clear storage:', error)
-      toast.error('Failed to clear storage')
+      toast.error(t('storage.clearStorageError'))
     } finally {
       setIsLoading(false)
     }
@@ -75,7 +77,7 @@ export const StorageUsageInfo = () => {
         <div className="flex items-center gap-2">
           <HardDrive size={16} className="text-gray-500" />
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            Storage: {formatBytes(storageInfo.used)} / {formatBytes(storageInfo.total)}
+            {t('storage.storage')}: {formatBytes(storageInfo.used)} / {formatBytes(storageInfo.total)}
           </span>
         </div>
         
@@ -84,11 +86,11 @@ export const StorageUsageInfo = () => {
           size="sm"
           onClick={() => setConfirmOpen(true)}
           disabled={isLoading || storageInfo.used === 0}
-          title="Clear all stored media"
+          title={t('storage.clearAllStoredMediaTitle')}
           className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 h-8 px-2"
         >
           <Trash2 size={14} className="mr-1" />
-          <span className="text-xs">Clear storage</span>
+          <span className="text-xs">{t('storage.clearStorage')}</span>
         </Button>
       </div>
       
@@ -107,21 +109,21 @@ export const StorageUsageInfo = () => {
       </div>
       
       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 text-right">
-        {storageInfo.percentage.toFixed(1)}% used
+        {t('storage.percentUsed', { percent: storageInfo.percentage.toFixed(1) })}
       </p>
     </div>
 
     <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Clear All Stored Media</DialogTitle>
+          <DialogTitle>{t('storage.clearAllStoredMedia')}</DialogTitle>
           <DialogDescription>
-            This removes all media files from browser storage. This action cannot be undone.
+            {t('storage.clearStorageDescription')}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
-          <Button className="bg-red-600 hover:bg-red-700" onClick={() => { setConfirmOpen(false); handleClearStorage(); }}>Clear</Button>
+          <Button variant="outline" onClick={() => setConfirmOpen(false)}>{t('common.cancel')}</Button>
+          <Button className="bg-red-600 hover:bg-red-700" onClick={() => { setConfirmOpen(false); handleClearStorage(); }}>{t('player.clear')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

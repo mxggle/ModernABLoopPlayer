@@ -2,6 +2,7 @@ import { useState } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useTranslation } from "react-i18next";
 import { formatTime } from "../../utils/formatTime";
+import { toast } from "react-hot-toast";
 import {
   Play,
   Pause,
@@ -33,6 +34,8 @@ export const MobileControls = () => {
     loopStart,
     loopEnd,
     isLooping,
+    selectedBookmarkId,
+    currentFile,
     setIsPlaying,
     setCurrentTime,
     setVolume,
@@ -43,6 +46,9 @@ export const MobileControls = () => {
     seekBackward: storeSeekBackward,
     seekStepSeconds,
     getCurrentMediaBookmarks,
+    addBookmark: storeAddBookmark,
+    deleteBookmark,
+    loadBookmark,
     // Playlist / queue state
     playbackQueue,
     playbackIndex,
@@ -107,10 +113,47 @@ export const MobileControls = () => {
     setShowSpeedControls(false);
   };
 
-  // Toggle bookmark drawer
-  const toggleBookmarkDrawer = () => {
-    const bookmarkToggle = document.getElementById("bookmarkDrawerToggle");
-    bookmarkToggle?.click();
+  // Handle bookmark toggle button - add/remove bookmarks directly (primary controls)
+  const handleBookmarkAction = () => {
+    const BOOKMARK_TOAST_ID = "bookmark-action-toast";
+
+    if (selectedBookmarkId) {
+      // Delete mode
+      deleteBookmark(selectedBookmarkId);
+      toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
+    } else if (loopStart !== null && loopEnd !== null) {
+      // Check if a bookmark already exists for this range
+      const TOL = 0.05; // 50ms tolerance
+      const existingBookmarks = getCurrentMediaBookmarks();
+      const existingBookmark = existingBookmarks.find(
+        (b) =>
+          Math.abs(b.start - loopStart) < TOL && Math.abs(b.end - loopEnd) < TOL
+      );
+
+      if (existingBookmark) {
+        // If a bookmark already exists, select it
+        loadBookmark(existingBookmark.id);
+        toast.success(t("bookmarks.bookmarkSelected"), {
+          id: BOOKMARK_TOAST_ID,
+        });
+      } else {
+        // Add mode - create new bookmark
+        const added = storeAddBookmark({
+          name: `Clip ${getCurrentMediaBookmarks().length + 1}`,
+          start: loopStart,
+          end: loopEnd,
+          playbackRate,
+          mediaName: currentFile?.name,
+          mediaType: currentFile?.type,
+          youtubeId: undefined,
+          annotation: "",
+        });
+        if (added)
+          toast.success(t("bookmarks.bookmarkAdded"), {
+            id: BOOKMARK_TOAST_ID,
+          });
+      }
+    }
   };
 
   // Navigate to previous bookmark
@@ -186,11 +229,7 @@ export const MobileControls = () => {
     setIsLooping(!isLooping);
   };
 
-  // Clear loop points
-  const clearLoopPoints = () => {
-    setLoopPoints(null, null);
-    setIsLooping(false);
-  };
+  // Clear loop points function moved to waveform footer
 
   // Note: Loop jump functions removed as they're not used in the mobile interface
 
@@ -288,7 +327,12 @@ export const MobileControls = () => {
           {/* Secondary controls row - features and tools */}
           <div className="flex items-center justify-center space-x-4">
             <button
-              onClick={toggleBookmarkDrawer}
+              onClick={() => {
+                const bookmarkToggle = document.getElementById(
+                  "bookmarkDrawerToggle"
+                );
+                bookmarkToggle?.click();
+              }}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 relative"
               aria-label="Open bookmarks"
             >
@@ -300,7 +344,6 @@ export const MobileControls = () => {
               )}
             </button>
 
-
             <button
               onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}
               className={`p-3 rounded-full ${
@@ -308,7 +351,11 @@ export const MobileControls = () => {
                   ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
                   : "hover:bg-gray-200 dark:hover:bg-gray-700"
               }`}
-              aria-label={autoAdvanceBookmarks ? 'Auto-advance between bookmarks: On' : 'Auto-advance between bookmarks: Off'}
+              aria-label={
+                autoAdvanceBookmarks
+                  ? "Auto-advance between bookmarks: On"
+                  : "Auto-advance between bookmarks: Off"
+              }
             >
               <ChevronsRight size={20} />
             </button>
@@ -320,7 +367,7 @@ export const MobileControls = () => {
                   ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
                   : "hover:bg-gray-200 dark:hover:bg-gray-700"
               }`}
-              aria-label={isLooping ? 'Loop: On' : 'Loop: Off'}
+              aria-label={isLooping ? "Loop: On" : "Loop: Off"}
             >
               <Repeat size={20} />
             </button>
@@ -342,16 +389,24 @@ export const MobileControls = () => {
             </button>
 
             <button
-              onClick={clearLoopPoints}
-              disabled={loopStart === null && loopEnd === null}
-              className={`p-3 rounded-full ${
-                loopStart === null && loopEnd === null
-                  ? "opacity-40 cursor-not-allowed"
-                  : "hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+              onClick={handleBookmarkAction}
+              className={`p-3 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${
+                selectedBookmarkId
+                  ? "bg-purple-700 hover:bg-red-500/80 active:bg-red-500/90 text-white" // Active/Delete mode
+                  : loopStart !== null && loopEnd !== null
+                  ? "bg-purple-600/50 hover:bg-purple-700 active:bg-purple-800 text-white" // Add mode
+                  : "bg-purple-600/40 cursor-not-allowed text-gray-400" // Disabled
               }`}
-              aria-label="Clear loop points"
+              disabled={
+                !selectedBookmarkId && !(loopStart !== null && loopEnd !== null)
+              }
+              aria-label={
+                selectedBookmarkId
+                  ? t("bookmarks.removeBookmarkTooltip")
+                  : t("bookmarks.addBookmarkTooltip")
+              }
             >
-              <X size={20} />
+              <Bookmark size={20} />
             </button>
           </div>
 
@@ -379,7 +434,6 @@ export const MobileControls = () => {
           )}
         </div>
       </div>
-
 
       {/* Volume Controls Panel */}
       {showVolumeDrawer && (
@@ -474,7 +528,9 @@ export const MobileControls = () => {
                   className="flex-1"
                 >
                   <Shuffle size={16} className="mr-1" />
-                  {playbackMode === "shuffle" ? t("player.shuffle") : t("player.order")}
+                  {playbackMode === "shuffle"
+                    ? t("player.shuffle")
+                    : t("player.order")}
                 </Button>
                 <Button
                   variant="outline"
@@ -515,7 +571,9 @@ export const MobileControls = () => {
                             {item.name}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {item.type === "file" ? t("player.audioFile") : "YouTube"}
+                            {item.type === "file"
+                              ? t("player.audioFile")
+                              : "YouTube"}
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -585,7 +643,9 @@ export const MobileControls = () => {
             <div className="h-1.5 w-12 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto my-2" />
 
             <div className="px-4 py-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold">{t("player.playbackSpeed")}</h2>
+              <h2 className="text-lg font-semibold">
+                {t("player.playbackSpeed")}
+              </h2>
               <button
                 onClick={() => setShowSpeedControls(false)}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
