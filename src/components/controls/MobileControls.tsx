@@ -292,7 +292,9 @@ export const MobileControls = () => {
             <button
               onClick={seekBackward}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label={t("player.seekBackwardSeconds", { seconds: seekStepSeconds })}
+              aria-label={t("player.seekBackwardSeconds", {
+                seconds: seekStepSeconds,
+              })}
             >
               <SkipBack size={24} />
             </button>
@@ -312,7 +314,9 @@ export const MobileControls = () => {
             <button
               onClick={seekForward}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              aria-label={t("player.seekForwardSeconds", { seconds: seekStepSeconds })}
+              aria-label={t("player.seekForwardSeconds", {
+                seconds: seekStepSeconds,
+              })}
             >
               <SkipForward size={24} />
             </button>
@@ -398,7 +402,7 @@ export const MobileControls = () => {
                   ? "bg-purple-700 hover:bg-red-500/80 active:bg-red-500/90 text-white" // Active/Delete mode
                   : loopStart !== null && loopEnd !== null
                   ? "bg-purple-600/50 hover:bg-purple-700 active:bg-purple-800 text-white" // Add mode
-                  : "bg-purple-600/40 cursor-not-allowed text-gray-400" // Disabled
+                  : "opacity-50 cursor-not-allowed hover:bg-gray-200 dark:hover:bg-gray-700" // Disabled - matches other disabled buttons
               }`}
               disabled={
                 !selectedBookmarkId && !(loopStart !== null && loopEnd !== null)
@@ -466,7 +470,9 @@ export const MobileControls = () => {
                 <button
                   onClick={toggleMute}
                   className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 mr-4"
-                  aria-label={volume > 0 ? t("player.mute") : t("player.unmute")}
+                  aria-label={
+                    volume > 0 ? t("player.mute") : t("player.unmute")
+                  }
                 >
                   {volume > 0 ? <Volume2 size={24} /> : <VolumeX size={24} />}
                 </button>

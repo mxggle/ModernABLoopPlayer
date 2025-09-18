@@ -8,7 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import {
-  History,
+  ListVideo,
   Play,
   Trash2,
   X,
@@ -512,7 +512,7 @@ export const MediaHistory = ({
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <History size={18} /> {t("history.mediaLibrary")}
+                <ListVideo size={18} /> {t("history.mediaLibrary")}
               </h2>
               <div className="flex items-center gap-2">
                 <Popover>
@@ -849,7 +849,7 @@ export const MediaHistory = ({
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <History size={20} />
+                  <ListVideo size={20} />
                   {title || t("history.recentMedia")}
                 </h2>
                 <div className="flex items-center gap-2">
