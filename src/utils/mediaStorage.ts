@@ -214,6 +214,11 @@ export const storeMediaFile = async (
   maxTotalStorage = DEFAULT_MAX_TOTAL_STORAGE
 ): Promise<string> => {
   try {
+    console.log("Attempting to store file in IndexedDB", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
     // Check if file is too large
     if (file.size > maxFileSize) {
       toast.error(
@@ -224,6 +229,7 @@ export const storeMediaFile = async (
 
     // Get current storage metadata
     let metadata = await getStorageMetadata();
+    console.log("Current storage metadata before save:", metadata);
     const effectiveMax =
       metadata.maxTotalStorage ?? maxTotalStorage ?? DEFAULT_MAX_TOTAL_STORAGE;
 
@@ -231,6 +237,7 @@ export const storeMediaFile = async (
     if (metadata.totalSize + file.size > effectiveMax * 0.9) {
       await cleanupOldFiles(effectiveMax);
       metadata = await getStorageMetadata();
+      console.log("Metadata after cleanup:", metadata);
     }
 
     if (metadata.totalSize + file.size > effectiveMax) {
@@ -271,20 +278,29 @@ export const storeMediaFile = async (
       const request = store.add(storedMedia);
 
       request.onsuccess = () => {
+        console.log("IndexedDB add success for", id);
         resolve();
       };
 
       request.onerror = () => {
+        console.error("IndexedDB add error for", id, request.error);
         reject(request.error);
       };
     });
 
-    // Update metadata
-    await updateStorageMetadata({
+    const updatedMetadata = {
       ...metadata,
       totalSize: metadata.totalSize + file.size,
       lastCleanup: metadata.lastCleanup,
       maxTotalStorage: effectiveMax,
+    };
+
+    await updateStorageMetadata(updatedMetadata);
+
+    console.log("Stored file in IndexedDB", {
+      id,
+      size: file.size,
+      metadataAfterSave: updatedMetadata,
     });
 
     return id;
