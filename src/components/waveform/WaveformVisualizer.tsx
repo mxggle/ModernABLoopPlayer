@@ -23,6 +23,11 @@ const BOOKMARK_TOAST_ID = "bookmark-action-toast";
 const EMPTY_BOOKMARKS: readonly any[] = Object.freeze([]);
 
 // Utility function to format time in mm:ss.ms format
+const WAVEFORM_TARGET_SAMPLES = 2000;
+const PREVIEW_BUCKETS = 256;
+const PREVIEW_SAMPLE_SKIP = 64;
+const PREVIEW_PROGRESS_FRACTION = 0.08;
+
 const formatTime = (time: number): string => {
   if (isNaN(time)) return "00:00.0";
 
@@ -35,6 +40,179 @@ const formatTime = (time: number): string => {
     .padStart(2, "0")}.${milliseconds}`;
 };
 
+const scheduleYield = (signal?: AbortSignal, timeout = 0) =>
+  new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+
+    const hasIdleCallback =
+      timeout === 0 &&
+      typeof window !== "undefined" &&
+      typeof (window as any).requestIdleCallback === "function";
+
+    let handle: number;
+
+    const cleanup = () => {
+      if (signal) {
+        signal.removeEventListener("abort", onAbort);
+      }
+    };
+
+    const finish = () => {
+      cleanup();
+      resolve();
+    };
+
+    const onAbort = () => {
+      if (hasIdleCallback) {
+        (window as any).cancelIdleCallback(handle);
+      } else {
+        clearTimeout(handle);
+      }
+      cleanup();
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+
+    if (hasIdleCallback) {
+      handle = (window as any).requestIdleCallback(finish, { timeout: 50 });
+    } else {
+      handle = window.setTimeout(finish, timeout);
+    }
+
+    if (signal) {
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+  });
+
+const downsampleAudioData = async (
+  data: Float32Array,
+  targetLength: number,
+  options: {
+    signal?: AbortSignal;
+    onProgress?: (progress: number) => void;
+    onChunk?: (chunk: Float32Array, computedSamples: number) => void;
+    chunkSize?: number;
+  } = {}
+): Promise<Float32Array> => {
+  const { signal, onProgress, onChunk, chunkSize = 256 } = options;
+  const safeLength = Math.max(0, Math.floor(targetLength));
+
+  if (safeLength <= 0) {
+    onProgress?.(1);
+    return new Float32Array();
+  }
+
+  const result = new Float32Array(safeLength);
+
+  if (!data || data.length === 0) {
+    onProgress?.(1);
+    return result;
+  }
+
+  const step = data.length / safeLength;
+  const chunk = Math.max(1, Math.floor(chunkSize));
+
+  const updateProgress = (value: number) => {
+    if (onProgress) {
+      onProgress(Math.min(1, Math.max(0, value)));
+    }
+  };
+
+  for (let i = 0; i < safeLength; i += chunk) {
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
+    const chunkEnd = Math.min(i + chunk, safeLength);
+
+    for (let j = i; j < chunkEnd; j++) {
+      const start = Math.floor(j * step);
+      const end = Math.floor((j + 1) * step);
+
+      if (end <= start) {
+        const sampleIndex = Math.min(data.length - 1, start);
+        result[j] = Math.abs(data[sampleIndex] ?? 0);
+        continue;
+      }
+
+      const clampedEnd = Math.min(end, data.length);
+      let sum = 0;
+      for (let idx = start; idx < clampedEnd; idx++) {
+        sum += Math.abs(data[idx]);
+      }
+      const sampleCount = Math.max(1, clampedEnd - start);
+      result[j] = sum / sampleCount;
+    }
+
+    const chunkProgress = chunkEnd / safeLength;
+    updateProgress(chunkProgress);
+
+    if (onChunk) {
+      onChunk(result.slice(0, chunkEnd), chunkEnd);
+    }
+
+    if (chunkEnd < safeLength) {
+      await scheduleYield(signal);
+    }
+  }
+
+  updateProgress(1);
+  return result;
+};
+
+const buildPreviewWaveform = (
+  source: Float32Array,
+  targetLength: number,
+  bucketCount = PREVIEW_BUCKETS
+): Float32Array => {
+  if (targetLength <= 0 || source.length === 0) {
+    return new Float32Array(Math.max(0, targetLength));
+  }
+
+  const buckets = new Float32Array(Math.max(1, bucketCount));
+  const bucketSpan = source.length / buckets.length;
+
+  for (let bucketIndex = 0; bucketIndex < buckets.length; bucketIndex++) {
+    const start = Math.floor(bucketIndex * bucketSpan);
+    const end = bucketIndex === buckets.length - 1
+      ? source.length
+      : Math.floor((bucketIndex + 1) * bucketSpan);
+    const span = Math.max(1, end - start);
+    const step = Math.max(1, Math.floor(span / PREVIEW_SAMPLE_SKIP));
+    let peak = 0;
+    for (let i = start; i < end; i += step) {
+      const value = Math.abs(source[i] ?? 0);
+      if (value > peak) {
+        peak = value;
+      }
+    }
+    buckets[bucketIndex] = peak;
+  }
+
+  const output = new Float32Array(targetLength);
+  if (targetLength === 1) {
+    output[0] = buckets[0] || 0;
+    return output;
+  }
+
+  const maxBucketIndex = buckets.length - 1;
+  const scale = maxBucketIndex > 0 ? maxBucketIndex / (targetLength - 1) : 0;
+
+  for (let i = 0; i < targetLength; i++) {
+    const position = i * scale;
+    const lowerIndex = Math.floor(position);
+    const upperIndex = Math.min(maxBucketIndex, lowerIndex + 1);
+    const mix = position - lowerIndex;
+    const lower = buckets[lowerIndex] ?? 0;
+    const upper = buckets[upperIndex] ?? 0;
+    output[i] = lower + (upper - lower) * mix;
+  }
+
+  return output;
+};
+
 
 export const WaveformVisualizer = () => {
   const { t } = useTranslation();
@@ -45,6 +223,8 @@ export const WaveformVisualizer = () => {
     { id: string; x1: number; x2: number; y1: number; y2: number }[]
   >([]);
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
+  const [isWaveformLoading, setIsWaveformLoading] = useState(false);
+  const [waveformProgress, setWaveformProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [dragEnd, setDragEnd] = useState<number | null>(null);
@@ -125,8 +305,21 @@ export const WaveformVisualizer = () => {
       currentFile: currentFile?.name,
       type: currentFile?.type,
       url: currentFile?.url ? "present" : "missing",
-      showWaveform,
     });
+
+    const storeSnapshot = usePlayerStore.getState();
+    let buffer: Tone.ToneAudioBuffer | null = null;
+    let cancelled = false;
+    const abortController = new AbortController();
+
+    const cleanup = () => {
+      cancelled = true;
+      abortController.abort();
+      if (buffer) {
+        buffer.dispose();
+        buffer = null;
+      }
+    };
 
     if (
       !currentFile ||
@@ -136,35 +329,92 @@ export const WaveformVisualizer = () => {
     ) {
       console.log("❌ WaveformVisualizer: File validation failed");
       setWaveformData(null);
-      return;
+      setIsWaveformLoading(false);
+      setWaveformProgress(0);
+      return cleanup;
     }
 
-    let buffer: Tone.ToneAudioBuffer | null = null;
+    const mediaId = storeSnapshot.getCurrentMediaId();
+    const cachedWaveform =
+      mediaId && storeSnapshot.mediaWaveforms
+        ? storeSnapshot.mediaWaveforms[mediaId]
+        : undefined;
 
-    const loadAudio = async () => {
+    if (cachedWaveform && cachedWaveform.length > 0) {
+      console.log("📦 WaveformVisualizer: using cached waveform data");
+      setWaveformData(Float32Array.from(cachedWaveform));
+      setWaveformProgress(1);
+      setIsWaveformLoading(false);
+      return cleanup;
+    }
+
+    setWaveformData(null);
+    setIsWaveformLoading(true);
+    setWaveformProgress(0);
+
+    const finalizeWaveform = (
+      data: Float32Array,
+      options: { cache?: boolean } = { cache: true }
+    ) => {
+      if (cancelled || abortController.signal.aborted) {
+        return;
+      }
+      setWaveformData(data);
+      setIsWaveformLoading(false);
+      setWaveformProgress(1);
+      if (options.cache !== false && mediaId) {
+        storeSnapshot.setMediaWaveformData?.(mediaId, data);
+      }
+    };
+
+    const handleError = (error: unknown) => {
+      if (cancelled || abortController.signal.aborted) return;
+      console.error("Error loading audio for waveform:", error);
+      setIsWaveformLoading(false);
+    };
+
+    const analyzeSamples = async (samples: Float32Array) => {
+      if (cancelled || abortController.signal.aborted) return;
       try {
-        if (currentFile.type.includes("video")) {
-          // For video files, extract audio using multiple methods
-          console.log(
-            "🎬 Loading video file for waveform:",
-            currentFile.name,
-            "Type:",
-            currentFile.type
-          );
-          await loadVideoAudio(currentFile.url);
-        } else {
-          // For audio files, use Tone.js as before
-          buffer = new Tone.ToneAudioBuffer(currentFile.url, () => {
-            // Get audio data
-            const channelData = buffer?.getChannelData(0) || new Float32Array();
-
-            // Downsample for performance
-            const downsampledData = downsampleAudioData(channelData, 2000);
-            setWaveformData(downsampledData);
-          });
+        const preview = buildPreviewWaveform(samples, WAVEFORM_TARGET_SAMPLES);
+        if (!cancelled && !abortController.signal.aborted) {
+          setWaveformData(preview);
+          setWaveformProgress(PREVIEW_PROGRESS_FRACTION);
+          setIsWaveformLoading(false);
         }
+
+        const downsampledData = await downsampleAudioData(samples, WAVEFORM_TARGET_SAMPLES, {
+          signal: abortController.signal,
+          onProgress: (progress) => {
+            if (cancelled) return;
+            const normalized =
+              PREVIEW_PROGRESS_FRACTION +
+              Math.max(0, Math.min(1, progress)) *
+                (1 - PREVIEW_PROGRESS_FRACTION);
+            setWaveformProgress((prev) => Math.max(prev, normalized));
+          },
+          onChunk: (chunk, computedSamples) => {
+            if (cancelled) return;
+            const normalized =
+              PREVIEW_PROGRESS_FRACTION +
+              Math.max(0, Math.min(1, computedSamples / WAVEFORM_TARGET_SAMPLES)) *
+                (1 - PREVIEW_PROGRESS_FRACTION);
+            setWaveformProgress((prev) => Math.max(prev, normalized));
+            setWaveformData((prev) => {
+              const base = prev
+                ? prev.slice()
+                : new Float32Array(WAVEFORM_TARGET_SAMPLES);
+              base.set(chunk, 0);
+              return base;
+            });
+          },
+        });
+        finalizeWaveform(downsampledData);
       } catch (error) {
-        console.error("Error loading audio for waveform:", error);
+        if ((error as DOMException)?.name === "AbortError") {
+          return;
+        }
+        handleError(error);
       }
     };
 
@@ -172,32 +422,36 @@ export const WaveformVisualizer = () => {
       console.log("🎬 Starting video audio extraction for:", videoUrl);
 
       try {
-        // Method 1: Try using fetch + decodeAudioData (works for some video formats)
         console.log("🎵 Trying Method 1: Direct audio decoding...");
-        const response = await fetch(videoUrl);
+        const response = await fetch(videoUrl, {
+          signal: abortController.signal,
+        });
         const arrayBuffer = await response.arrayBuffer();
 
         const audioContext = new (window.AudioContext ||
           (window as any).webkitAudioContext)();
-        const audioBuffer = await audioContext.decodeAudioData(
-          arrayBuffer.slice(0)
-        );
-
-        console.log(
-          "✅ Method 1 succeeded! Audio buffer created:",
-          audioBuffer
-        );
-        const channelData = audioBuffer.getChannelData(0);
-        const downsampledData = downsampleAudioData(channelData, 2000);
-        setWaveformData(downsampledData);
-        audioContext.close();
-        return;
+        try {
+          const audioBuffer = await audioContext.decodeAudioData(
+            arrayBuffer.slice(0)
+          );
+          const channelData = audioBuffer.getChannelData(0);
+          await analyzeSamples(channelData);
+          return;
+        } finally {
+          try {
+            await audioContext.close();
+          } catch (error) {
+            console.debug("AudioContext close failed", error);
+          }
+        }
       } catch (error) {
+        if ((error as DOMException)?.name === "AbortError") {
+          return;
+        }
         console.log("❌ Method 1 failed:", (error as Error).message);
       }
 
       try {
-        // Method 2: Use video element with Web Audio API
         console.log("🎵 Trying Method 2: Video element extraction...");
 
         const video = document.createElement("video");
@@ -205,106 +459,156 @@ export const WaveformVisualizer = () => {
         video.muted = true;
         video.volume = 0;
 
-        // Wait for video to be ready
-        await new Promise((resolve, reject) => {
-          video.oncanplaythrough = () => {
-            console.log("📹 Video ready for playback");
-            resolve(true);
-          };
-          video.onerror = (e) => {
-            console.log("❌ Video loading error:", e);
-            reject(e);
-          };
+        await new Promise<void>((resolve, reject) => {
+          function cleanupListeners() {
+            video.removeEventListener("canplaythrough", handleCanPlay);
+            video.removeEventListener("error", handleError);
+            abortController.signal.removeEventListener("abort", onAbort);
+          }
+          function handleCanPlay() {
+            cleanupListeners();
+            resolve();
+          }
+          function handleError(event: Event) {
+            cleanupListeners();
+            reject(event);
+          }
+          function onAbort() {
+            cleanupListeners();
+            reject(new DOMException("Aborted", "AbortError"));
+          }
+          if (abortController.signal.aborted) {
+            onAbort();
+            return;
+          }
+          abortController.signal.addEventListener("abort", onAbort, {
+            once: true,
+          });
+          video.addEventListener("canplaythrough", handleCanPlay);
+          video.addEventListener("error", handleError);
           video.load();
         });
 
         const audioContext = new (window.AudioContext ||
           (window as any).webkitAudioContext)();
+        let source: MediaElementAudioSourceNode | null = null;
 
-        // Resume audio context if suspended
-        if (audioContext.state === "suspended") {
-          await audioContext.resume();
-        }
-
-        const source = audioContext.createMediaElementSource(video);
-        const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 2048;
-
-        source.connect(analyser);
-        // Don't connect to destination to avoid audio output
-
-        // Start video playback
-        video.currentTime = 0;
-        await video.play();
-
-        console.log("🎬 Video playing, extracting audio data...");
-
-        // Extract frequency data to create waveform
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        const waveformSamples: number[] = [];
-
-        // Collect samples for 3 seconds or until video ends
-        const maxSamples = 2000;
-        const sampleInterval = 50; // ms
-
-        for (
-          let i = 0;
-          i < maxSamples && video.currentTime < video.duration;
-          i++
-        ) {
-          analyser.getByteFrequencyData(dataArray);
-
-          // Convert frequency data to waveform-like data
-          let sum = 0;
-          for (let j = 0; j < bufferLength; j++) {
-            sum += dataArray[j];
+        try {
+          if (audioContext.state === "suspended") {
+            await audioContext.resume();
           }
-          const average = sum / bufferLength / 255; // Normalize to 0-1
-          waveformSamples.push((average - 0.5) * 2); // Convert to -1 to 1 range
 
-          await new Promise((resolve) => setTimeout(resolve, sampleInterval));
-        }
+          source = audioContext.createMediaElementSource(video);
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 2048;
 
-        video.pause();
-        source.disconnect();
-        audioContext.close();
+          source.connect(analyser);
 
-        if (waveformSamples.length > 0) {
-          console.log(
-            "✅ Method 2 succeeded! Extracted",
-            waveformSamples.length,
-            "samples"
-          );
-          const channelData = new Float32Array(waveformSamples);
-          const downsampledData = downsampleAudioData(channelData, 2000);
-          setWaveformData(downsampledData);
-          return;
+          video.currentTime = 0;
+          await video.play();
+
+          const bufferLength = analyser.frequencyBinCount;
+          const dataArray = new Uint8Array(bufferLength);
+          const waveformSamples: number[] = [];
+        const maxSamples = WAVEFORM_TARGET_SAMPLES;
+          const sampleInterval = 50;
+
+          while (
+            waveformSamples.length < maxSamples &&
+            video.currentTime < video.duration
+          ) {
+            if (abortController.signal.aborted) {
+              throw new DOMException("Aborted", "AbortError");
+            }
+
+            analyser.getByteFrequencyData(dataArray);
+
+            let sum = 0;
+            for (let j = 0; j < bufferLength; j++) {
+              sum += dataArray[j];
+            }
+            const average = sum / bufferLength / 255; // Normalize to 0-1
+            waveformSamples.push((average - 0.5) * 2); // Convert to -1 to 1
+
+            await scheduleYield(abortController.signal, sampleInterval);
+          }
+
+          if (waveformSamples.length > 0) {
+            console.log(
+              "✅ Method 2 succeeded! Extracted",
+              waveformSamples.length,
+              "samples"
+            );
+            const channelData = new Float32Array(waveformSamples);
+            await analyzeSamples(channelData);
+            return;
+          }
+        } finally {
+          try {
+            video.pause();
+          } catch (pauseError) {
+            console.debug("Video pause failed", pauseError);
+          }
+
+          try {
+            if (source) {
+              source.disconnect();
+            }
+          } catch (disconnectError) {
+            console.debug("Source disconnect failed", disconnectError);
+          }
+
+          try {
+            await audioContext.close();
+          } catch (closeError) {
+            console.debug("AudioContext close failed", closeError);
+          }
         }
       } catch (error) {
+        if ((error as DOMException)?.name === "AbortError") {
+          return;
+        }
         console.log("❌ Method 2 failed:", (error as Error).message);
       }
 
-      // Method 3: Generate placeholder waveform
       console.log("🎵 Using Method 3: Generating placeholder waveform");
-      const placeholderData = new Float32Array(2000);
+      const placeholderData = new Float32Array(WAVEFORM_TARGET_SAMPLES);
       for (let i = 0; i < placeholderData.length; i++) {
-        // Create a more interesting placeholder pattern
-        const t = i / 2000;
+        const t = i / WAVEFORM_TARGET_SAMPLES;
         placeholderData[i] =
           Math.sin(t * Math.PI * 20) * Math.exp(-t * 2) * 0.3;
       }
-      setWaveformData(placeholderData);
+      finalizeWaveform(placeholderData, { cache: true });
       console.log("✅ Placeholder waveform generated for video file");
     };
 
-    loadAudio();
-
-    return () => {
-      if (buffer) {
-        buffer.dispose();
+    const loadAudio = async () => {
+      try {
+        if (currentFile.type.includes("video")) {
+          await loadVideoAudio(currentFile.url);
+        } else {
+          buffer = new Tone.ToneAudioBuffer(currentFile.url, async () => {
+            try {
+              const channelData =
+                buffer?.getChannelData(0) || new Float32Array();
+              await analyzeSamples(channelData);
+            } finally {
+              buffer?.dispose();
+              buffer = null;
+            }
+          });
+        }
+      } catch (error) {
+        if ((error as DOMException)?.name === "AbortError") {
+          return;
+        }
+        handleError(error);
       }
     };
+
+    void loadAudio();
+
+    return cleanup;
   }, [currentFile]);
 
   // Draw waveform
@@ -553,30 +857,6 @@ export const WaveformVisualizer = () => {
   };
 
   // Helper function to downsample audio data
-  const downsampleAudioData = (
-    data: Float32Array,
-    targetLength: number
-  ): Float32Array => {
-    const result = new Float32Array(targetLength);
-    const step = Math.floor(data.length / targetLength);
-
-    for (let i = 0; i < targetLength; i++) {
-      const start = i * step;
-      const end = Math.min(start + step, data.length);
-      let sum = 0;
-      let count = 0;
-
-      for (let j = start; j < end; j++) {
-        sum += Math.abs(data[j]);
-        count++;
-      }
-
-      result[i] = count > 0 ? sum / count : 0;
-    }
-
-    return result;
-  };
-
   // Convert canvas position to audio time - wrapped in useCallback to stabilize references
   const positionToTime = useCallback(
     (x: number): number => {
@@ -854,14 +1134,6 @@ export const WaveformVisualizer = () => {
     ]
   );
 
-  if (
-    !showWaveform ||
-    !currentFile ||
-    (!currentFile.type.includes("audio") && !currentFile.type.includes("video"))
-  ) {
-    return null;
-  }
-
   // Handle zoom controls - commented out unused function
   // const handleZoomIn = () => {
   //   // Increase zoom by 25% with a maximum of 20x
@@ -879,6 +1151,12 @@ export const WaveformVisualizer = () => {
   // const handleResetZoom = () => {
   //   setZoomLevel(1);
   // };
+
+  const canRenderWaveform =
+    showWaveform &&
+    currentFile &&
+    (currentFile.type.includes("audio") ||
+      currentFile.type.includes("video"));
 
   // Handle mouse wheel for zooming
   const handleMouseWheel = (e: React.WheelEvent<HTMLDivElement>) => {
@@ -928,6 +1206,10 @@ export const WaveformVisualizer = () => {
       el.removeEventListener("touchmove", onTouchMove as EventListener);
     };
   }, [setWaveformZoom]);
+
+  if (!canRenderWaveform) {
+    return null;
+  }
 
   // Handle mouse down for range selection
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1340,6 +1622,25 @@ export const WaveformVisualizer = () => {
           </div>
         )}
         <canvas ref={canvasRef} className="w-full h-full cursor-crosshair" />
+
+        {isWaveformLoading && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-gray-950/80 text-white">
+            <span className="text-sm font-medium">
+              {t("waveformLoading")}
+            </span>
+            {waveformProgress > 0 && waveformProgress < 1 && (
+              <span className="mt-1 text-xs text-white/70">
+                {Math.round(waveformProgress * 100)}%
+              </span>
+            )}
+          </div>
+        )}
+
+        {!isWaveformLoading && waveformProgress > 0 && waveformProgress < 1 && (
+          <div className="pointer-events-none absolute right-2 top-2 z-30 rounded-full bg-gray-900/80 px-3 py-1 text-xs text-white shadow-sm backdrop-blur">
+            {t("waveformLoading")} · {Math.round(waveformProgress * 100)}%
+          </div>
+        )}
 
         {/* Overlapping bookmarks picker */}
         {overlapMenu && (
