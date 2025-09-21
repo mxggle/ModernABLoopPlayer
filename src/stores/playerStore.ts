@@ -105,6 +105,7 @@ export interface PlayerState {
   theme: "light" | "dark";
   waveformZoom: number;
   showWaveform: boolean;
+  mediaWaveforms: Record<string, number[]>;
   videoSize: "sm" | "md" | "lg" | "xl";
   mediaBookmarks: MediaBookmarks; // Changed from bookmarks array to media-scoped object
   selectedBookmarkId: string | null;
@@ -170,6 +171,11 @@ export interface PlayerActions {
   setTheme: (theme: "light" | "dark") => void;
   setWaveformZoom: (zoom: number) => void;
   setShowWaveform: (show: boolean) => void;
+  setMediaWaveformData: (
+    mediaId: string,
+    data: Float32Array | number[]
+  ) => void;
+  removeMediaWaveform: (mediaId: string) => void;
   setVideoSize: (size: "sm" | "md" | "lg" | "xl") => void;
   setAutoAdvanceBookmarks: (enable: boolean) => void;
   // Seek settings
@@ -259,6 +265,7 @@ const initialState: PlayerState = {
   theme: "dark",
   waveformZoom: 1,
   showWaveform: true,
+  mediaWaveforms: {},
   videoSize: "md",
   mediaBookmarks: {},
   selectedBookmarkId: null,
@@ -525,6 +532,22 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setTheme: (theme) => set({ theme }),
       setWaveformZoom: (waveformZoom) => set({ waveformZoom }),
       setShowWaveform: (showWaveform) => set({ showWaveform }),
+      setMediaWaveformData: (mediaId, data) =>
+        set((state) => ({
+          mediaWaveforms: {
+            ...state.mediaWaveforms,
+            [mediaId]: Array.isArray(data) ? data.slice() : Array.from(data),
+          },
+        })),
+      removeMediaWaveform: (mediaId) =>
+        set((state) => {
+          if (!(mediaId in state.mediaWaveforms)) {
+            return {};
+          }
+          const next = { ...state.mediaWaveforms };
+          delete next[mediaId];
+          return { mediaWaveforms: next };
+        }),
       setVideoSize: (videoSize) => set({ videoSize }),
       setAutoAdvanceBookmarks: (autoAdvanceBookmarks) => set({ autoAdvanceBookmarks }),
       // Seek settings
@@ -1603,7 +1626,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
     }),
     {
       name: "abloop-player-storage",
-      version: 2,
+      version: 3,
       migrate: (persistedState: any, version) => {
         if (!persistedState) return persistedState;
 
@@ -1628,6 +1651,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           }
         }
 
+        if (version < 3) {
+          persistedState.mediaWaveforms = persistedState.mediaWaveforms || {};
+        }
+
         return persistedState;
       },
       partialize: (state) => ({
@@ -1638,6 +1665,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         theme: state.theme,
         waveformZoom: state.waveformZoom,
         showWaveform: state.showWaveform,
+        mediaWaveforms: state.mediaWaveforms,
         videoSize: state.videoSize,
         mediaBookmarks: state.mediaBookmarks,
         mediaTranscripts: state.mediaTranscripts,

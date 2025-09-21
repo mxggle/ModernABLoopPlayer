@@ -176,9 +176,10 @@ const buildPreviewWaveform = (
 
   for (let bucketIndex = 0; bucketIndex < buckets.length; bucketIndex++) {
     const start = Math.floor(bucketIndex * bucketSpan);
-    const end = bucketIndex === buckets.length - 1
-      ? source.length
-      : Math.floor((bucketIndex + 1) * bucketSpan);
+    const end =
+      bucketIndex === buckets.length - 1
+        ? source.length
+        : Math.floor((bucketIndex + 1) * bucketSpan);
     const span = Math.max(1, end - start);
     const step = Math.max(1, Math.floor(span / PREVIEW_SAMPLE_SKIP));
     let peak = 0;
@@ -212,7 +213,6 @@ const buildPreviewWaveform = (
 
   return output;
 };
-
 
 export const WaveformVisualizer = () => {
   const { t } = useTranslation();
@@ -383,32 +383,39 @@ export const WaveformVisualizer = () => {
           setIsWaveformLoading(false);
         }
 
-        const downsampledData = await downsampleAudioData(samples, WAVEFORM_TARGET_SAMPLES, {
-          signal: abortController.signal,
-          onProgress: (progress) => {
-            if (cancelled) return;
-            const normalized =
-              PREVIEW_PROGRESS_FRACTION +
-              Math.max(0, Math.min(1, progress)) *
-                (1 - PREVIEW_PROGRESS_FRACTION);
-            setWaveformProgress((prev) => Math.max(prev, normalized));
-          },
-          onChunk: (chunk, computedSamples) => {
-            if (cancelled) return;
-            const normalized =
-              PREVIEW_PROGRESS_FRACTION +
-              Math.max(0, Math.min(1, computedSamples / WAVEFORM_TARGET_SAMPLES)) *
-                (1 - PREVIEW_PROGRESS_FRACTION);
-            setWaveformProgress((prev) => Math.max(prev, normalized));
-            setWaveformData((prev) => {
-              const base = prev
-                ? prev.slice()
-                : new Float32Array(WAVEFORM_TARGET_SAMPLES);
-              base.set(chunk, 0);
-              return base;
-            });
-          },
-        });
+        const downsampledData = await downsampleAudioData(
+          samples,
+          WAVEFORM_TARGET_SAMPLES,
+          {
+            signal: abortController.signal,
+            onProgress: (progress) => {
+              if (cancelled) return;
+              const normalized =
+                PREVIEW_PROGRESS_FRACTION +
+                Math.max(0, Math.min(1, progress)) *
+                  (1 - PREVIEW_PROGRESS_FRACTION);
+              setWaveformProgress((prev) => Math.max(prev, normalized));
+            },
+            onChunk: (chunk, computedSamples) => {
+              if (cancelled) return;
+              const normalized =
+                PREVIEW_PROGRESS_FRACTION +
+                Math.max(
+                  0,
+                  Math.min(1, computedSamples / WAVEFORM_TARGET_SAMPLES)
+                ) *
+                  (1 - PREVIEW_PROGRESS_FRACTION);
+              setWaveformProgress((prev) => Math.max(prev, normalized));
+              setWaveformData((prev) => {
+                const base = prev
+                  ? prev.slice()
+                  : new Float32Array(WAVEFORM_TARGET_SAMPLES);
+                base.set(chunk, 0);
+                return base;
+              });
+            },
+          }
+        );
         finalizeWaveform(downsampledData);
       } catch (error) {
         if ((error as DOMException)?.name === "AbortError") {
@@ -510,7 +517,7 @@ export const WaveformVisualizer = () => {
           const bufferLength = analyser.frequencyBinCount;
           const dataArray = new Uint8Array(bufferLength);
           const waveformSamples: number[] = [];
-        const maxSamples = WAVEFORM_TARGET_SAMPLES;
+          const maxSamples = WAVEFORM_TARGET_SAMPLES;
           const sampleInterval = 50;
 
           while (
@@ -1015,12 +1022,16 @@ export const WaveformVisualizer = () => {
 
         const added = storeAddBookmark(newBookmark);
         if (added) {
-          toast.success(t("bookmarks.bookmarkAdded"), { id: BOOKMARK_TOAST_ID });
+          toast.success(t("bookmarks.bookmarkAdded"), {
+            id: BOOKMARK_TOAST_ID,
+          });
         }
       } else if (nearbyBookmarks.length === 1) {
         // One bookmark nearby - remove it
         deleteBookmark(nearbyBookmarks[0].id);
-        toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
+        toast.success(t("bookmarks.bookmarkRemoved"), {
+          id: BOOKMARK_TOAST_ID,
+        });
       } else {
         // Multiple overlapping bookmarks - show selection menu
         const canvas = canvasRef.current;
@@ -1155,8 +1166,7 @@ export const WaveformVisualizer = () => {
   const canRenderWaveform =
     showWaveform &&
     currentFile &&
-    (currentFile.type.includes("audio") ||
-      currentFile.type.includes("video"));
+    (currentFile.type.includes("audio") || currentFile.type.includes("video"));
 
   // Handle mouse wheel for zooming
   const handleMouseWheel = (e: React.WheelEvent<HTMLDivElement>) => {
@@ -1581,19 +1591,27 @@ export const WaveformVisualizer = () => {
                 if (selectedBookmarkId) {
                   // Delete mode
                   deleteBookmark(selectedBookmarkId);
-                  toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
+                  toast.success(t("bookmarks.bookmarkRemoved"), {
+                    id: BOOKMARK_TOAST_ID,
+                  });
                 } else if (loopStart !== null && loopEnd !== null) {
                   // Check if a bookmark already exists for this range
                   const TOL = 0.05; // 50ms tolerance (same as in playerStore)
-                  const existingBookmarks = usePlayerStore.getState().getCurrentMediaBookmarks();
+                  const existingBookmarks = usePlayerStore
+                    .getState()
+                    .getCurrentMediaBookmarks();
                   const existingBookmark = existingBookmarks.find(
-                    (b) => Math.abs(b.start - loopStart) < TOL && Math.abs(b.end - loopEnd) < TOL
+                    (b) =>
+                      Math.abs(b.start - loopStart) < TOL &&
+                      Math.abs(b.end - loopEnd) < TOL
                   );
-                  
+
                   if (existingBookmark) {
                     // If a bookmark already exists, select it instead of showing an error
                     loadBookmark(existingBookmark.id);
-                    toast.success(t("bookmarks.bookmarkSelected"), { id: BOOKMARK_TOAST_ID });
+                    toast.success(t("bookmarks.bookmarkSelected"), {
+                      id: BOOKMARK_TOAST_ID,
+                    });
                   } else {
                     // Add mode - create new bookmark
                     const added = storeAddBookmark({
@@ -1609,13 +1627,26 @@ export const WaveformVisualizer = () => {
                       youtubeId: undefined,
                       annotation: "",
                     });
-                    if (added) toast.success(t("bookmarks.bookmarkAdded"), { id: BOOKMARK_TOAST_ID });
+                    if (added)
+                      toast.success(t("bookmarks.bookmarkAdded"), {
+                        id: BOOKMARK_TOAST_ID,
+                      });
                   }
                 }
               }}
-              disabled={!selectedBookmarkId && !(loopStart !== null && loopEnd !== null)}
-              title={selectedBookmarkId ? t("bookmarks.removeBookmarkTooltip") : t("bookmarks.addBookmarkTooltip")}
-              aria-label={selectedBookmarkId ? t("bookmarks.removeBookmarkTooltip") : t("bookmarks.addBookmarkTooltip")}
+              disabled={
+                !selectedBookmarkId && !(loopStart !== null && loopEnd !== null)
+              }
+              title={
+                selectedBookmarkId
+                  ? t("bookmarks.removeBookmarkTooltip")
+                  : t("bookmarks.addBookmarkTooltip")
+              }
+              aria-label={
+                selectedBookmarkId
+                  ? t("bookmarks.removeBookmarkTooltip")
+                  : t("bookmarks.addBookmarkTooltip")
+              }
             >
               <Bookmark size={isMobile ? 16 : 14} />
             </button>
@@ -1625,9 +1656,7 @@ export const WaveformVisualizer = () => {
 
         {isWaveformLoading && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-gray-950/80 text-white">
-            <span className="text-sm font-medium">
-              {t("waveformLoading")}
-            </span>
+            <span className="text-sm font-medium">{t("waveformLoading")}</span>
             {waveformProgress > 0 && waveformProgress < 1 && (
               <span className="mt-1 text-xs text-white/70">
                 {Math.round(waveformProgress * 100)}%
@@ -1784,7 +1813,9 @@ export const WaveformVisualizer = () => {
               </button>
               <button
                 className={`bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded ${
-                  isMobile ? "text-sm px-2 py-1 ml-1" : "text-xs px-1.5 py-0.5 ml-1"
+                  isMobile
+                    ? "text-sm px-2 py-1 ml-1"
+                    : "text-xs px-1.5 py-0.5 ml-1"
                 }`}
                 onClick={() => {
                   setLoopPoints(null, null);
