@@ -19,7 +19,19 @@
     "back": "返回"
   },
   "app": {
-    "logoLabel": "LoopMate 标志"
+    "logoLabel": "LoopMate 标志",
+    "buyCoffee": "请我喝咖啡"
+  },
+  "support": {
+    "dialogTitle": "支持 LoopMate",
+    "dialogDescription": "扫描下方二维码，请我喝杯咖啡。",
+    "qrAlt": "{{label}} 二维码",
+    "scanTip": "请使用手机扫码",
+    "noQrConfigured": "尚未配置赞助二维码。",
+    "qr": {
+      "wechat": "微信",
+      "alipay": "支付宝"
+    }
   },
   "navigation": {
     "home": "首页",
@@ -91,7 +103,11 @@
     "chooseMediaSource": "选择媒体源",
     "youtubeVideo": "YouTube视频",
     "localMedia": "本地媒体",
-    "mediaLibrary": "媒体库"
+    "mediaLibrary": "媒体库",
+    "supportHeader": "支持一下",
+    "supportTitle": "喜欢 LoopMate 吗？请我喝杯咖啡吧！",
+    "supportDescription": "用手机扫码即可请我喝杯咖啡，让 LoopMate 持续升级。",
+    "buyCoffeeCta": "请我喝咖啡"
   },
   "player": {
     "play": "播放",
@@ -105,6 +121,7 @@
     "bookmark": "书签",
     "transcript": "转录",
     "waveform": "波形",
+    "waveformLoading": "正在分析音频...",
     "noMediaLoaded": "没有加载媒体。重定向到首页...",
     "mute": "静音",
     "unmute": "取消静音",
@@ -412,8 +429,16 @@
     "clearStorageDescription": "这将从浏览器存储中删除所有媒体文件。此操作无法撤销。",
     "clearStorageSuccess": "媒体存储已清除",
     "clearStorageError": "清除存储失败",
+    "limitExceeded": "超出存储空间上限（最多 {{max}} MB），请清理部分文件后再上传。",
     "clearAllStoredMediaTitle": "清除所有存储的媒体",
-    "percentUsed": "已使用{{percent}}%"
+    "percentUsed": "已使用{{percent}}%",
+    "limitLabel": "存储空间上限",
+    "limitHelp": "可用于保存媒体文件的最大容量（MB）",
+    "limitUpdate": "更新上限",
+    "limitUpdated": "存储空间上限已调整为 {{max}} MB。",
+    "limitUpdateError": "更新存储空间上限失败",
+    "limitInvalid": "请输入不少于 {{min}} MB 的存储上限。",
+    "limitReduceConfirm": "新的上限小于当前已使用空间，旧文件可能会被自动删除。确定继续吗？"
   },
   "layout": {
     "layoutSettings": "布局设置",

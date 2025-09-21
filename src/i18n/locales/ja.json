@@ -19,7 +19,19 @@
     "back": "戻る"
   },
   "app": {
-    "logoLabel": "LoopMateロゴ"
+    "logoLabel": "LoopMateロゴ",
+    "buyCoffee": "コーヒーを奢る"
+  },
+  "support": {
+    "dialogTitle": "LoopMate を応援",
+    "dialogDescription": "下の QR コードを読み取って、コーヒーをごちそうしてください。",
+    "qrAlt": "{{label}} の QR コード",
+    "scanTip": "スマートフォンでスキャンしてください",
+    "noQrConfigured": "サポート用の QR コードがまだ設定されていません。",
+    "qr": {
+      "wechat": "WeChat",
+      "alipay": "Alipay"
+    }
   },
   "navigation": {
     "home": "ホーム",
@@ -91,7 +103,11 @@
     "chooseMediaSource": "メディアソースを選択",
     "youtubeVideo": "YouTube動画",
     "localMedia": "ローカルメディア",
-    "mediaLibrary": "メディアライブラリ"
+    "mediaLibrary": "メディアライブラリ",
+    "supportHeader": "プロジェクトを応援",
+    "supportTitle": "LoopMate が気に入ったら、コーヒーをごちそうください！",
+    "supportDescription": "スマートフォンで QR コードを読み取るだけで、開発をサポートできます。",
+    "buyCoffeeCta": "コーヒーを奢る"
   },
   "player": {
     "play": "再生",
@@ -105,6 +121,7 @@
     "bookmark": "ブックマーク",
     "transcript": "トランスクリプト",
     "waveform": "波形",
+    "waveformLoading": "オーディオを分析中...",
     "noMediaLoaded": "メディアが読み込まれていません。ホームにリダイレクト中...",
     "mute": "ミュート",
     "unmute": "ミュート解除",
@@ -412,8 +429,16 @@
     "clearStorageDescription": "ブラウザストレージからすべてのメディアファイルを削除します。この操作は元に戻せません。",
     "clearStorageSuccess": "メディアストレージがクリアされました",
     "clearStorageError": "ストレージのクリアに失敗しました",
+    "limitExceeded": "保存容量の上限（最大 {{max}} MB）を超えています。ファイルを削除してからアップロードしてください。",
     "clearAllStoredMediaTitle": "保存されたメディアをすべてクリア",
-    "percentUsed": "{{percent}}%使用中"
+    "percentUsed": "{{percent}}%使用中",
+    "limitLabel": "保存容量の上限",
+    "limitHelp": "ブラウザに保存するメディアの最大容量（MB）",
+    "limitUpdate": "上限を更新",
+    "limitUpdated": "保存容量の上限を {{max}} MB に更新しました。",
+    "limitUpdateError": "保存容量の上限を更新できませんでした",
+    "limitInvalid": "{{min}} MB 以上の値を入力してください。",
+    "limitReduceConfirm": "新しい上限は現在の使用量よりも小さいため、古いファイルが自動的に削除される可能性があります。続行しますか？"
   },
   "layout": {
     "layoutSettings": "レイアウト設定",

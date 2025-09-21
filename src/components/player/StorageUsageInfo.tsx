@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
-import { getStorageUsage, clearAllMediaFiles } from '../../utils/mediaStorage'
+import { getStorageUsage, clearAllMediaFiles, setStorageLimit } from '../../utils/mediaStorage'
 import { HardDrive, Trash2 } from 'lucide-react'
 import { Button } from '../ui/button'
+import { Input } from '../ui/input'
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,8 @@ export const StorageUsageInfo = () => {
     total: number;
     percentage: number;
   } | null>(null)
+  const [pendingLimit, setPendingLimit] = useState<string>('')
+  const [isSavingLimit, setIsSavingLimit] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   
   const { clearMediaHistory } = usePlayerStore()
@@ -39,6 +42,7 @@ export const StorageUsageInfo = () => {
     try {
       const usage = await getStorageUsage()
       setStorageInfo(usage)
+      setPendingLimit(Math.round(usage.total / (1024 * 1024)).toString())
     } catch (error) {
       console.error('Failed to get storage usage:', error)
     }
@@ -69,7 +73,44 @@ export const StorageUsageInfo = () => {
   if (!storageInfo) {
     return null
   }
-  
+
+  const usedMB = storageInfo.used / (1024 * 1024)
+
+  const handleSaveLimit = async () => {
+    if (!pendingLimit) {
+      toast.error(t('storage.limitInvalid', { min: Math.ceil(usedMB) }))
+      return
+    }
+
+    const limitMB = parseInt(pendingLimit, 10)
+    if (isNaN(limitMB) || limitMB < 50) {
+      toast.error(t('storage.limitInvalid', { min: 50 }))
+      return
+    }
+
+    const shouldWarn = limitMB * 1024 * 1024 < storageInfo.used
+    if (shouldWarn) {
+      const confirmReduce = window.confirm(
+        t('storage.limitReduceConfirm')
+      )
+      if (!confirmReduce) {
+        return
+      }
+    }
+
+    try {
+      setIsSavingLimit(true)
+      await setStorageLimit(limitMB * 1024 * 1024)
+      toast.success(t('storage.limitUpdated', { max: limitMB }))
+      await loadStorageInfo()
+    } catch (error) {
+      console.error('Failed to update storage limit:', error)
+      toast.error(t('storage.limitUpdateError'))
+    } finally {
+      setIsSavingLimit(false)
+    }
+  }
+
   return (
     <>
     <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -93,7 +134,35 @@ export const StorageUsageInfo = () => {
           <span className="text-xs">{t('storage.clearStorage')}</span>
         </Button>
       </div>
-      
+
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col text-xs text-gray-500 dark:text-gray-400">
+          <span className="font-medium text-gray-600 dark:text-gray-300">
+            {t('storage.limitLabel')}
+          </span>
+          <span>{t('storage.limitHelp')}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={50}
+            step={50}
+            value={pendingLimit}
+            onChange={(event) => setPendingLimit(event.target.value)}
+            className="h-8 w-28 text-right"
+          />
+          <span className="text-xs text-gray-500 dark:text-gray-400">MB</span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isSavingLimit}
+            onClick={handleSaveLimit}
+          >
+            {t('storage.limitUpdate')}
+          </Button>
+        </div>
+      </div>
+
       {/* Storage usage bar */}
       <div className="mt-2 h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div

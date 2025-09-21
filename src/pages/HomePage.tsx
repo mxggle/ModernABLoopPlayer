@@ -7,6 +7,7 @@ import { YouTubeInput } from "../components/player/YouTubeInput";
 import { MediaHistory } from "../components/player/MediaHistory";
 // Use the same component as the file drawer, embedded in-page
 import { AppLayout } from "../components/layout/AppLayout";
+import { SupportSection } from "../components/support/SupportSection";
 
 export const HomePage = () => {
   const navigate = useNavigate();
@@ -95,6 +96,8 @@ export const HomePage = () => {
 
       {/* Inline Library Manager - uses the same component as the file drawer */}
       <MediaHistory embedded title={t("home.mediaLibrary")} />
+
+      <SupportSection />
     </AppLayout>
   );
 };

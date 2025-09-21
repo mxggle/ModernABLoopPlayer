@@ -3,7 +3,7 @@ import i18n from "../i18n";
 
 // Default limits (can be made configurable in settings)
 const DEFAULT_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB per file
-const DEFAULT_MAX_TOTAL_STORAGE = 200 * 1024 * 1024; // 200MB total
+const DEFAULT_MAX_TOTAL_STORAGE = 2 * 1024 * 1024 * 1024; // 2GB total
 
 // IndexedDB setup
 const DB_NAME = "abloop-media-storage";
@@ -15,11 +15,12 @@ interface StorageMetadata {
   id: string;
   totalSize: number;
   lastCleanup: number;
+  maxTotalStorage?: number;
 }
 
 interface StoredMedia {
   id: string;
-  fileData: ArrayBuffer;
+  fileData: ArrayBuffer | Blob | ArrayBufferView;
   fileType: string;
   fileName: string;
   fileSize: number;
@@ -66,16 +67,28 @@ const getStorageMetadata = async (): Promise<StorageMetadata> => {
       const store = transaction.objectStore(META_STORE);
       const request = store.get("metadata");
 
-      request.onsuccess = () => {
+      request.onsuccess = async () => {
         if (request.result) {
-          resolve(request.result);
+          const result: StorageMetadata = {
+            ...request.result,
+            maxTotalStorage:
+              request.result.maxTotalStorage ?? DEFAULT_MAX_TOTAL_STORAGE,
+          };
+
+          if (!request.result.maxTotalStorage) {
+            await updateStorageMetadata(result);
+          }
+
+          resolve(result);
         } else {
           // Initialize metadata if it doesn't exist
           const newMetadata: StorageMetadata = {
             id: "metadata",
             totalSize: 0,
             lastCleanup: Date.now(),
+            maxTotalStorage: DEFAULT_MAX_TOTAL_STORAGE,
           };
+          await updateStorageMetadata(newMetadata);
           resolve(newMetadata);
         }
       };
@@ -91,6 +104,7 @@ const getStorageMetadata = async (): Promise<StorageMetadata> => {
       id: "metadata",
       totalSize: 0,
       lastCleanup: Date.now(),
+      maxTotalStorage: DEFAULT_MAX_TOTAL_STORAGE,
     };
   }
 };
@@ -122,13 +136,15 @@ const updateStorageMetadata = async (
 
 // Clean up old files if we exceed storage limits
 const cleanupOldFiles = async (
-  maxTotalStorage = DEFAULT_MAX_TOTAL_STORAGE
+  maxTotalStorage?: number
 ): Promise<void> => {
   try {
     const metadata = await getStorageMetadata();
+    const effectiveMax =
+      maxTotalStorage ?? metadata.maxTotalStorage ?? DEFAULT_MAX_TOTAL_STORAGE;
 
     // If we're under the limit, no need to clean up
-    if (metadata.totalSize < maxTotalStorage) {
+    if (metadata.totalSize < effectiveMax) {
       return;
     }
 
@@ -158,7 +174,7 @@ const cleanupOldFiles = async (
     const filesToDelete: string[] = [];
 
     for (const file of files) {
-      if (currentSize <= maxTotalStorage * 0.8) {
+      if (currentSize <= effectiveMax * 0.8) {
         // Aim to get down to 80% of max
         break;
       }
@@ -179,6 +195,7 @@ const cleanupOldFiles = async (
         ...metadata,
         totalSize: currentSize,
         lastCleanup: Date.now(),
+        maxTotalStorage: effectiveMax,
       });
 
       console.log(
@@ -206,11 +223,20 @@ export const storeMediaFile = async (
     }
 
     // Get current storage metadata
-    const metadata = await getStorageMetadata();
+    let metadata = await getStorageMetadata();
+    const effectiveMax =
+      metadata.maxTotalStorage ?? maxTotalStorage ?? DEFAULT_MAX_TOTAL_STORAGE;
 
     // Clean up if we're close to the limit
-    if (metadata.totalSize + file.size > maxTotalStorage * 0.9) {
-      await cleanupOldFiles(maxTotalStorage);
+    if (metadata.totalSize + file.size > effectiveMax * 0.9) {
+      await cleanupOldFiles(effectiveMax);
+      metadata = await getStorageMetadata();
+    }
+
+    if (metadata.totalSize + file.size > effectiveMax) {
+      const maxMB = Math.round(effectiveMax / 1024 / 1024);
+      toast.error(i18n.t("storage.limitExceeded", { max: maxMB }));
+      throw new Error("Storage limit exceeded");
     }
 
     // Read file as ArrayBuffer
@@ -258,6 +284,7 @@ export const storeMediaFile = async (
       ...metadata,
       totalSize: metadata.totalSize + file.size,
       lastCleanup: metadata.lastCleanup,
+      maxTotalStorage: effectiveMax,
     });
 
     return id;
@@ -294,12 +321,53 @@ export const retrieveMediaFile = async (id: string): Promise<File | null> => {
       return null;
     }
 
+    const describeStoredData = (data: StoredMedia["fileData"]) => ({
+      type: typeof data,
+      constructor: data && (data as any).constructor
+        ? (data as any).constructor.name
+        : undefined,
+      hasArrayBuffer:
+        !!data && typeof (data as any).arrayBuffer === "function",
+      isArrayBuffer: data instanceof ArrayBuffer,
+      isBlob: data instanceof Blob,
+      isView: ArrayBuffer.isView(data),
+      keys:
+        data && typeof data === "object"
+          ? Object.keys(data as Record<string, unknown>).slice(0, 5)
+          : undefined,
+    });
+
+    const resolveStoredLength = (data: StoredMedia["fileData"]): number => {
+      if (!data) return 0;
+      if (data instanceof Blob) return data.size;
+      if (data instanceof ArrayBuffer) return data.byteLength;
+      if (ArrayBuffer.isView(data)) return data.byteLength;
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "byteLength" in data &&
+        typeof (data as any).byteLength === "number"
+      ) {
+        return Number((data as any).byteLength) || 0;
+      }
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "data" in data &&
+        Array.isArray((data as any).data)
+      ) {
+        return (data as any).data.length;
+      }
+      return 0;
+    };
+
     console.log("Found stored media:", {
       id: storedMedia.id,
       fileName: storedMedia.fileName,
       fileType: storedMedia.fileType,
       fileSize: storedMedia.fileSize,
-      dataLength: storedMedia.fileData ? storedMedia.fileData.byteLength : 0
+      dataLength: resolveStoredLength(storedMedia.fileData),
+      dataInfo: describeStoredData(storedMedia.fileData),
     });
 
     // Update timestamp to mark as recently accessed
@@ -315,15 +383,92 @@ export const retrieveMediaFile = async (id: string): Promise<File | null> => {
       console.warn("Failed to update access timestamp:", updateError);
     }
 
-    // Verify that we have valid data
-    if (!storedMedia.fileData || !(storedMedia.fileData instanceof ArrayBuffer)) {
-      console.error("Invalid file data in stored media:", storedMedia.fileData);
+    // Convert whatever data format we previously stored into a usable ArrayBuffer
+    const convertToArrayBuffer = async (
+      data: StoredMedia["fileData"]
+    ): Promise<ArrayBuffer | null> => {
+      if (!data) {
+        return null;
+      }
+
+      if (data instanceof ArrayBuffer) {
+        return data;
+      }
+
+      if (data instanceof Blob) {
+        try {
+          return await data.arrayBuffer();
+        } catch (blobError) {
+          console.error("Failed to convert Blob to ArrayBuffer", blobError);
+          return null;
+        }
+      }
+
+      if (ArrayBuffer.isView(data)) {
+        return data.buffer.slice(
+          data.byteOffset,
+          data.byteOffset + data.byteLength
+        );
+      }
+
+      if (typeof data === "string") {
+        try {
+          if (data.startsWith("data:")) {
+            const response = await fetch(data);
+            return await response.arrayBuffer();
+          }
+
+          // Assume base64 without data URL prefix
+          const base64 = data.includes(",")
+            ? data.substring(data.indexOf(",") + 1)
+            : data;
+          const binary = atob(base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          return bytes.buffer;
+        } catch (stringError) {
+          console.error("Failed to convert string data to ArrayBuffer", stringError);
+          return null;
+        }
+      }
+
+      // Support legacy structured clone objects like { type: 'Buffer', data: number[] }
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "data" in data &&
+        Array.isArray((data as any).data)
+      ) {
+        try {
+          return Uint8Array.from((data as any).data).buffer;
+        } catch (legacyError) {
+          console.error(
+            "Failed to convert legacy buffer object to ArrayBuffer",
+            legacyError
+          );
+          return null;
+        }
+      }
+
+      console.error("Unsupported stored media data format", data);
+      return null;
+    };
+
+    const fileBuffer = await convertToArrayBuffer(storedMedia.fileData);
+
+    if (!fileBuffer) {
+      console.error(
+        "Invalid or unsupported file data in stored media:",
+        storedMedia.fileData
+      );
       return null;
     }
 
     try {
       // Convert ArrayBuffer back to File
-      const file = new File([storedMedia.fileData], storedMedia.fileName, {
+      const file = new File([fileBuffer], storedMedia.fileName, {
         type: storedMedia.fileType,
       });
       console.log("Successfully created File object:", file);
@@ -408,11 +553,14 @@ export const clearAllMediaFiles = async (): Promise<void> => {
       };
     });
 
-    // Reset metadata
+    const metadata = await getStorageMetadata();
+
+    // Reset metadata but preserve storage limit
     await updateStorageMetadata({
       id: "metadata",
       totalSize: 0,
       lastCleanup: Date.now(),
+      maxTotalStorage: metadata.maxTotalStorage ?? DEFAULT_MAX_TOTAL_STORAGE,
     });
 
     toast.success(i18n.t("storage.clearStorageSuccess"));
@@ -430,11 +578,12 @@ export const getStorageUsage = async (): Promise<{
 }> => {
   try {
     const metadata = await getStorageMetadata();
+    const total = metadata.maxTotalStorage ?? DEFAULT_MAX_TOTAL_STORAGE;
 
     return {
       used: metadata.totalSize,
-      total: DEFAULT_MAX_TOTAL_STORAGE,
-      percentage: (metadata.totalSize / DEFAULT_MAX_TOTAL_STORAGE) * 100,
+      total,
+      percentage: total === 0 ? 0 : (metadata.totalSize / total) * 100,
     };
   } catch (error) {
     console.error("Error getting storage usage", error);
@@ -443,5 +592,20 @@ export const getStorageUsage = async (): Promise<{
       total: DEFAULT_MAX_TOTAL_STORAGE,
       percentage: 0,
     };
+  }
+};
+
+export const setStorageLimit = async (bytes: number): Promise<void> => {
+  const minLimit = 50 * 1024 * 1024; // guard at 50MB
+  const desiredLimit = Math.max(bytes, minLimit);
+
+  const metadata = await getStorageMetadata();
+  await updateStorageMetadata({
+    ...metadata,
+    maxTotalStorage: desiredLimit,
+  });
+
+  if (metadata.totalSize > desiredLimit) {
+    await cleanupOldFiles(desiredLimit);
   }
 };

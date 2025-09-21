@@ -19,7 +19,19 @@
     "back": "Back"
   },
   "app": {
-    "logoLabel": "LoopMate logo"
+    "logoLabel": "LoopMate logo",
+    "buyCoffee": "Buy me a coffee"
+  },
+  "support": {
+    "dialogTitle": "Support LoopMate",
+    "dialogDescription": "Scan one of the QR codes below to buy me a coffee.",
+    "qrAlt": "{{label}} QR code",
+    "scanTip": "Scan with your mobile device",
+    "noQrConfigured": "Support QR codes are not configured yet.",
+    "qr": {
+      "wechat": "WeChat",
+      "alipay": "Alipay"
+    }
   },
   "navigation": {
     "home": "Home",
@@ -91,7 +103,11 @@
     "chooseMediaSource": "Choose Your Media Source",
     "youtubeVideo": "YouTube Video",
     "localMedia": "Local Media",
-    "mediaLibrary": "Media Library"
+    "mediaLibrary": "Media Library",
+    "supportHeader": "Support the project",
+    "supportTitle": "Enjoying LoopMate? Fuel the next features!",
+    "supportDescription": "Scan a QR code with your phone to buy me a coffee and help LoopMate keep growing.",
+    "buyCoffeeCta": "Buy me a coffee"
   },
   "player": {
     "play": "Play",
@@ -105,6 +121,7 @@
     "bookmark": "Bookmark",
     "transcript": "Transcript",
     "waveform": "Waveform",
+    "waveformLoading": "Analyzing audio...",
     "noMediaLoaded": "No media loaded. Redirecting to home...",
     "mute": "Mute",
     "unmute": "Unmute",
@@ -412,8 +429,16 @@
     "clearStorageDescription": "This removes all media files from browser storage. This action cannot be undone.",
     "clearStorageSuccess": "Media storage cleared",
     "clearStorageError": "Failed to clear storage",
+    "limitExceeded": "Storage limit reached (max {{max}} MB). Please delete some files before uploading new ones.",
     "clearAllStoredMediaTitle": "Clear all stored media",
-    "percentUsed": "{{percent}}% used"
+    "percentUsed": "{{percent}}% used",
+    "limitLabel": "Storage limit",
+    "limitHelp": "Maximum space for stored media (MB)",
+    "limitUpdate": "Update limit",
+    "limitUpdated": "Storage limit updated to {{max}} MB.",
+    "limitUpdateError": "Failed to update storage limit",
+    "limitInvalid": "Please enter a storage limit of at least {{min}} MB.",
+    "limitReduceConfirm": "The new limit is smaller than the current usage. Older files may be deleted automatically. Continue?"
   },
   "layout": {
     "layoutSettings": "Layout Settings",

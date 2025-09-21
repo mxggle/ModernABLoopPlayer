@@ -3,9 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import { SettingsDrawer } from "./SettingsDrawer";
-import { Moon, Sun, Info, Settings, Layout, Eye, EyeOff } from "lucide-react";
+import {
+  Moon,
+  Sun,
+  Info,
+  Settings,
+  Layout,
+  Eye,
+  EyeOff,
+  Coffee,
+} from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
+import { SupportDialog } from "../support/SupportDialog";
 
 interface LayoutSettings {
   showPlayer: boolean;
@@ -30,6 +40,7 @@ export const AppLayout = ({
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [isLayoutPopoverOpen, setIsLayoutPopoverOpen] = useState(false);
+  const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
 
   const { currentFile, currentYouTube, theme, setTheme, seekStepSeconds, seekSmallStepSeconds } = usePlayerStore();
 
@@ -83,6 +94,23 @@ export const AppLayout = ({
         </button>
 
         <div className="flex items-center space-x-1 sm:space-x-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsSupportDialogOpen(true)}
+            className="hidden sm:inline-flex items-center gap-1 rounded-md border border-purple-200 bg-gradient-to-r from-amber-200/70 to-orange-200/70 px-3 py-1.5 text-xs font-medium text-purple-700 shadow-sm transition hover:from-amber-200 hover:to-orange-200 dark:border-purple-700/50 dark:from-amber-400/20 dark:to-orange-400/20 dark:text-amber-200"
+          >
+            <Coffee className="h-4 w-4" />
+            {t("app.buyCoffee")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsSupportDialogOpen(true)}
+            className="inline-flex sm:hidden items-center justify-center rounded-md border border-purple-200 p-1.5 text-purple-600 transition hover:bg-amber-100/80 dark:border-purple-700/50 dark:text-amber-200 dark:hover:bg-amber-500/10"
+            aria-label={t("app.buyCoffee")}
+          >
+            <Coffee className="h-4 w-4" />
+          </button>
+
           {/* Layout Settings - Show when media is loaded and layout settings are available */}
           {(currentFile || youtubeId) &&
             layoutSettings &&
@@ -379,6 +407,11 @@ export const AppLayout = ({
           </Dialog.Root>
         </div>
       </header>
+
+      <SupportDialog
+        open={isSupportDialogOpen}
+        onOpenChange={setIsSupportDialogOpen}
+      />
 
       {/* Settings Drawer - Always render but only show Interface Layout when media is loaded */}
       <SettingsDrawer

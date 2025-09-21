@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { toast } from "react-hot-toast";
 import { Play, Pause } from "lucide-react";
@@ -11,6 +11,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   // Get showWaveform state to adjust player height
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const reloadAttemptedRef = useRef(false);
   const [localPlayState, setLocalPlayState] = useState(false);
 
   const {
@@ -26,7 +27,13 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
     setCurrentTime,
     setDuration,
     setIsPlaying,
+    setCurrentFile,
   } = usePlayerStore();
+
+  // Reset reload guard when media changes
+  useEffect(() => {
+    reloadAttemptedRef.current = false;
+  }, [currentFile?.url, currentFile?.storageId, currentFile?.id]);
 
   // Keep local state in sync with global state
   useEffect(() => {
@@ -251,12 +258,59 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   };
 
   // Handle media loading errors
-  const handleError = (e: React.SyntheticEvent<HTMLMediaElement>) => {
-    console.error("Media loading error:", e.currentTarget.error);
-    toast.error(
-      "Failed to load media. The file may be corrupted or not supported."
-    );
-  };
+  const handleError = useCallback(
+    async (e: React.SyntheticEvent<HTMLMediaElement>) => {
+      console.error("Media loading error:", e.currentTarget.error);
+
+      const file = currentFile;
+      if (
+        file?.storageId &&
+        !reloadAttemptedRef.current &&
+        typeof window !== "undefined"
+      ) {
+        reloadAttemptedRef.current = true;
+        try {
+          const { retrieveMediaFile } = await import(
+            "../../utils/mediaStorage"
+          );
+          const storedFile = await retrieveMediaFile(file.storageId);
+
+          if (storedFile) {
+            const newUrl = URL.createObjectURL(storedFile);
+            if (file.url && file.url.startsWith("blob:")) {
+              try {
+                URL.revokeObjectURL(file.url);
+              } catch (revocationError) {
+                console.debug(
+                  "Failed to revoke previous media object URL",
+                  revocationError
+                );
+              }
+            }
+
+            setCurrentFile({
+              name: storedFile.name || file.name,
+              type: storedFile.type || file.type,
+              size: storedFile.size || file.size,
+              url: newUrl,
+              storageId: file.storageId,
+              id: file.id,
+              lastModified:
+                (storedFile as File).lastModified ?? (file as any).lastModified,
+            });
+            return;
+          }
+        } catch (reloadError) {
+          console.error("Failed to reload media from storage:", reloadError);
+        }
+      }
+
+      toast.error(
+        "Failed to load media. The file may be corrupted or not supported."
+      );
+    },
+    [currentFile, setCurrentFile]
+  );
 
   if (!currentFile) return null;
 

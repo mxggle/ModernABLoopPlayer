@@ -5,14 +5,14 @@ import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import { FileAudio } from "lucide-react";
 import { motion } from "framer-motion";
-import { storeMediaFile } from "../../utils/mediaStorage";
+import { storeMediaFile, getStorageUsage } from "../../utils/mediaStorage";
 
 export const FileUploader = () => {
   const { t } = useTranslation();
   const { setCurrentFile } = usePlayerStore();
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[]) => {
       if (acceptedFiles.length === 0) return;
 
       const file = acceptedFiles[0];
@@ -23,8 +23,14 @@ export const FileUploader = () => {
         return;
       }
 
-      // Store the file in IndexedDB and get a persistent ID
       try {
+        const usage = await getStorageUsage();
+        if (usage.used + file.size > usage.total) {
+          const maxMB = Math.round(usage.total / 1024 / 1024);
+          toast.error(t("storage.limitExceeded", { max: maxMB }));
+          return;
+        }
+
         // First set with temporary URL so UI can show something immediately
         const tempUrl = URL.createObjectURL(file);
         setCurrentFile({
@@ -36,67 +42,53 @@ export const FileUploader = () => {
         });
         console.log("🎸 zy 760625 FileUploader.tsx 36 ▷", file);
 
-        // Store the file in IndexedDB
-        storeMediaFile(file)
-          .then((storageId) => {
-            console.log("File stored successfully with ID:", storageId);
+        try {
+          const storageId = await storeMediaFile(file);
+          console.log("File stored successfully with ID:", storageId);
 
-            // Immediately test retrieving the file to verify storage
-            import("../../utils/mediaStorage").then(({ retrieveMediaFile }) => {
-              retrieveMediaFile(storageId)
-                .then((retrievedFile) => {
-                  if (retrievedFile) {
-                    console.log(
-                      "File retrieval test successful:",
-                      retrievedFile
-                    );
+          try {
+            const { retrieveMediaFile } = await import(
+              "../../utils/mediaStorage"
+            );
+            const retrievedFile = await retrieveMediaFile(storageId);
 
-                    // Create a new object URL from the retrieved file
-                    const retrievedUrl = URL.createObjectURL(retrievedFile);
-                    console.log(
-                      "Created new URL from retrieved file:",
-                      retrievedUrl
-                    );
+            if (retrievedFile) {
+              console.log("File retrieval test successful:", retrievedFile);
+              const retrievedUrl = URL.createObjectURL(retrievedFile);
+              console.log("Created new URL from retrieved file:", retrievedUrl);
+              setCurrentFile({
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                url: retrievedUrl,
+                storageId,
+              });
+              return;
+            }
+          } catch (retrievalError) {
+            console.error("Error in file retrieval test:", retrievalError);
+          }
 
-                    // Update the file in the store with both the storage ID and the new URL
-                    setCurrentFile({
-                      name: file.name,
-                      type: file.type,
-                      size: file.size,
-                      url: retrievedUrl, // Use the URL from the retrieved file
-                      storageId, // Add the storage ID for persistence
-                    });
-                  } else {
-                    console.error(
-                      "File retrieval test failed - couldn't retrieve file"
-                    );
-                    // Fall back to the temporary URL if retrieval test fails
-                    setCurrentFile({
-                      name: file.name,
-                      type: file.type,
-                      size: file.size,
-                      url: tempUrl,
-                      storageId,
-                    });
-                  }
-                })
-                .catch((err) => {
-                  console.error("Error in file retrieval test:", err);
-                  // Fall back to the temporary URL if retrieval test fails
-                  setCurrentFile({
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    url: tempUrl,
-                    storageId,
-                  });
-                });
-            });
-          })
-          .catch((error) => {
-            console.error("Failed to store file in IndexedDB:", error);
-            toast.error(t("upload.storageError"));
+          // Fall back to the temporary URL if retrieval failed for any reason
+          setCurrentFile({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            url: tempUrl,
+            storageId,
           });
+        } catch (storageError) {
+          console.error("Failed to store file in IndexedDB:", storageError);
+          if (
+            !(
+              storageError instanceof Error &&
+              (storageError.message === "Storage limit exceeded" ||
+                storageError.message === "File too large")
+            )
+          ) {
+            toast.error(t("upload.storageError"));
+          }
+        }
       } catch (error) {
         console.error("Error in file upload:", error);
         toast.error(t("upload.uploadError"));
