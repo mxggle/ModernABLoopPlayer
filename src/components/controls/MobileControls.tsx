@@ -48,7 +48,6 @@ export const MobileControls = () => {
     getCurrentMediaBookmarks,
     addBookmark: storeAddBookmark,
     deleteBookmark,
-    loadBookmark,
     // Playlist / queue state
     playbackQueue,
     playbackIndex,
@@ -58,6 +57,7 @@ export const MobileControls = () => {
     // Auto-advance bookmarks
     autoAdvanceBookmarks,
     setAutoAdvanceBookmarks,
+    toggleLooping,
   } = usePlayerStore();
 
   const [showSpeedControls, setShowSpeedControls] = useState(false);
@@ -131,9 +131,9 @@ export const MobileControls = () => {
       );
 
       if (existingBookmark) {
-        // If a bookmark already exists, select it
-        loadBookmark(existingBookmark.id);
-        toast.success(t("bookmarks.bookmarkSelected"), {
+        // If a bookmark already exists, remove it (toggle behavior)
+        deleteBookmark(existingBookmark.id);
+        toast.success(t("bookmarks.bookmarkRemoved"), {
           id: BOOKMARK_TOAST_ID,
         });
       } else {
@@ -225,10 +225,7 @@ export const MobileControls = () => {
     }
   };
 
-  // Toggle looping
-  const toggleLooping = () => {
-    setIsLooping(!isLooping);
-  };
+
 
   // Clear loop points function moved to waveform footer
 
@@ -261,9 +258,8 @@ export const MobileControls = () => {
             style={{
               // Improve touch area for mobile users
               WebkitAppearance: "none",
-              background: `linear-gradient(to right, #9333ea ${
-                (currentTime / (duration || 100)) * 100
-              }%, #e2e8f0 ${(currentTime / (duration || 100)) * 100}%)`,
+              background: `linear-gradient(to right, #9333ea ${(currentTime / (duration || 100)) * 100
+                }%, #e2e8f0 ${(currentTime / (duration || 100)) * 100}%)`,
               // Enhanced touch targeting
               touchAction: "none",
             }}
@@ -351,11 +347,10 @@ export const MobileControls = () => {
 
             <button
               onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}
-              className={`p-3 rounded-full ${
-                autoAdvanceBookmarks
-                  ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
-                  : "hover:bg-gray-200 dark:hover:bg-gray-700"
-              }`}
+              className={`p-3 rounded-full ${autoAdvanceBookmarks
+                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                : "hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
               aria-label={
                 autoAdvanceBookmarks
                   ? t("player.autoAdvanceOn")
@@ -367,11 +362,10 @@ export const MobileControls = () => {
 
             <button
               onClick={toggleLooping}
-              className={`p-3 rounded-full ${
-                isLooping
-                  ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
-                  : "hover:bg-gray-200 dark:hover:bg-gray-700"
-              }`}
+              className={`p-3 rounded-full ${isLooping
+                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                : "hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
               aria-label={
                 isLooping ? t("player.loopStatusOn") : t("player.loopStatusOff")
               }
@@ -397,13 +391,12 @@ export const MobileControls = () => {
 
             <button
               onClick={handleBookmarkAction}
-              className={`p-3 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                selectedBookmarkId
-                  ? "bg-purple-700 hover:bg-red-500/80 active:bg-red-500/90 text-white" // Active/Delete mode
-                  : loopStart !== null && loopEnd !== null
+              className={`p-3 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${selectedBookmarkId
+                ? "bg-purple-700 hover:bg-red-500/80 active:bg-red-500/90 text-white" // Active/Delete mode
+                : loopStart !== null && loopEnd !== null
                   ? "bg-purple-600/50 hover:bg-purple-700 active:bg-purple-800 text-white" // Add mode
                   : "opacity-50 cursor-not-allowed hover:bg-gray-200 dark:hover:bg-gray-700" // Disabled - matches other disabled buttons
-              }`}
+                }`}
               disabled={
                 !selectedBookmarkId && !(loopStart !== null && loopEnd !== null)
               }
@@ -491,9 +484,8 @@ export const MobileControls = () => {
                 className="w-full h-12 appearance-none bg-gradient-to-r from-purple-200 to-purple-500 rounded-full"
                 style={{
                   WebkitAppearance: "none",
-                  background: `linear-gradient(to right, #9333ea ${
-                    volume * 100
-                  }%, #e2e8f0 ${volume * 100}%)`,
+                  background: `linear-gradient(to right, #9333ea ${volume * 100
+                    }%, #e2e8f0 ${volume * 100}%)`,
                 }}
               />
             </div>
@@ -572,11 +564,10 @@ export const MobileControls = () => {
                     return (
                       <li
                         key={id}
-                        className={`flex items-center gap-3 p-3 rounded-lg ${
-                          isCurrentItem
-                            ? "bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800"
-                            : "bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        }`}
+                        className={`flex items-center gap-3 p-3 rounded-lg ${isCurrentItem
+                          ? "bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800"
+                          : "bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          }`}
                       >
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium truncate">
@@ -615,11 +606,11 @@ export const MobileControls = () => {
                                   idx < playbackIndex
                                     ? playbackIndex - 1
                                     : idx === playbackIndex
-                                    ? Math.min(
+                                      ? Math.min(
                                         playbackIndex,
                                         newQueue.length - 1
                                       )
-                                    : playbackIndex;
+                                      : playbackIndex;
                                 usePlayerStore.setState({
                                   playbackQueue: newQueue,
                                   playbackQueueOriginal: newOriginal,

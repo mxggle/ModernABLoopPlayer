@@ -22,9 +22,11 @@ export const useKeyboardShortcuts = () => {
     setLoopPoints,
     setIsLooping,
     addBookmark: storeAddBookmark,
+    deleteBookmark,
     getCurrentMediaBookmarks,
     seekStepSeconds,
     seekSmallStepSeconds,
+    toggleLooping,
   } = usePlayerStore()
 
   useEffect(() => {
@@ -77,7 +79,8 @@ export const useKeyboardShortcuts = () => {
         case 'l':
         case 'L':
           e.preventDefault()
-          setIsLooping(!isLooping)
+          e.preventDefault()
+          toggleLooping()
           break
 
         // Clear loop points - C key
@@ -141,31 +144,53 @@ export const useKeyboardShortcuts = () => {
           break
         }
 
-        // Quick add bookmark - M key
+        // Quick add/remove bookmark - M key
         case 'm':
         case 'M': {
           e.preventDefault()
-          if (duration === 0) return
+          if (duration === 0) {
+            toast.error(t('bookmarks.loadMediaFirst'))
+            return
+          }
 
-          const start = loopStart !== null ? loopStart : Math.max(0, currentTime - 2)
-          const end = loopEnd !== null ? loopEnd : Math.min(duration, currentTime + 2)
-          if (end <= start) return
+          // Require explicit loop points
+          if (loopStart === null || loopEnd === null) {
+            toast.error(t('bookmarks.setValidRange'))
+            return
+          }
 
-          const count = getCurrentMediaBookmarks().length + 1
-          const name = t('bookmarks.defaultClipName', { count })
+          if (loopEnd <= loopStart) {
+            toast.error(t('bookmarks.setValidRange'))
+            return
+          }
 
-          const added = storeAddBookmark({
-            name,
-            start,
-            end,
-            playbackRate,
-            mediaName: currentFile?.name,
-            mediaType: currentFile?.type,
-            youtubeId: currentYouTube?.id,
-            annotation: ''
-          })
-          if (added) {
-            toast.success(t('bookmarks.bookmarkAdded'))
+          // Check for existing bookmark to toggle (remove)
+          const bookmarks = getCurrentMediaBookmarks()
+          const TOL = 0.05
+          const existingBookmark = bookmarks.find(
+            (b) => Math.abs(b.start - loopStart) < TOL && Math.abs(b.end - loopEnd) < TOL
+          )
+
+          if (existingBookmark) {
+            deleteBookmark(existingBookmark.id)
+            toast.success(t('bookmarks.bookmarkRemoved'))
+          } else {
+            const count = bookmarks.length + 1
+            const name = t('bookmarks.defaultClipName', { count })
+
+            const added = storeAddBookmark({
+              name,
+              start: loopStart,
+              end: loopEnd,
+              playbackRate,
+              mediaName: currentFile?.name,
+              mediaType: currentFile?.type,
+              youtubeId: currentYouTube?.id,
+              annotation: ''
+            })
+            if (added) {
+              toast.success(t('bookmarks.bookmarkAdded'))
+            }
           }
           break
         }

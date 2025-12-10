@@ -444,7 +444,41 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setIsLooping: (isLooping) => set({ isLooping }),
       setLoopCount: (loopCount) => set({ loopCount }),
       setMaxLoops: (maxLoops) => set({ maxLoops }),
-      toggleLooping: () => set((state) => ({ isLooping: !state.isLooping })),
+      toggleLooping: () => {
+        const { isLooping, currentTime, getCurrentMediaBookmarks } = get();
+
+        if (isLooping) {
+          // If already looping, just turn it off
+          set({ isLooping: false });
+        } else {
+          // If turning on, check if we are inside a bookmark
+          const bookmarks = getCurrentMediaBookmarks();
+          const coveringBookmarks = bookmarks.filter(
+            (b) => b.start <= currentTime && b.end >= currentTime
+          );
+
+          if (coveringBookmarks.length > 0) {
+            // Find the shortest bookmark
+            const shortest = coveringBookmarks.reduce((prev, curr) => {
+              const prevDur = prev.end - prev.start;
+              const currDur = curr.end - curr.start;
+              return currDur < prevDur ? curr : prev;
+            });
+
+            set({
+              isLooping: true,
+              loopStart: shortest.start,
+              loopEnd: shortest.end,
+              selectedBookmarkId: shortest.id,
+            });
+            toast.success(i18n.t("bookmarks.loopingBookmark", { name: shortest.name }));
+          } else {
+            // Default behavior: just toggle on (restores previous loop or enables if set)
+            // If no loop points set, user might expect something, but let's stick to standard toggle
+            set({ isLooping: true });
+          }
+        }
+      },
       moveLoopWindow: (deltaTime) => {
         const { loopStart, loopEnd, duration } = get();
         if (loopStart === null || loopEnd === null) return;
@@ -991,15 +1025,15 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           mediaHistory: state.mediaHistory.map((item) =>
             item.id === historyItemId
               ? {
-                  ...item,
-                  name: newName,
-                  ...(item.type === "file" && item.fileData
-                    ? { fileData: { ...item.fileData, name: newName } }
-                    : {}),
-                  ...(item.type === "youtube" && item.youtubeData
-                    ? { youtubeData: { ...item.youtubeData, title: newName } }
-                    : {}),
-                }
+                ...item,
+                name: newName,
+                ...(item.type === "file" && item.fileData
+                  ? { fileData: { ...item.fileData, name: newName } }
+                  : {}),
+                ...(item.type === "youtube" && item.youtubeData
+                  ? { youtubeData: { ...item.youtubeData, title: newName } }
+                  : {}),
+              }
               : item
           ),
         })),
@@ -1145,12 +1179,23 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         const mediaId = getCurrentMediaId();
         if (!mediaId) return;
 
-        set((state) => ({
-          mediaTranscripts: {
-            ...state.mediaTranscripts,
-            [mediaId]: [...(state.mediaTranscripts[mediaId] || []), newSegment],
-          },
-        }));
+        set((state) => {
+          const currentSegments = state.mediaTranscripts[mediaId] || [];
+
+          // Check for duplicates: same start time (approx) and same text
+          const isDuplicate = currentSegments.some(
+            (s) => Math.abs(s.startTime - newSegment.startTime) < 0.1 && s.text === newSegment.text
+          );
+
+          if (isDuplicate) return state;
+
+          return {
+            mediaTranscripts: {
+              ...state.mediaTranscripts,
+              [mediaId]: [...currentSegments, newSegment].sort((a, b) => a.startTime - b.startTime),
+            },
+          };
+        });
       },
 
       updateTranscriptSegment(id, changes) {
@@ -1221,8 +1266,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           return `${hrs.toString().padStart(2, "0")}:${mins
             .toString()
             .padStart(2, "0")}:${secs.toString().padStart(2, "0")},${ms
-            .toString()
-            .padStart(3, "0")}`;
+              .toString()
+              .padStart(3, "0")}`;
         }
 
         function formatVttTime(seconds: number): string {
@@ -1233,8 +1278,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           return `${hrs.toString().padStart(2, "0")}:${mins
             .toString()
             .padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${ms
-            .toString()
-            .padStart(3, "0")}`;
+              .toString()
+              .padStart(3, "0")}`;
         }
 
         // We can use media info for context if needed in the future
@@ -1257,9 +1302,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             .map((segment, index) => {
               const startTime = formatSrtTime(segment.startTime);
               const endTime = formatSrtTime(segment.endTime);
-              return `${index + 1}\n${startTime} --> ${endTime}\n${
-                segment.text
-              }\n`;
+              return `${index + 1}\n${startTime} --> ${endTime}\n${segment.text
+                }\n`;
             })
             .join("\n");
 

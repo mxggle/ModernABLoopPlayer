@@ -1,5 +1,5 @@
 {
-    "common": {
+  "common": {
     "settings": "Settings",
     "close": "Close",
     "save": "Save",
@@ -16,7 +16,9 @@
     "import": "Import",
     "upload": "Upload",
     "create": "Create",
-    "back": "Back"
+    "back": "Back",
+    "start": "Start",
+    "end": "End"
   },
   "app": {
     "logoLabel": "LoopMate logo"
@@ -26,6 +28,13 @@
     "player": "Player",
     "history": "History",
     "aiSettings": "AI Settings"
+  },
+  "bookmarks": {
+    "bookmarkAdded": "Bookmark added",
+    "bookmarkUpdated": "Bookmark updated",
+    "bookmarkDeleted": "Bookmark deleted",
+    "bookmarkLoaded": "Bookmark loaded",
+    "nameCannotBeEmpty": "Bookmark name cannot be empty"
   },
   "settings": {
     "title": "Settings",
@@ -174,7 +183,7 @@
     "invalidUrl": "Invalid YouTube URL",
     "errorLoadingVideo": "Error loading YouTube video"
   },
-    "loop": {
+  "loop": {
     "title": "A-B Loop",
     "controlsTitle": "A-B Loop Controls",
     "looping": "Looping",
@@ -295,6 +304,12 @@
     "uploadTranscript": "Upload Transcript",
     "generateTranscript": "Generate Transcript",
     "exportTranscript": "Export Transcript",
+    "sections": "Sections",
+    "fullTranscript": "Full Transcript",
+    "bookmarks": "Bookmarks",
+    "transcribeBookmark": "Transcribe this bookmark",
+    "transcribeBookmarkButton": "Transcribe Bookmark",
+    "noTranscriptForBookmark": "No transcript available for this bookmark range.",
     "languages": {
       "en-US": "English (US)",
       "en-GB": "English (UK)",

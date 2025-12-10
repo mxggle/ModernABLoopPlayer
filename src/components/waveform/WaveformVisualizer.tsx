@@ -62,6 +62,9 @@ export const WaveformVisualizer = () => {
     y: number;
     items: { id: string; name: string; start: number; end: number }[];
   } | null>(null);
+  const dragStartXRef = useRef<number | null>(null);
+  const [resizingBookmark, setResizingBookmark] = useState<{ id: string; edge: "start" | "end" } | null>(null);
+  const resizingRef = useRef(false); // Ref to track resizing status avoiding closure staleness
 
   // Detect if device is mobile
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -87,6 +90,7 @@ export const WaveformVisualizer = () => {
     deleteBookmark,
     autoAdvanceBookmarks,
     setAutoAdvanceBookmarks,
+    updateBookmark, // Added updateBookmark here
   } = usePlayerStore();
 
   // Subscribe to bookmarks for current media so changes re-render this component
@@ -413,6 +417,14 @@ export const WaveformVisualizer = () => {
         Math.max(0, width - dpr),
         Math.max(0, hCanvas - dpr)
       );
+
+      // Draw resize handles
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      const handleW = 4 * dpr;
+      // Left handle
+      ctx.fillRect(x1c, yCanvas, handleW, hCanvas);
+      // Right handle
+      ctx.fillRect(Math.max(x1c, x2c - handleW), yCanvas, handleW, hCanvas);
       // Save clickable rect in CSS pixels with a small hit padding for touch
       const hitPadY = isMobile ? 4 : 2;
       const hitPadX = isMobile ? 2 : 1;
@@ -455,27 +467,29 @@ export const WaveformVisualizer = () => {
       );
     }
 
-    // Draw waveform
-    ctx.beginPath();
-    ctx.strokeStyle = "#8B5CF6"; // Purple
-    ctx.lineWidth = 2 * window.devicePixelRatio;
-
+    // Draw waveform as bars
+    ctx.fillStyle = "#8B5CF6"; // Purple
     const sliceWidth = canvas.width / (endIndex - startIndex);
     const centerY = canvas.height / 2;
-    const amplitudeScale = canvas.height * 0.4;
+    const amplitudeScale = canvas.height * 2;
+
+    // Calculate bar dimensions
+    // We want a small gap between bars if there's enough space
+
+    const gap = sliceWidth > 4 * dpr ? 1 * dpr : 0;
+    const barWidth = Math.max(1 * dpr, sliceWidth - gap);
 
     for (let i = startIndex; i < endIndex; i++) {
       const x = (i - startIndex) * sliceWidth;
-      const y = centerY + waveformData[i] * amplitudeScale;
+      const value = waveformData[i];
 
-      if (i === startIndex) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+      // Calculate bar height based on amplitude
+      // Ensure even silence has a tiny presence (1px) or full silence
+      const height = Math.max(1 * dpr, value * amplitudeScale * 2);
+      const y = centerY - height / 2;
+
+      ctx.fillRect(x, y, barWidth, height);
     }
-
-    ctx.stroke();
 
     // Draw playhead
     const playheadX =
@@ -929,7 +943,8 @@ export const WaveformVisualizer = () => {
     };
   }, [setWaveformZoom]);
 
-  // Handle mouse down for range selection
+
+  // Handle mouse down for range selection or bookmark resizing
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (overlapMenu) setOverlapMenu(null);
     if (!canvasRef.current) return;
@@ -937,25 +952,89 @@ export const WaveformVisualizer = () => {
     // Only start selection with left mouse button
     if (e.button !== 0) return;
 
+    // Check for bookmark resize handles
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect && laneRectsRef.current.length > 0) {
+      const xCss = e.clientX - rect.left;
+      const yCss = e.clientY - rect.top;
+      const HANDLE_WIDTH = 8;
+
+      for (const lane of laneRectsRef.current) {
+        if (yCss >= lane.y1 && yCss <= lane.y2) {
+          // Check start handle
+          if (Math.abs(xCss - lane.x1) <= HANDLE_WIDTH) {
+            setResizingBookmark({ id: lane.id, edge: "start" });
+            resizingRef.current = true;
+            return;
+          }
+          // Check end handle
+          if (Math.abs(xCss - lane.x2) <= HANDLE_WIDTH) {
+            setResizingBookmark({ id: lane.id, edge: "end" });
+            resizingRef.current = true;
+            return;
+          }
+        }
+      }
+    }
+
     // Get the time at the click position
     const time = positionToTime(e.clientX);
     if (time >= 0 && time <= duration) {
       setIsDragging(true);
       setDragStart(time);
       setDragEnd(null);
+      dragStartXRef.current = e.clientX;
     }
   };
 
-  // Handle mouse move during range selection
+  // Handle mouse move during range selection or resizing
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!canvasRef.current) return;
+
+    const rect = containerRef.current?.getBoundingClientRect();
+    const xCss = rect ? e.clientX - rect.left : 0;
+    const yCss = rect ? e.clientY - rect.top : 0;
+    const HANDLE_WIDTH = 8;
+    // Removed unused cursor variable declaration
+
+    // Handle resizing
+    if (resizingBookmark) {
+      const time = positionToTime(e.clientX);
+      if (time >= 0 && time <= duration) {
+        const bm = bookmarks?.find((b) => b.id === resizingBookmark.id);
+        if (bm) {
+          if (resizingBookmark.edge === "start") {
+            const newStart = Math.min(time, bm.end - 0.1);
+            if (newStart >= 0) updateBookmark(bm.id, { start: newStart });
+          } else {
+            const newEnd = Math.max(time, bm.start + 0.1);
+            if (newEnd <= duration) updateBookmark(bm.id, { end: newEnd });
+          }
+        }
+      }
+      return;
+    }
+
+    // Update cursor for hover effects
+    let onHandle = false;
+    if (rect && !isDragging) {
+      for (const lane of laneRectsRef.current) {
+        if (yCss >= lane.y1 && yCss <= lane.y2) {
+          if (Math.abs(xCss - lane.x1) <= HANDLE_WIDTH || Math.abs(xCss - lane.x2) <= HANDLE_WIDTH) {
+            onHandle = true;
+            break;
+          }
+        }
+      }
+    }
+    if (containerRef.current) containerRef.current.style.cursor = onHandle ? "ew-resize" : (isDragging ? "crosshair" : "default");
 
     // Calculate the time at current position
     const time = positionToTime(e.clientX);
     if (time >= 0 && time <= duration) {
       setHoverTime(time);
 
-      // Update end position if dragging
+      // Update end position if Loop dragging (not resizing)
       if (isDragging && dragStart !== null) {
         setDragEnd(time);
       }
@@ -966,11 +1045,21 @@ export const WaveformVisualizer = () => {
 
   // Handle mouse up to finalize range selection
   const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (resizingBookmark) {
+      setResizingBookmark(null);
+      // Keep resizingRef true slightly longer to prevent click handling
+      setTimeout(() => resizingRef.current = false, 50);
+      return;
+    }
+
     if (!isDragging || dragStart === null) return;
 
     const time = positionToTime(e.clientX);
-    if (time >= 0 && time <= duration && Math.abs(time - dragStart) > 0.1) {
-      // Only set loop points if the selection is significant (>100ms)
+    // Use pixel distance for threshold to avoid false positives from moving waveform while playing
+    const pixelDist = dragStartXRef.current !== null ? Math.abs(e.clientX - dragStartXRef.current) : 0;
+
+    // Only set loop points if the drag distance > 5px AND time diff > 0.1s
+    if (time >= 0 && time <= duration && pixelDist > 5 && Math.abs(time - dragStart) > 0.1) {
       const start = Math.min(dragStart, time);
       const end = Math.max(dragStart, time);
       setLoopPoints(start, end);
@@ -979,17 +1068,21 @@ export const WaveformVisualizer = () => {
     setIsDragging(false);
     setDragStart(null);
     setDragEnd(null);
+    dragStartXRef.current = null;
   };
 
   // Handle mouse leave
   const handleMouseLeave = () => {
     setHoverTime(null);
+    setResizingBookmark(null);
+    resizingRef.current = false;
 
     // Cancel dragging if mouse leaves the component
     if (isDragging) {
       setIsDragging(false);
       setDragStart(null);
       setDragEnd(null);
+      dragStartXRef.current = null;
     }
     if (overlapMenu) setOverlapMenu(null);
   };
@@ -1037,7 +1130,7 @@ export const WaveformVisualizer = () => {
 
   // Handle waveform click for seeking (only when not dragging)
   const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!canvasRef.current || isDragging) return;
+    if (!canvasRef.current || isDragging || resizingRef.current) return;
 
     // Only handle left clicks that aren't part of a drag operation
     if (e.button !== 0 || dragStart !== null) return;
@@ -1063,35 +1156,13 @@ export const WaveformVisualizer = () => {
         }
       }
 
-      // Otherwise: fall back to region test under cursor
-      const overlapped = Array.isArray(bookmarks)
-        ? bookmarks.filter((bm) => bm.start <= time && time <= bm.end)
-        : [];
 
-      if (overlapped.length === 1) {
-        const clickedBookmark = overlapped[0];
-        loadBookmark(clickedBookmark.id);
-        setCurrentTime(clickedBookmark.start);
-        setIsPlaying(true);
-        document.body.classList.add("user-seeking");
-        setTimeout(() => {
-          document.body.classList.remove("user-seeking");
-        }, 100);
-        return;
-      } else if (overlapped.length > 1 && containerRef.current) {
-        // Multiple overlaps: show a small picker near the click position
-        const rect = containerRef.current.getBoundingClientRect();
-        // Sort by shortest duration first (more specific clips first)
-        const items = overlapped
-          .slice()
-          .sort((a, b) => a.end - a.start - (b.end - b.start))
-          .map((b) => ({ id: b.id, name: b.name, start: b.start, end: b.end }));
-        setOverlapMenu({
-          x: e.clientX - rect.left,
-          y: Math.max(8, e.clientY - rect.top),
-          items,
-        });
-        return;
+
+      // If loop is active and user clicks outside the loop range, disable looping
+      if (isLooping && loopStart !== null && loopEnd !== null) {
+        if (time < loopStart || time > loopEnd) {
+          setIsLooping(false);
+        }
       }
 
       // Otherwise, just seek to the clicked time
@@ -1156,9 +1227,8 @@ export const WaveformVisualizer = () => {
       {/* Waveform visualization with drag selection and touch support */}
       <div
         ref={containerRef}
-        className={`${
-          isMobile ? "h-40" : "h-40 sm:h-48 lg:h-56"
-        } overflow-hidden relative overscroll-contain touch-none select-none`}
+        className={`${isMobile ? "h-40" : "h-40 sm:h-48 lg:h-56"
+          } overflow-hidden relative overscroll-contain touch-none select-none`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -1182,13 +1252,11 @@ export const WaveformVisualizer = () => {
             onPointerDown={stopPropagation}
           >
             <button
-              className={`${
-                isLooping
-                  ? "bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white"
-                  : "text-white hover:bg-white/10 active:bg-white/20"
-              } inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                isMobile ? "h-9 w-9" : "h-8 w-8"
-              }`}
+              className={`${isLooping
+                ? "bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white"
+                : "text-white hover:bg-white/10 active:bg-white/20"
+                } inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+                }`}
               onClick={() => setIsLooping(!isLooping)}
               title={isLooping ? t("loop.disableLoop") : t("loop.enableLoop")}
               aria-label={t("player.toggleLooping")}
@@ -1196,13 +1264,11 @@ export const WaveformVisualizer = () => {
               <Repeat size={isMobile ? 16 : 14} />
             </button>
             <button
-              className={`${
-                autoAdvanceBookmarks
-                  ? "bg-purple-600 text-white"
-                  : "text-white hover:bg-white/10 active:bg-white/20"
-              } inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                isMobile ? "h-9 w-9" : "h-8 w-8"
-              }`}
+              className={`${autoAdvanceBookmarks
+                ? "bg-purple-600 text-white"
+                : "text-white hover:bg-white/10 active:bg-white/20"
+                } inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+                }`}
               onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}
               title={
                 autoAdvanceBookmarks
@@ -1214,9 +1280,8 @@ export const WaveformVisualizer = () => {
               <ChevronsRight size={isMobile ? 16 : 14} />
             </button>
             <button
-              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                isMobile ? "h-9 w-9" : "h-8 w-8"
-              }`}
+              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+                }`}
               onClick={() => {
                 if (duration === 0) return;
                 if (loopEnd !== null && currentTime >= loopEnd) {
@@ -1233,9 +1298,8 @@ export const WaveformVisualizer = () => {
               <AlignStartHorizontal size={isMobile ? 16 : 14} />
             </button>
             <button
-              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                isMobile ? "h-9 w-9" : "h-8 w-8"
-              }`}
+              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+                }`}
               onClick={() => {
                 if (duration === 0) return;
                 const start = loopStart !== null ? loopStart : 0;
@@ -1250,9 +1314,8 @@ export const WaveformVisualizer = () => {
               <AlignEndHorizontal size={isMobile ? 16 : 14} />
             </button>
             <button
-              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                isMobile ? "h-9 w-9" : "h-8 w-8"
-              }`}
+              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+                }`}
               onClick={() => {
                 setLoopPoints(null, null);
                 setIsLooping(false);
@@ -1263,9 +1326,8 @@ export const WaveformVisualizer = () => {
               <X size={isMobile ? 16 : 14} />
             </button>
             <button
-              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                isMobile ? "h-9 w-9" : "h-8 w-8"
-              }`}
+              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+                }`}
               onClick={() => goToBookmark("prev")}
               title={t("player.previousBookmark")}
               aria-label={t("player.previousBookmark")}
@@ -1274,9 +1336,8 @@ export const WaveformVisualizer = () => {
               <ChevronLeft size={isMobile ? 16 : 14} />
             </button>
             <button
-              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                isMobile ? "h-9 w-9" : "h-8 w-8"
-              }`}
+              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+                }`}
               onClick={() => goToBookmark("next")}
               title={t("player.nextBookmark")}
               aria-label={t("player.nextBookmark")}
@@ -1286,15 +1347,13 @@ export const WaveformVisualizer = () => {
             </button>
 
             <button
-              className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 ${
-                isMobile ? "h-9 w-9" : "h-8 w-8"
-              } ${
-                selectedBookmarkId
+              className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+                } ${selectedBookmarkId
                   ? "bg-purple-700 hover:bg-red-500/80 active:bg-red-500/90" // Active/Delete mode
                   : loopStart !== null && loopEnd !== null
-                  ? "bg-purple-600/50 hover:bg-purple-700 active:bg-purple-800" // Add mode
-                  : "bg-purple-600/40 cursor-not-allowed" // Disabled
-              }`}
+                    ? "bg-purple-600/50 hover:bg-purple-700 active:bg-purple-800" // Add mode
+                    : "bg-purple-600/40 cursor-not-allowed" // Disabled
+                }`}
               onClick={() => {
                 if (selectedBookmarkId) {
                   // Delete mode
@@ -1307,18 +1366,17 @@ export const WaveformVisualizer = () => {
                   const existingBookmark = existingBookmarks.find(
                     (b) => Math.abs(b.start - loopStart) < TOL && Math.abs(b.end - loopEnd) < TOL
                   );
-                  
+
                   if (existingBookmark) {
-                    // If a bookmark already exists, select it instead of showing an error
-                    loadBookmark(existingBookmark.id);
-                    toast.success(t("bookmarks.bookmarkSelected"), { id: BOOKMARK_TOAST_ID });
+                    // If a bookmark already exists for this exact range, remove it (toggle behavior)
+                    deleteBookmark(existingBookmark.id);
+                    toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
                   } else {
                     // Add mode - create new bookmark
                     const added = storeAddBookmark({
-                      name: `Clip ${
-                        usePlayerStore.getState().getCurrentMediaBookmarks()
-                          .length + 1
-                      }`,
+                      name: `Clip ${usePlayerStore.getState().getCurrentMediaBookmarks()
+                        .length + 1
+                        }`,
                       start: loopStart,
                       end: loopEnd,
                       playbackRate,
@@ -1353,12 +1411,12 @@ export const WaveformVisualizer = () => {
               isMobile
                 ? { left: 8, right: 8, top: 8 }
                 : {
-                    left: overlapMenu.x,
-                    top: Math.min(
-                      overlapMenu.y,
-                      (containerRef.current?.clientHeight || 0) - 8
-                    ),
-                  }
+                  left: overlapMenu.x,
+                  top: Math.min(
+                    overlapMenu.y,
+                    (containerRef.current?.clientHeight || 0) - 8
+                  ),
+                }
             }
             onMouseDown={stopPropagation}
             onClick={stopPropagation}
@@ -1401,10 +1459,9 @@ export const WaveformVisualizer = () => {
             className="absolute bg-purple-500/30 border border-purple-500 pointer-events-none"
             style={{
               left: `${timeToPosition(Math.min(dragStart, dragEnd))}%`,
-              width: `${
-                timeToPosition(Math.max(dragStart, dragEnd)) -
+              width: `${timeToPosition(Math.max(dragStart, dragEnd)) -
                 timeToPosition(Math.min(dragStart, dragEnd))
-              }%`,
+                }%`,
               top: 0,
               height: "100%",
               zIndex: 5,
@@ -1415,9 +1472,8 @@ export const WaveformVisualizer = () => {
         {/* Tooltip for current hover/touch position */}
         {hoverTime !== null && (
           <div
-            className={`absolute bg-gray-800/90 text-white ${
-              isMobile ? "text-sm px-3 py-1.5" : "text-xs px-2 py-1"
-            } rounded pointer-events-none z-10`}
+            className={`absolute bg-gray-800/90 text-white ${isMobile ? "text-sm px-3 py-1.5" : "text-xs px-2 py-1"
+              } rounded pointer-events-none z-10`}
             style={{
               left: `${timeToPosition(hoverTime)}%`,
               top: isMobile ? "10px" : "0px",
@@ -1431,18 +1487,16 @@ export const WaveformVisualizer = () => {
 
       {/* Loop controls - responsive design for mobile */}
       <div
-        className={`flex ${
-          isMobile ? "flex-col" : "items-center justify-between"
-        } p-1 bg-gray-900/50`}
+        className={`flex ${isMobile ? "flex-col" : "items-center justify-between"
+          } p-1 bg-gray-900/50`}
         onMouseDown={stopPropagation}
         onClick={stopPropagation}
         onTouchStart={stopPropagation}
       >
         {/* Mobile bookmark controls moved to PlaybackControls component */}
         <div
-          className={`flex items-center ${
-            isMobile ? "mb-1 justify-between w-full" : "space-x-2"
-          }`}
+          className={`flex items-center ${isMobile ? "mb-1 justify-between w-full" : "space-x-2"
+            }`}
         >
           <span
             className={
@@ -1453,9 +1507,8 @@ export const WaveformVisualizer = () => {
           </span>
           {loopStart !== null && loopEnd !== null ? (
             <div
-              className={`flex items-center ${
-                isMobile ? "space-x-2 flex-1 justify-end" : "space-x-1"
-              }`}
+              className={`flex items-center ${isMobile ? "space-x-2 flex-1 justify-end" : "space-x-1"
+                }`}
             >
               <span
                 className={
@@ -1465,9 +1518,8 @@ export const WaveformVisualizer = () => {
                 {formatTime(loopStart)} - {formatTime(loopEnd)}
               </span>
               <button
-                className={`bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded ${
-                  isMobile ? "text-sm px-3 py-1 ml-2" : "text-xs px-2 py-0.5"
-                }`}
+                className={`bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded ${isMobile ? "text-sm px-3 py-1 ml-2" : "text-xs px-2 py-0.5"
+                  }`}
                 onClick={handleLoopSelection}
                 title={
                   activeBookmark
@@ -1482,9 +1534,8 @@ export const WaveformVisualizer = () => {
                 </span>
               </button>
               <button
-                className={`bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded ${
-                  isMobile ? "text-sm px-2 py-1 ml-1" : "text-xs px-1.5 py-0.5 ml-1"
-                }`}
+                className={`bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded ${isMobile ? "text-sm px-2 py-1 ml-1" : "text-xs px-1.5 py-0.5 ml-1"
+                  }`}
                 onClick={() => {
                   setLoopPoints(null, null);
                   setIsLooping(false);

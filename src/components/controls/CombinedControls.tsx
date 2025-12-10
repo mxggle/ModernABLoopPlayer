@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Bookmark,
   ListMusic,
+  X,
 } from "lucide-react";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
@@ -60,6 +61,7 @@ export const CombinedControls = () => {
     stopPlaybackQueue,
     playbackMode,
     setPlaybackMode,
+    selectedBookmarkId,
   } = usePlayerStore();
 
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
@@ -83,41 +85,82 @@ export const CombinedControls = () => {
     setIsPlaying(!isPlaying);
   };
 
-  // Quick-add a bookmark using current loop selection or a short window
-  const quickAddBookmark = () => {
-    // Determine the range: prefer existing loop selection
-    const start = loopStart !== null ? loopStart : Math.max(0, currentTime - 2);
-    const end = loopEnd !== null ? loopEnd : Math.min(duration, currentTime + 2);
+  // Handle bookmark toggle button - add/remove bookmarks directly
+  const handleBookmarkAction = () => {
+    // 1. If a bookmark is explicitly selected, delete it
+    if (selectedBookmarkId) {
+      // Find the bookmark index or object if needed, but we can just delete by ID
+      // We might want to confirm if the user really wants to delete, but for now we follow the pattern
+      usePlayerStore.getState().deleteBookmark(selectedBookmarkId);
+      toast.success(t("bookmarks.bookmarkRemoved"));
+      return;
+    }
 
+    // 2. If no bookmark is selected, we rely on the loop points
     if (duration === 0) {
       toast.error(t("bookmarks.loadMediaFirst"));
       return;
     }
 
-    if (end <= start) {
+    // Require explicit loop points - do NOT default to ±2 seconds anymore
+    if (loopStart === null || loopEnd === null) {
       toast.error(t("bookmarks.setValidRange"));
       return;
     }
 
-    // Generate a simple default name
-    const count = bookmarks.length + 1;
-    const name = t("bookmarks.defaultClipName", { count });
+    if (loopEnd <= loopStart) {
+      toast.error(t("bookmarks.setValidRange"));
+      return;
+    }
 
-    // Persist bookmark to current media
-    const added = storeAddBookmark({
-      name,
-      start,
-      end,
-      playbackRate,
-      mediaName: currentFile?.name,
-      mediaType: currentFile?.type,
-      youtubeId: currentYouTube?.id,
-      annotation: "",
-    });
-    if (added) {
-      toast.success(t("bookmarks.bookmarkAdded"));
+    // 3. Check if a bookmark already exists for this EXACT range (with tolerance)
+    // If so, delete it (toggle behavior), mimicking the other controls
+    const TOL = 0.05;
+    const existingBookmark = bookmarks.find(
+      (b) => Math.abs(b.start - loopStart) < TOL && Math.abs(b.end - loopEnd) < TOL
+    );
+
+    if (existingBookmark) {
+      usePlayerStore.getState().deleteBookmark(existingBookmark.id);
+      toast.success(t("bookmarks.bookmarkRemoved"));
+    } else {
+      // 4. Create new bookmark
+      const count = bookmarks.length + 1;
+      const name = t("bookmarks.defaultClipName", { count });
+
+      const added = storeAddBookmark({
+        name,
+        start: loopStart,
+        end: loopEnd,
+        playbackRate,
+        mediaName: currentFile?.name,
+        mediaType: currentFile?.type,
+        youtubeId: currentYouTube?.id,
+        annotation: "",
+      });
+      if (added) {
+        toast.success(t("bookmarks.bookmarkAdded"));
+      }
     }
   };
+
+  // ... (keeping other functions)
+
+  // Determine button state for UI
+  const isRemoveMode =
+    selectedBookmarkId !== null ||
+    (loopStart !== null &&
+      loopEnd !== null &&
+      bookmarks.some(
+        (b) =>
+          Math.abs(b.start - loopStart!) < 0.05 &&
+          Math.abs(b.end - loopEnd!) < 0.05
+      ));
+
+  // ... same as before ...
+
+  // Find the button rendering part and replace it
+
 
   // Handle timeline slider change with improved seeking capability
   const handleTimelineChange = (values: number[]) => {
@@ -376,14 +419,20 @@ export const CombinedControls = () => {
               </Button>
               <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" aria-hidden></div>
               <Button
-                variant="default"
+                variant={isRemoveMode ? "destructive" : "default"}
                 size="sm"
-                onClick={quickAddBookmark}
+                onClick={handleBookmarkAction}
                 className="gap-1 py-1 px-3 h-8 text-xs font-medium rounded-none"
-                aria-label={t("bookmarks.quickAddBookmark")}
+                aria-label={isRemoveMode ? t("bookmarks.removeBookmark") : t("bookmarks.addBookmark")}
               >
-                <Plus size={13} className="sm:w-[14px] sm:h-[14px]" />
-                <span className="hidden sm:inline">{t("common.add")}</span>
+                {isRemoveMode ? (
+                  <X size={13} className="sm:w-[14px] sm:h-[14px]" />
+                ) : (
+                  <Plus size={13} className="sm:w-[14px] sm:h-[14px]" />
+                )}
+                <span className="hidden sm:inline">
+                  {isRemoveMode ? t("common.remove") : t("common.add")}
+                </span>
               </Button>
             </div>
 
@@ -469,9 +518,8 @@ export const CombinedControls = () => {
                       return (
                         <li key={`${id}-${idx}`}>
                           <button
-                            className={`w-full text-left px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                              isCurrent ? "bg-gray-100 dark:bg-gray-800 font-medium" : ""
-                            }`}
+                            className={`w-full text-left px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${isCurrent ? "bg-gray-100 dark:bg-gray-800 font-medium" : ""
+                              }`}
                             onClick={() => startPlaybackQueue(playbackQueue, id)}
                           >
                             <div className="flex items-center gap-2">
