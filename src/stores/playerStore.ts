@@ -87,6 +87,7 @@ export interface PlayerState {
   currentTime: number;
   duration: number;
   volume: number;
+  previousVolume?: number; // Store volume before muting
   playbackRate: number;
   muted: boolean;
   isLoadingMedia: boolean; // Add loading state
@@ -145,6 +146,7 @@ export interface PlayerActions {
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   setVolume: (volume: number) => void;
+  setPreviousVolume: (volume: number) => void;
   setPlaybackRate: (rate: number) => void;
   setMuted: (muted: boolean) => void;
   togglePlay: () => void;
@@ -424,6 +426,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setCurrentTime: (currentTime) => set({ currentTime }),
       setDuration: (duration) => set({ duration }),
       setVolume: (volume) => set({ volume }),
+      setPreviousVolume: (previousVolume) => set({ previousVolume }),
       setPlaybackRate: (playbackRate) => set({ playbackRate }),
       setMuted: (muted) => set({ muted }),
       togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),

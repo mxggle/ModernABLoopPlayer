@@ -20,11 +20,18 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsRight,
+  Mic,
 } from "lucide-react";
 import { Button } from "../ui/button";
+import { useShadowingStore } from "../../stores/shadowingStore";
+import { useShadowingRecorder } from "../../hooks/useShadowingRecorder";
 
 export const MobileControls = () => {
   const { t } = useTranslation();
+
+  // Initialize shadowing recorder
+  useShadowingRecorder();
+
   const {
     isPlaying,
     currentTime,
@@ -59,6 +66,12 @@ export const MobileControls = () => {
     setAutoAdvanceBookmarks,
     toggleLooping,
   } = usePlayerStore();
+
+  const {
+    isShadowingMode,
+    setShadowingMode,
+    isRecording,
+  } = useShadowingStore();
 
   const [showSpeedControls, setShowSpeedControls] = useState(false);
   const [showVolumeDrawer, setShowVolumeDrawer] = useState(false);
@@ -272,7 +285,7 @@ export const MobileControls = () => {
         {/* Main controls - reorganized for better vertical space usage */}
         <div className="space-y-4">
           {/* Primary controls row - play/pause and seek */}
-          <div className="flex items-center justify-center space-x-6">
+          <div className="flex items-center justify-center space-x-3">
             <button
               onClick={() => setShowPlaylistDrawer(true)}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 relative"
@@ -305,6 +318,20 @@ export const MobileControls = () => {
               ) : (
                 <Play size={32} className="ml-1" />
               )}
+            </button>
+
+            {/* Shadowing toggle button */}
+            <button
+              onClick={() => setShadowingMode(!isShadowingMode)}
+              className={`p-3 rounded-full transition-all duration-150 ${isRecording
+                ? "bg-red-600 text-white animate-pulse"
+                : isShadowingMode
+                  ? "bg-orange-600 text-white hover:bg-orange-700"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                }`}
+              aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+            >
+              <Mic size={24} />
             </button>
 
             <button

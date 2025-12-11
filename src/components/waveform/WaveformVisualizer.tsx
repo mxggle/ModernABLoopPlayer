@@ -2,6 +2,9 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import * as Tone from "tone";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useShadowingStore } from "../../stores/shadowingStore";
+import { retrieveMediaFile } from "../../utils/mediaStorage";
+import { useShadowingPlayer } from "../../hooks/useShadowingPlayer";
 import {
   AlignStartHorizontal,
   AlignEndHorizontal,
@@ -11,7 +14,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsRight,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 
@@ -90,8 +96,101 @@ export const WaveformVisualizer = () => {
     deleteBookmark,
     autoAdvanceBookmarks,
     setAutoAdvanceBookmarks,
-    updateBookmark, // Added updateBookmark here
+    updateBookmark,
+    volume,
+    setVolume,
+    muted,
+    setMuted,
   } = usePlayerStore();
+
+  const { getSegments, volume: shadowVolume, setVolume: setShadowVolume, muted: shadowMuted, setMuted: setShadowMuted, currentRecording } = useShadowingStore();
+
+  // Use getCurrentMediaId to ensure consistency with how segments are saved
+  const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
+
+
+  const shadowingSegments = mediaId ? getSegments(mediaId) : [];
+  const [shadowingWaveforms, setShadowingWaveforms] = useState<{ start: number; data: Float32Array; duration: number }[]>([]);
+
+  // Initialize Shadowing Player
+  useShadowingPlayer();
+
+  // Load shadowing waveforms
+  useEffect(() => {
+    console.log("📊 [WaveformVisualizer] Shadowing segments changed:", { count: shadowingSegments.length, segments: shadowingSegments });
+
+    if (shadowingSegments.length === 0) {
+      console.log("📊 [WaveformVisualizer] No shadowing segments, clearing waveforms");
+      setShadowingWaveforms([]);
+      return;
+    }
+
+    let active = true;
+    const loadShadowing = async () => {
+      console.log("📊 [WaveformVisualizer] Loading shadowing waveforms for", shadowingSegments.length, "segments");
+
+      const loaded = await Promise.all(
+        shadowingSegments.map(async (seg, index) => {
+          try {
+            console.log(`📊 [WaveformVisualizer] Loading segment ${index}:`, { storageId: seg.storageId, startTime: seg.startTime });
+
+            const file = await retrieveMediaFile(seg.storageId);
+            if (!file) {
+              console.warn(`📊 [WaveformVisualizer] No file found for segment ${index}`);
+              return null;
+            }
+
+            console.log(`📊 [WaveformVisualizer] Retrieved file for segment ${index}:`, { name: file.name, size: file.size });
+
+            const arrayBuffer = await file.arrayBuffer();
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+            const fileOffset = seg.fileOffset || 0;
+            const segmentDuration = seg.duration > 0 ? seg.duration : (audioBuffer.duration - fileOffset);
+
+            const startSample = Math.floor(fileOffset * audioBuffer.sampleRate);
+            const endSample = Math.min(
+              Math.floor((fileOffset + segmentDuration) * audioBuffer.sampleRate),
+              audioBuffer.length
+            );
+
+            let rawData = audioBuffer.getChannelData(0);
+            if (fileOffset > 0 || endSample < rawData.length) {
+              rawData = rawData.slice(startSample, endSample);
+            }
+
+            const data = downsampleAudioData(rawData, 1000); // Lower resolution for shadowing is fine
+
+            console.log(`📊 [WaveformVisualizer] Decoded segment ${index}:`, {
+              originalDuration: audioBuffer.duration,
+              segmentDuration,
+              fileOffset,
+              samples: data.length
+            });
+
+            return {
+              start: seg.startTime,
+              data,
+              duration: segmentDuration
+            };
+          } catch (e) {
+            console.error(`📊 [WaveformVisualizer] Failed to load shadowing segment ${index}:`, e);
+            return null;
+          }
+        })
+      );
+
+      if (active) {
+        const validWaveforms = loaded.filter((s): s is NonNullable<typeof s> => s !== null);
+        console.log("📊 [WaveformVisualizer] Loaded shadowing waveforms:", { total: shadowingSegments.length, valid: validWaveforms.length });
+        setShadowingWaveforms(validWaveforms);
+      }
+    };
+
+    loadShadowing();
+    return () => { active = false; };
+  }, [shadowingSegments]);
 
   // Subscribe to bookmarks for current media so changes re-render this component
   const bookmarks = usePlayerStore((state) => {
@@ -468,10 +567,13 @@ export const WaveformVisualizer = () => {
     }
 
     // Draw waveform as bars
+    const hasShadowing = shadowingWaveforms.length > 0;
+    const mainWaveformHeight = hasShadowing ? canvas.height / 2 : canvas.height;
+
     ctx.fillStyle = "#8B5CF6"; // Purple
     const sliceWidth = canvas.width / (endIndex - startIndex);
-    const centerY = canvas.height / 2;
-    const amplitudeScale = canvas.height * 2;
+    const mainCenterY = mainWaveformHeight / 2;
+    const amplitudeScale = mainWaveformHeight * 2; // Scale up a bit since we have less height
 
     // Calculate bar dimensions
     // We want a small gap between bars if there's enough space
@@ -485,10 +587,76 @@ export const WaveformVisualizer = () => {
 
       // Calculate bar height based on amplitude
       // Ensure even silence has a tiny presence (1px) or full silence
-      const height = Math.max(1 * dpr, value * amplitudeScale * 2);
-      const y = centerY - height / 2;
+      const height = Math.max(1 * dpr, value * amplitudeScale * 0.8); // 0.8 to leave some padding
+      const y = mainCenterY - height / 2;
 
       ctx.fillRect(x, y, barWidth, height);
+    }
+
+    // Draw Shadowing Waveforms
+
+    if (hasShadowing || currentRecording) {
+      const shadowTop = mainWaveformHeight;
+      const shadowHeight = canvas.height - mainWaveformHeight;
+      const shadowCenterY = shadowTop + shadowHeight / 2;
+
+      // Draw separator
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(139, 92, 246, 0.3)";
+      ctx.lineWidth = 1 * dpr;
+      ctx.moveTo(0, shadowTop);
+      ctx.lineTo(canvas.width, shadowTop);
+      ctx.stroke();
+
+      shadowingWaveforms.forEach(seg => {
+        // Calculate overlap with visible range
+        const segEnd = seg.start + seg.duration;
+        if (segEnd < startOffset || seg.start > endOffset) return;
+
+        ctx.fillStyle = "#10B981"; // Emerald/Green for user audio
+
+        const sampleDuration = seg.duration / seg.data.length;
+
+        for (let i = 0; i < seg.data.length; i++) {
+          const time = seg.start + i * sampleDuration;
+          if (time < startOffset || time > endOffset) continue;
+
+          const val = seg.data[i];
+          const x = ((time - startOffset) / visibleDuration) * canvas.width;
+          const barW = (sampleDuration / visibleDuration) * canvas.width;
+          // Ensure min width
+          const finalBarW = Math.max(1 * dpr, barW);
+
+          const h = Math.max(1 * dpr, val * shadowHeight * 1.5); // increased gain
+          const y = shadowCenterY - h / 2;
+
+          ctx.fillRect(x, y, finalBarW, h);
+        }
+      });
+
+      // Draw Active Recording
+      if (currentRecording) {
+        ctx.fillStyle = "#EF4444"; // Red for recording
+        const startTime = currentRecording.startTime;
+        const peaks = currentRecording.peaks;
+
+        // Each peak represents 50ms (0.05s)
+        const peakDuration = 0.05;
+
+        peaks.forEach((peak, i) => {
+          const time = startTime + i * peakDuration;
+          if (time < startOffset || time > endOffset) return;
+
+          const x = ((time - startOffset) / visibleDuration) * canvas.width;
+          // Width should cover 50ms gap
+          const w = (peakDuration / visibleDuration) * canvas.width;
+
+          const h = Math.max(2 * dpr, peak * shadowHeight * 3.0); // Higher gain for RMS
+          const y = shadowCenterY - h / 2;
+
+          ctx.fillRect(x, y, Math.max(1 * dpr, w), h);
+        });
+      }
     }
 
     // Draw playhead
@@ -529,6 +697,8 @@ export const WaveformVisualizer = () => {
     showWaveform,
     bookmarks,
     selectedBookmarkId,
+    shadowingWaveforms,
+    currentRecording,
   ]);
 
   // Helper function to draw markers
@@ -1561,6 +1731,89 @@ export const WaveformVisualizer = () => {
           )}
         </div>
       </div>
+
+      {/* Track Controls Overlay */}
+      {showWaveform && (
+        <div className="absolute top-2 left-2 z-10 flex flex-col gap-2">
+          {/* Media Track Control */}
+          <div className="bg-black/50 backdrop-blur-sm rounded p-1 flex items-center gap-1 group transition-all hover:bg-black/70">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (muted) {
+                  // Unmute: restore previous volume from store
+                  const previousVolume = usePlayerStore.getState().previousVolume;
+                  if (previousVolume !== undefined && previousVolume > 0) {
+                    setVolume(previousVolume);
+                  } else {
+                    setVolume(1); // Default to 100% if no previous volume
+                  }
+                  setMuted(false);
+                } else {
+                  // Mute: store current volume and set to 0
+                  usePlayerStore.getState().setPreviousVolume(volume);
+                  setVolume(0);
+                  setMuted(true);
+                }
+              }}
+              className="p-1 hover:bg-white/10 rounded text-white/90"
+            >
+              {muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+            </button>
+            <div className="w-16 px-1">
+              <Slider
+                value={[volume]}
+                min={0}
+                max={1}
+                step={0.01}
+                onValueChange={(v) => setVolume(v[0])}
+                className="h-3 cursor-pointer [&>span:first-of-type]:bg-black/40 [&>span:first-of-type>span]:bg-white"
+              />
+            </div>
+            <span className="text-[10px] text-white/70 px-1 font-mono">MEDIA</span>
+          </div>
+
+          {/* Shadowing Track Control */}
+          {shadowingWaveforms.length > 0 && (
+            <div className="bg-black/50 backdrop-blur-sm rounded p-1 flex items-center gap-1 group transition-all hover:bg-black/70" style={{ marginTop: canvasRef.current ? (canvasRef.current.clientHeight / 2) - 40 : 100 }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (shadowMuted) {
+                    // Unmute: restore previous volume
+                    const previousVolume = useShadowingStore.getState().previousShadowVolume;
+                    if (previousVolume !== undefined && previousVolume > 0) {
+                      setShadowVolume(previousVolume);
+                    } else {
+                      setShadowVolume(1);
+                    }
+                    setShadowMuted(false);
+                  } else {
+                    // Mute: store current volume and set to 0
+                    useShadowingStore.getState().setPreviousShadowVolume(shadowVolume);
+                    setShadowVolume(0);
+                    setShadowMuted(true);
+                  }
+                }}
+                className="p-1 hover:bg-white/10 rounded text-white/90"
+              >
+                {shadowMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+              </button>
+              <div className="w-16 px-1">
+                <Slider
+                  value={[shadowVolume]}
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  onValueChange={(v) => setShadowVolume(v[0])}
+                  className="h-3 cursor-pointer [&>span:first-of-type]:bg-black/40 [&>span:first-of-type>span]:bg-white"
+                />
+              </div>
+              <span className="text-[10px] text-white/70 px-1 font-mono">REC</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

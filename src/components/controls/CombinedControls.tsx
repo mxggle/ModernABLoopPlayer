@@ -19,7 +19,10 @@ import {
   Bookmark,
   ListMusic,
   X,
+  Mic,
 } from "lucide-react";
+import { useShadowingStore } from "../../stores/shadowingStore";
+import { useShadowingRecorder } from "../../hooks/useShadowingRecorder";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
 import { Plus } from "lucide-react";
@@ -63,6 +66,15 @@ export const CombinedControls = () => {
     setPlaybackMode,
     selectedBookmarkId,
   } = usePlayerStore();
+
+  const {
+    isShadowingMode,
+    setShadowingMode,
+    isRecording,
+  } = useShadowingStore();
+
+  // Initialize shadowing recorder
+  useShadowingRecorder();
 
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
   const [showABControls, setShowABControls] = useState(false);
@@ -201,7 +213,21 @@ export const CombinedControls = () => {
 
   // Toggle mute
   const toggleMute = () => {
-    setMuted(!muted);
+    if (muted) {
+      // Unmute: restore previous volume
+      const previousVolume = usePlayerStore.getState().previousVolume;
+      if (previousVolume !== undefined && previousVolume > 0) {
+        setVolume(previousVolume);
+      } else {
+        setVolume(1);
+      }
+      setMuted(false);
+    } else {
+      // Mute: store current volume and set to 0
+      usePlayerStore.getState().setPreviousVolume(volume);
+      setVolume(0);
+      setMuted(true);
+    }
   };
 
   // Handle volume slider change
@@ -358,6 +384,21 @@ export const CombinedControls = () => {
                   className="ml-0.5 sm:ml-1 sm:w-[24px] sm:h-[24px]"
                 />
               )}
+            </button>
+
+            {/* Shadowing toggle button */}
+            <button
+              onClick={() => setShadowingMode(!isShadowingMode)}
+              className={`p-2.5 rounded-full transition-all duration-150 ${isRecording
+                ? "bg-red-600 text-white animate-pulse"
+                : isShadowingMode
+                  ? "bg-orange-600 text-white hover:bg-orange-700"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                }`}
+              aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+              title={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+            >
+              <Mic size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>
 
             <button
@@ -537,6 +578,7 @@ export const CombinedControls = () => {
                 )}
               </PopoverContent>
             </Popover>
+
 
             <Button
               variant="outline"
