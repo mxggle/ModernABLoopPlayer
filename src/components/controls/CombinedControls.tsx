@@ -20,10 +20,7 @@ import {
   ListMusic,
   X,
   Mic,
-  Settings,
 } from "lucide-react";
-import { Label } from "../ui/label";
-import { Input } from "../ui/input";
 import { useShadowingStore } from "../../stores/shadowingStore";
 import { useShadowingRecorder } from "../../hooks/useShadowingRecorder";
 import { Slider } from "../ui/slider";
@@ -73,8 +70,6 @@ export const CombinedControls = () => {
   const {
     isShadowingMode,
     setShadowingMode,
-    delay: shadowingDelay,
-    setDelay: setShadowingDelay,
     isRecording,
   } = useShadowingStore();
 

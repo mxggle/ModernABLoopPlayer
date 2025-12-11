@@ -33,6 +33,13 @@ interface ShadowingActions {
     setPreviousShadowVolume: (volume: number) => void;
     setMuted: (muted: boolean) => void;
 
+    // Real-time recording visualization state
+    currentRecording: {
+        startTime: number;
+        peaks: number[];
+    } | null;
+    updateCurrentRecording: (data: { startTime: number; peaks: number[] } | null) => void;
+
     addSegment: (mediaId: string, segment: ShadowingSegment) => void;
     getSegments: (mediaId: string) => ShadowingSegment[];
     clearSegments: (mediaId: string) => void;
@@ -48,6 +55,7 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
             volume: 1,
             muted: false,
             sessions: {},
+            currentRecording: null,
 
             setShadowingMode: (enabled) => set({ isShadowingMode: enabled }),
             setDelay: (seconds) => set({ delay: seconds }),
@@ -61,6 +69,8 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
                 console.log("🔇 [ShadowingStore] Setting muted:", muted);
                 set({ muted });
             },
+
+            updateCurrentRecording: (data) => set({ currentRecording: data }),
 
             addSegment: (mediaId, segment) => set((state) => {
                 const currentSession = state.sessions[mediaId] || { segments: [] };

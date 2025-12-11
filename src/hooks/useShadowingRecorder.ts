@@ -76,16 +76,72 @@ export const useShadowingRecorder = () => {
             console.log("💾 [ShadowingRecorder] Saved mute state BEFORE recording:", currentMuteState);
 
             try {
+                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+                // Create source from stream
+                const source = audioContext.createMediaStreamSource(streamRef.current);
+                const analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                source.connect(analyser);
+
                 const recorder = new MediaRecorder(streamRef.current);
                 mediaRecorderRef.current = recorder;
                 chunksRef.current = [];
                 startTimeRef.current = currentTime; // Rough start time
+
+                // Initialize active recording state
+                const { updateCurrentRecording } = useShadowingStore.getState();
+                updateCurrentRecording({ startTime: currentTime, peaks: [] });
+
+                // Start data collection loop
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                const updateInterval = 50; // Update every 50ms (20fps)
+
+                // Using a ref for the interval to clear it later
+                const analysisInterval = setInterval(() => {
+                    if (mediaRecorderRef.current?.state !== "recording") {
+                        clearInterval(analysisInterval);
+                        return;
+                    }
+
+                    analyser.getByteTimeDomainData(dataArray);
+
+                    // Calculate RMS
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        const amplitude = (dataArray[i] - 128) / 128; // Normalize to -1..1
+                        sum += amplitude * amplitude;
+                    }
+                    const rms = Math.sqrt(sum / dataArray.length);
+
+                    // Update store with new peak
+                    // We use functional state update to append without reading full state unnecessarily?
+                    // actually zustand 'set' merges. deeply nested updates are harder.
+                    // Let's read current, append, set.
+                    const current = useShadowingStore.getState().currentRecording;
+                    if (current) {
+                        updateCurrentRecording({
+                            ...current,
+                            peaks: [...current.peaks, rms]
+                        });
+                    }
+                }, updateInterval);
 
                 recorder.ondataavailable = (e) => {
                     if (e.data.size > 0) chunksRef.current.push(e.data);
                 };
 
                 recorder.onstop = async () => {
+                    clearInterval(analysisInterval);
+                    updateCurrentRecording(null); // Clear visualization on stop
+
+                    // Clean up audio context
+                    source.disconnect();
+                    analyser.disconnect();
+                    if (audioContext.state !== 'closed') {
+                        audioContext.close();
+                    }
+
                     console.log("🎙️ [ShadowingRecorder] Recording stopped, processing...");
 
                     const blob = new Blob(chunksRef.current, { type: "audio/webm" });

@@ -17,7 +17,6 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -78,7 +77,6 @@ export const WaveformVisualizer = () => {
 
   const {
     currentFile,
-    currentYouTube,
     currentTime,
     duration,
     loopStart,
@@ -105,7 +103,7 @@ export const WaveformVisualizer = () => {
     setMuted,
   } = usePlayerStore();
 
-  const { getSegments, volume: shadowVolume, setVolume: setShadowVolume, muted: shadowMuted, setMuted: setShadowMuted } = useShadowingStore();
+  const { getSegments, volume: shadowVolume, setVolume: setShadowVolume, muted: shadowMuted, setMuted: setShadowMuted, currentRecording } = useShadowingStore();
 
   // Use getCurrentMediaId to ensure consistency with how segments are saved
   const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
@@ -596,7 +594,8 @@ export const WaveformVisualizer = () => {
     }
 
     // Draw Shadowing Waveforms
-    if (hasShadowing) {
+
+    if (hasShadowing || currentRecording) {
       const shadowTop = mainWaveformHeight;
       const shadowHeight = canvas.height - mainWaveformHeight;
       const shadowCenterY = shadowTop + shadowHeight / 2;
@@ -614,14 +613,7 @@ export const WaveformVisualizer = () => {
         const segEnd = seg.start + seg.duration;
         if (segEnd < startOffset || seg.start > endOffset) return;
 
-        // Map segment data to canvas
-        // This is tricky because segment data is downsampled to specific length (1000)
-        // We need to map time -> segment index
-
         ctx.fillStyle = "#10B981"; // Emerald/Green for user audio
-
-        // Or iterate segment data points and map to X? 
-        // Mapping segment data points to X is easier if resolution is enough.
 
         const sampleDuration = seg.duration / seg.data.length;
 
@@ -641,6 +633,30 @@ export const WaveformVisualizer = () => {
           ctx.fillRect(x, y, finalBarW, h);
         }
       });
+
+      // Draw Active Recording
+      if (currentRecording) {
+        ctx.fillStyle = "#EF4444"; // Red for recording
+        const startTime = currentRecording.startTime;
+        const peaks = currentRecording.peaks;
+
+        // Each peak represents 50ms (0.05s)
+        const peakDuration = 0.05;
+
+        peaks.forEach((peak, i) => {
+          const time = startTime + i * peakDuration;
+          if (time < startOffset || time > endOffset) return;
+
+          const x = ((time - startOffset) / visibleDuration) * canvas.width;
+          // Width should cover 50ms gap
+          const w = (peakDuration / visibleDuration) * canvas.width;
+
+          const h = Math.max(2 * dpr, peak * shadowHeight * 3.0); // Higher gain for RMS
+          const y = shadowCenterY - h / 2;
+
+          ctx.fillRect(x, y, Math.max(1 * dpr, w), h);
+        });
+      }
     }
 
     // Draw playhead
@@ -681,7 +697,8 @@ export const WaveformVisualizer = () => {
     showWaveform,
     bookmarks,
     selectedBookmarkId,
-    shadowingWaveforms, // Added dependency
+    shadowingWaveforms,
+    currentRecording,
   ]);
 
   // Helper function to draw markers
