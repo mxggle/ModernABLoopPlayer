@@ -13,6 +13,10 @@ import {
   Pause,
   Brain,
   Settings,
+  Edit,
+  PlayCircle,
+  Sidebar,
+  PanelLeftClose,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { OpenAI } from "openai";
@@ -21,8 +25,20 @@ import { ExplanationDrawer } from "./ExplanationDrawer";
 import { useNavigate } from "react-router-dom";
 import { breakIntoSentences as utilBreakIntoSentences } from "../../utils/sentenceBreaker";
 
-// Import types from store
 import { TranscriptSegment as TranscriptSegmentType } from "../../stores/playerStore";
+import { encodeWAV } from "../../utils/wavEncoder";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+
 
 // Define interfaces for OpenAI Whisper API response
 interface WhisperSegment {
@@ -117,8 +133,8 @@ const TranscriptSegmentItem = ({
   const isActive = isCurrentlyLooping
     ? currentTime >= expectedLoopStart && currentTime <= segment.endTime
     : !isLooping &&
-      currentTime >= segment.startTime &&
-      currentTime <= segment.endTime;
+    currentTime >= segment.startTime &&
+    currentTime <= segment.endTime;
 
   // Determine if we should show pause button (when segment is active and audio is playing)
   const shouldShowPauseButton = isActive && isPlaying;
@@ -184,11 +200,10 @@ const TranscriptSegmentItem = ({
   return (
     <>
       <div
-        className={`p-2 rounded-md ${
-          isActive
-            ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
-            : "bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/50"
-        } transition-colors`}
+        className={`p-2 rounded-md ${isActive
+          ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
+          : "bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/50"
+          } transition-colors`}
       >
         <div className="flex justify-between items-start mb-1">
           <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
@@ -200,11 +215,10 @@ const TranscriptSegmentItem = ({
               onClick={
                 shouldShowPauseButton ? handlePausePlayback : handleJumpToTime
               }
-              className={`p-1 rounded transition-colors ${
-                isActive
-                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
-                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-              }`}
+              className={`p-1 rounded transition-colors ${isActive
+                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+                }`}
               title={t(shouldShowPauseButton ? "transcript.pausePlayback" : "transcript.playSegment")}
             >
               {shouldShowPauseButton ? (
@@ -216,11 +230,10 @@ const TranscriptSegmentItem = ({
 
             <button
               onClick={handleToggleLoop}
-              className={`p-1 rounded transition-colors ${
-                isCurrentlyLooping
-                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
-                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-              }`}
+              className={`p-1 rounded transition-colors ${isCurrentlyLooping
+                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+                }`}
               title={t(isCurrentlyLooping ? "transcript.stopLoopingSegment" : "transcript.loopSegment")}
             >
               <Repeat
@@ -231,11 +244,10 @@ const TranscriptSegmentItem = ({
 
             <button
               onClick={handleToggleBookmark}
-              className={`p-1 rounded transition-colors ${
-                isBookmarked
-                  ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
-                  : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-              }`}
+              className={`p-1 rounded transition-colors ${isBookmarked
+                ? "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30"
+                : "text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+                }`}
               title={t(isBookmarked ? "transcript.removeBookmark" : "transcript.createBookmark")}
             >
               <Bookmark
@@ -391,9 +403,114 @@ export const TranscriptPanel = () => {
     addTranscriptSegment,
     clearTranscript,
     exportTranscript,
+    getCurrentMediaBookmarks,
+    updateBookmark,
+    selectedBookmarkId,
+    loadBookmark,
+    setSelectedBookmarkId,
+    setCurrentTime,
+    setIsPlaying,
   } = usePlayerStore();
 
   const transcriptSegments = getCurrentMediaTranscripts();
+  const bookmarks = getCurrentMediaBookmarks();
+
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editStart, setEditStart] = useState<number>(0);
+  const [editEnd, setEditEnd] = useState<number>(0);
+  const [editAnnotation, setEditAnnotation] = useState("");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  // Sync active tab with selected bookmark from store (e.g. from waveform interactions)
+  useEffect(() => {
+    setActiveTabId(selectedBookmarkId);
+  }, [selectedBookmarkId]);
+
+  // Filter segments based on active tab
+  const filteredSegments = activeTabId
+    ? transcriptSegments.filter((segment) => {
+      const bookmark = bookmarks.find((b) => b.id === activeTabId);
+      if (!bookmark) return false;
+      // Allow some overlap (e.g. 0.5s)
+      const elementStart = segment.startTime;
+      const elementEnd = segment.endTime;
+      return (
+        // Segment roughly inside bookmark
+        (elementStart >= bookmark.start - 0.5 && elementEnd <= bookmark.end + 0.5) ||
+        // Or segment covers bookmark (unlikely but possible for short bookmarks)
+        (elementStart <= bookmark.start && elementEnd >= bookmark.end)
+      );
+    })
+    : transcriptSegments;
+
+
+  const handleTabSelect = (id: string | null) => {
+    if (id) {
+      // If switching to a specific bookmark tab
+      const bookmark = bookmarks.find((b) => b.id === id);
+      if (bookmark) {
+        // Use loadBookmark to sync store state (loop points, selected ID, etc.)
+        loadBookmark(id);
+        setCurrentTime(bookmark.start);
+      }
+    } else {
+      // If switching to "Full Transcript"
+      setSelectedBookmarkId(null);
+    }
+  };
+
+  const handlePlayBookmark = (e: React.MouseEvent, bookmarkId: string) => {
+    e.stopPropagation();
+    const bookmark = bookmarks.find((b) => b.id === bookmarkId);
+    if (bookmark) {
+      loadBookmark(bookmarkId);
+      setCurrentTime(bookmark.start);
+      setIsPlaying(true);
+    }
+  };
+
+  const handleEditBookmark = (e: React.MouseEvent, bookmark: any) => {
+    e.stopPropagation();
+    setEditingBookmarkId(bookmark.id);
+    setEditName(bookmark.name);
+    setEditStart(bookmark.start);
+    setEditEnd(bookmark.end);
+    setEditAnnotation(bookmark.annotation || "");
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingBookmarkId) return;
+
+    if (!editName.trim()) {
+      toast.error(t("bookmarks.nameCannotBeEmpty"));
+      return;
+    }
+
+    updateBookmark(editingBookmarkId, {
+      name: editName.trim(),
+      start: editStart,
+      end: editEnd,
+      annotation: editAnnotation.trim(),
+    });
+
+    setIsEditDialogOpen(false);
+    setEditingBookmarkId(null);
+    toast.success(t("bookmarks.bookmarkUpdated"));
+  };
+
+  const handleTranscribeBookmark = () => {
+    const bookmark = bookmarks.find((b) => b.id === activeTabId);
+    if (bookmark) {
+      transcribeMedia({ start: bookmark.start, end: bookmark.end });
+    }
+  };
+
+  const handleTranscribeFull = () => {
+    transcribeMedia();
+  };
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
@@ -455,18 +572,70 @@ export const TranscriptPanel = () => {
   };
 
   // Function to extract audio from the media file
-  const extractAudioFromMedia = async (): Promise<Blob> => {
+  const extractAudioFromMedia = async (range?: { start: number; end: number }): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       if (!currentFile) {
         reject(new Error(t("transcript.noFileLoaded")));
         return;
       }
 
-      // For audio files, we can use them directly
+      // For audio files, we can use them directly or slice them if range provided
       if (currentFile.type.includes("audio")) {
         fetch(currentFile.url)
-          .then((response) => response.blob())
-          .then((blob) => resolve(blob))
+          .then((response) => response.arrayBuffer())
+          .then(async (arrayBuffer) => {
+            // If no range, return original blob if possible, or decode/encode to ensure WAV
+            // But to support detailed range slicing, we should always decode
+
+            try {
+              const audioContext = new AudioContext();
+              const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+              let startFrame = 0;
+              let endFrame = audioBuffer.length;
+
+              if (range) {
+                startFrame = Math.floor(range.start * audioBuffer.sampleRate);
+                endFrame = Math.floor(range.end * audioBuffer.sampleRate);
+                // Ensure bounds
+                startFrame = Math.max(0, startFrame);
+                endFrame = Math.min(audioBuffer.length, endFrame);
+              }
+
+              const frameCount = endFrame - startFrame;
+              if (frameCount <= 0) {
+                reject(new Error("Invalid time range"));
+                return;
+              }
+
+              // Extract channel data (mix down to mono if needed, or just take left channel for speech)
+              // Better to mix down for speech recognition
+              const channel0 = audioBuffer.getChannelData(0);
+              const slicedData = new Float32Array(frameCount);
+
+              if (audioBuffer.numberOfChannels > 1) {
+                const channel1 = audioBuffer.getChannelData(1);
+                // Simple average mixdown
+                for (let i = 0; i < frameCount; i++) {
+                  const idx = startFrame + i;
+                  slicedData[i] = (channel0[idx] + channel1[idx]) / 2;
+                }
+              } else {
+                // Mono copy
+                for (let i = 0; i < frameCount; i++) {
+                  slicedData[i] = channel0[startFrame + i];
+                }
+              }
+
+              // Encode to WAV
+              const wavBlob = encodeWAV(slicedData, audioBuffer.sampleRate);
+              resolve(wavBlob);
+
+            } catch (err) {
+              console.error("Error processing audio:", err);
+              reject(err);
+            }
+          })
           .catch((error) => reject(error));
         return;
       }
@@ -499,16 +668,26 @@ export const TranscriptPanel = () => {
 
         // Start recording and playing the video
         video.onloadedmetadata = () => {
-          video.currentTime = 0;
-          video.play();
-          mediaRecorder.start();
+          const startTime = range ? range.start : 0;
+          const duration = range ? (range.end - range.start) : video.duration;
 
-          // Stop recording after the video duration
-          setTimeout(() => {
-            video.pause();
-            mediaRecorder.stop();
-            audioContext.close();
-          }, video.duration * 1000);
+          video.currentTime = startTime;
+
+          const onSeeked = () => {
+            video.removeEventListener("seeked", onSeeked);
+            video.play();
+            mediaRecorder.start();
+
+            // Stop recording after the duration
+            setTimeout(() => {
+              video.pause();
+              mediaRecorder.stop();
+              audioContext.close();
+              video.remove(); // Clean up
+            }, duration * 1000);
+          };
+
+          video.addEventListener("seeked", onSeeked);
         };
 
         video.onerror = () => {
@@ -523,7 +702,7 @@ export const TranscriptPanel = () => {
   };
 
   // Function to transcribe the current media using OpenAI's Whisper API
-  const transcribeMedia = async () => {
+  const transcribeMedia = async (range?: { start: number; end: number }) => {
     // Check if we have media to transcribe
     if (!currentFile && !currentYouTube) {
       toast.error(t("transcript.noMediaToTranscribe"));
@@ -545,7 +724,12 @@ export const TranscriptPanel = () => {
     try {
       setIsProcessing(true);
       setErrorMessage("");
-      clearTranscript();
+
+      // Only clear if doing full transcript
+      if (!range) {
+        clearTranscript();
+      }
+
       toggleTranscribing(); // Set isTranscribing to true
       setProcessingProgress(10);
 
@@ -558,7 +742,7 @@ export const TranscriptPanel = () => {
       }
 
       // Extract audio from the media file
-      const audioBlob = await extractAudioFromMedia();
+      const audioBlob = await extractAudioFromMedia(range);
       setProcessingProgress(30);
 
       // Convert the blob to a File object for the OpenAI API
@@ -610,19 +794,13 @@ export const TranscriptPanel = () => {
       if (whisperResponse && whisperResponse.segments) {
         // Use the enhanced continuous segments approach
         const continuousSegments = createContinuousSegments(whisperResponse);
+        const startTimeOffset = range ? range.start : 0;
 
         continuousSegments.forEach((segment, index) => {
-          console.log(`Adding continuous segment ${index + 1}:`, {
-            text: segment.text,
-            startTime: segment.start,
-            endTime: segment.end,
-            duration: segment.end - segment.start,
-          });
-
           addTranscriptSegment({
             text: segment.text.trim(),
-            startTime: Math.max(0, segment.start),
-            endTime: Math.max(segment.start, segment.end),
+            startTime: Math.max(0, segment.start + startTimeOffset),
+            endTime: Math.max(segment.start + startTimeOffset, segment.end + startTimeOffset),
             confidence: Math.exp(segment.avg_logprob),
             isFinal: true,
           });
@@ -635,14 +813,16 @@ export const TranscriptPanel = () => {
       } else {
         // If no segments are returned, use the full transcript with basic sentence breaking
         const sentences = await utilBreakIntoSentences(response.text);
+        const startTimeOffset = range ? range.start : 0;
+
         sentences.forEach((sentence, index) => {
           const startTime = (index * 30) / sentences.length; // Estimate timing
           const endTime = ((index + 1) * 30) / sentences.length;
 
           addTranscriptSegment({
             text: sentence.trim(),
-            startTime: Math.max(0, startTime),
-            endTime: Math.max(startTime, endTime), // Ensure at least 1s duration
+            startTime: Math.max(0, startTime + startTimeOffset),
+            endTime: Math.max(startTime + startTimeOffset, endTime + startTimeOffset), // Ensure at least 1s duration
             confidence: 0.95,
             isFinal: true,
           });
@@ -967,7 +1147,7 @@ export const TranscriptPanel = () => {
         // Split into multiple segments
         const wordsPerSegment = Math.ceil(
           segmentWords.length /
-            Math.ceil((segmentEnd - segmentStart) / maxSegmentDuration)
+          Math.ceil((segmentEnd - segmentStart) / maxSegmentDuration)
         );
 
         for (let i = 0; i < segmentWords.length; i += wordsPerSegment) {
@@ -1221,178 +1401,396 @@ export const TranscriptPanel = () => {
     toast.success(t("transcript.exportSuccess", { format: format.toUpperCase() }));
   };
 
+  // State and handlers moved to top level of component
+
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const handleDeleteBookmark = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm(t("bookmarks.deleteConfirmation"))) {
+      usePlayerStore.getState().deleteBookmark(id);
+      toast.success(t("bookmarks.bookmarkDeleted"));
+    }
+  };
+
   return (
-    <div className="flex flex-col w-full h-full bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-        <div className="flex items-center">
-          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {t("transcript.title")}
-          </h3>
-          {isProcessing && (
-            <div className="ml-2 flex items-center">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
-                {t("transcript.processing", { progress: processingProgress })}
-              </span>
-            </div>
-          )}
-          {isTranscribing && !isProcessing && (
-            <div className="ml-2 flex items-center">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
-                {t("transcript.transcribed")}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center space-x-1">
-          <button
-            onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-            className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            title={t("transcript.setOpenAiApiKey")}
-          >
-            <Key size={16} />
-          </button>
-
-          <button
-            onClick={handleOpenAISettings}
-            className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            title={t("transcript.openAiSettings")}
-          >
-            <Settings size={16} />
-          </button>
-
-          <button
-            onClick={transcribeMedia}
-            className={`p-1.5 rounded-full ${
-              isTranscribing
-                ? "bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            }`}
-            title={t("transcript.transcribeWithWhisper")}
-            disabled={isProcessing || (!currentFile && !currentYouTube)}
-          >
-            <FileAudio size={16} />
-          </button>
-
-          <button
-            onClick={() => handleExport("txt")}
-            className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            title={t("transcript.exportAsTxt")}
-            disabled={transcriptSegments.length === 0}
-          >
-            <Save size={16} />
-          </button>
-
-          <button
-            onClick={() => clearTranscript()}
-            className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            title={t("transcript.clearTranscript")}
-            disabled={transcriptSegments.length === 0}
-          >
-            <Trash size={16} />
-          </button>
-        </div>
-      </div>
-
-      <div
-        ref={transcriptRef}
-        className="flex-1 overflow-y-auto p-3 space-y-2 text-sm"
+    <div className="flex w-full h-full bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden relative">
+      {/* Sidebar Toggle Button (Floating or inside) */}
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className={`absolute z-10 top-2 left-2 p-1.5 rounded-md bg-white dark:bg-gray-800 shadow border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition-all duration-300 ${isSidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+        title={t("transcript.toggleSidebar")}
       >
-        {showApiKeyInput && (
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-md mb-3">
-            <h4 className="font-medium mb-2">{t("transcript.apiKeyRequired")}</h4>
-            <p className="text-xs mb-3">{t("transcript.apiKeyNotice")}</p>
-            <form
-              onSubmit={handleApiKeySubmit}
-              className="flex flex-col space-y-2"
-            >
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={t("transcript.apiKeyPlaceholder")}
-                className="px-3 py-2 border border-blue-300 dark:border-blue-700 rounded text-sm dark:bg-gray-800 dark:text-gray-200"
-                required
-              />
-              <div className="flex space-x-2">
-                <button
-                  type="submit"
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium"
-                >
-                  {t("transcript.saveApiKey")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowApiKeyInput(false)}
-                  className="px-3 py-1 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs font-medium"
-                >
-                  {t("common.cancel")}
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                <a
-                  href="https://platform.openai.com/api-keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  {t("transcript.getApiKey")}
-                </a>
-              </p>
-            </form>
-          </div>
-        )}
+        <Sidebar size={16} />
+      </button>
 
-        {errorMessage && (
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-md">
-            {errorMessage}
-          </div>
-        )}
+      {/* Sidebar */}
+      <div
+        className={`${isSidebarOpen ? "w-1/4 min-w-[200px] max-w-[300px] border-r" : "w-0 border-none"} transition-all duration-300 ease-in-out border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50/50 dark:bg-gray-900/50 overflow-hidden relative`}
+      >
+        <div className="p-2 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <span className="font-medium text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">
+            {t("transcript.sections")}
+          </span>
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+          >
+            <PanelLeftClose size={14} />
+          </button>
+        </div>
 
-        {isProcessing && (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Loader size={24} className="animate-spin text-blue-500 mb-2" />
-            <p className="text-gray-600 dark:text-gray-400">
-              {t("transcript.processingWithWhisper")}
-            </p>
-            <div className="w-full max-w-xs bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-3">
-              <div
-                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                style={{ width: `${processingProgress}%` }}
-              ></div>
-            </div>
-          </div>
-        )}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <button
+            onClick={() => handleTabSelect(null)}
+            className={`w-full text-left px-3 py-2 rounded text-sm transition-colors whitespace-nowrap overflow-hidden text-ellipsis ${activeTabId === null
+              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 font-medium"
+              : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              }`}
+          >
+            {t("transcript.fullTranscript")}
+          </button>
 
-        {transcriptSegments.length === 0 &&
-          !isProcessing &&
-          !showApiKeyInput && (
-            <div className="text-gray-500 dark:text-gray-400 text-center py-6 space-y-4">
-              <div>
-                {t(!currentFile && !currentYouTube ? "transcript.loadMediaFirst" : "transcript.clickToTranscribe")}
-              </div>
-              {(currentFile || currentYouTube) && (
-                <div className="space-y-2">
-                  <div className="text-sm">{t("common.or")}</div>
-                  <div className="flex justify-center">
-                    <TranscriptUploader variant="prominent" />
-                  </div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500">
-                    {t("transcript.uploadExisting")}
-                  </div>
-                </div>
-              )}
+          {bookmarks.length > 0 && (
+            <div className="mt-4 mb-2 px-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase whitespace-nowrap overflow-hidden text-ellipsis">
+              {t("transcript.bookmarks")}
             </div>
           )}
 
-        {transcriptSegments.map((segment) => (
-          <TranscriptSegmentItem key={segment.id} segment={segment} />
-        ))}
+          {bookmarks.map(b => (
+            <div
+              key={b.id}
+              onClick={() => handleTabSelect(b.id)}
+              className={`group w-full text-left px-3 py-2 rounded text-sm transition-colors cursor-pointer flex items-center justify-between ${activeTabId === b.id
+                ? "bg-purple-100 dark:bg-purple-900/30"
+                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                }`}
+              title={b.name}
+            >
+              <div className="flex-1 min-w-0 mr-2 overflow-hidden">
+                <div className={`truncate font-medium ${activeTabId === b.id
+                  ? "text-purple-700 dark:text-purple-300"
+                  : "text-gray-700 dark:text-gray-300"
+                  }`}>
+                  {b.name}
+                </div>
+                <div className="text-xs opacity-70 font-mono text-gray-500 dark:text-gray-400 truncate">
+                  {Math.floor(b.start / 60)}:{Math.floor(b.start % 60).toString().padStart(2, '0')} -
+                  {Math.floor(b.end / 60)}:{Math.floor(b.end % 60).toString().padStart(2, '0')}
+                </div>
+              </div>
+
+              <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity space-x-1 shrink-0">
+                <button
+                  onClick={(e) => handlePlayBookmark(e, b.id)}
+                  className="p-1 rounded-full hover:bg-white/50 dark:hover:bg-black/50 text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
+                  title={t("player.play")}
+                >
+                  <PlayCircle size={16} />
+                </button>
+                <button
+                  onClick={(e) => handleEditBookmark(e, b)}
+                  className="p-1 rounded-full hover:bg-white/50 dark:hover:bg-black/50 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+                  title={t("bookmarks.editBookmark")}
+                >
+                  <Edit size={14} />
+                </button>
+                <button
+                  onClick={(e) => handleDeleteBookmark(e, b.id)}
+                  className="p-1 rounded-full hover:bg-white/50 dark:hover:bg-black/50 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                  title={t("bookmarks.deleteBookmark")}
+                >
+                  <Trash size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <TranscriptControlsPanel />
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+          <div className="flex items-center min-w-0 mr-4">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+              {activeTabId
+                ? bookmarks.find(b => b.id === activeTabId)?.name || t("transcript.title")
+                : t("transcript.title")
+              }
+            </h3>
+            {isProcessing && (
+              <div className="ml-2 flex items-center flex-shrink-0">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                  {t("transcript.processing", { progress: processingProgress })}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-1 flex-shrink-0">
+            <button
+              onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+              className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+              title={t("transcript.setOpenAiApiKey")}
+            >
+              <Key size={16} />
+            </button>
+
+            <button
+              onClick={handleOpenAISettings}
+              className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+              title={t("transcript.openAiSettings")}
+            >
+              <Settings size={16} />
+            </button>
+
+            {/* Show transcribe button behavior based on active tab */}
+            {activeTabId ? (
+              <button
+                onClick={handleTranscribeBookmark}
+                className={`p-1.5 rounded-full ${isTranscribing
+                  ? "bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                  }`}
+                title={t("transcript.transcribeBookmark")}
+                disabled={isProcessing || (!currentFile && !currentYouTube)}
+              >
+                <FileAudio size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={handleTranscribeFull}
+                className={`p-1.5 rounded-full ${isTranscribing
+                  ? "bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                  }`}
+                title={t("transcript.transcribeWithWhisper")}
+                disabled={isProcessing || (!currentFile && !currentYouTube)}
+              >
+                <FileAudio size={16} />
+              </button>
+            )}
+
+            <button
+              onClick={() => handleExport("txt")}
+              className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+              title={t("transcript.exportAsTxt")}
+              disabled={transcriptSegments.length === 0}
+            >
+              <Save size={16} />
+            </button>
+
+            <button
+              onClick={() => clearTranscript()}
+              className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+              title={t("transcript.clearTranscript")}
+              disabled={transcriptSegments.length === 0}
+            >
+              <Trash size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div
+          ref={transcriptRef}
+          className="flex-1 overflow-y-auto p-3 space-y-2 text-sm"
+        >
+          {showApiKeyInput && (
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-md mb-3">
+              <h4 className="font-medium mb-2">{t("transcript.apiKeyRequired")}</h4>
+              <p className="text-xs mb-3">{t("transcript.apiKeyNotice")}</p>
+              <form
+                onSubmit={handleApiKeySubmit}
+                className="flex flex-col space-y-2"
+              >
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={t("transcript.apiKeyPlaceholder")}
+                  className="px-3 py-2 border border-blue-300 dark:border-blue-700 rounded text-sm dark:bg-gray-800 dark:text-gray-200"
+                  required
+                />
+                <div className="flex space-x-2">
+                  <button
+                    type="submit"
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium"
+                  >
+                    {t("transcript.saveApiKey")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKeyInput(false)}
+                    className="px-3 py-1 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs font-medium"
+                  >
+                    {t("common.cancel")}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <a
+                    href="https://platform.openai.com/api-keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {t("transcript.getApiKey")}
+                  </a>
+                </p>
+              </form>
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-md">
+              {errorMessage}
+            </div>
+          )}
+
+          {isProcessing && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Loader size={24} className="animate-spin text-blue-500 mb-2" />
+              <p className="text-gray-600 dark:text-gray-400">
+                {t("transcript.processingWithWhisper")}
+              </p>
+              <div className="w-full max-w-xs bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-3">
+                <div
+                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                  style={{ width: `${processingProgress}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          {/* Empty state logic based on active tab */}
+          {!isProcessing && !showApiKeyInput && (
+            <>
+              {activeTabId ? (
+                // Bookmark View Empty State
+                filteredSegments.length === 0 ? (
+                  <div className="text-gray-500 dark:text-gray-400 text-center py-6 space-y-4">
+                    <div>
+                      {t("transcript.noTranscriptForBookmark")}
+                    </div>
+                    <button
+                      onClick={handleTranscribeBookmark}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium transition-colors"
+                    >
+                      {t("transcript.transcribeBookmarkButton")}
+                    </button>
+                  </div>
+                ) : null
+              ) : (
+                // Full Transcript Empty State
+                transcriptSegments.length === 0 ? (
+                  <div className="text-gray-500 dark:text-gray-400 text-center py-6 space-y-4">
+                    <div>
+                      {t(!currentFile && !currentYouTube ? "transcript.loadMediaFirst" : "transcript.clickToTranscribe")}
+                    </div>
+                    {(currentFile || currentYouTube) && (
+                      <div className="space-y-2">
+                        <div className="text-sm">{t("common.or")}</div>
+                        <div className="flex justify-center">
+                          <TranscriptUploader variant="prominent" />
+                        </div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500">
+                          {t("transcript.uploadExisting")}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null
+              )}
+            </>
+          )}
+
+          {filteredSegments.map((segment) => (
+            <TranscriptSegmentItem key={segment.id} segment={segment} />
+          ))}
+        </div>
+
+        <TranscriptControlsPanel />
+      </div>
+
+      {/* Edit bookmark dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("bookmarks.editBookmark")}</DialogTitle>
+            <DialogDescription>{t("bookmarks.updateBookmarkDescription")}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label htmlFor="edit-name" className="text-sm font-medium">{t("bookmarks.name")}</label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setEditName(e.target.value)
+                }
+                placeholder={t("bookmarks.bookmarkName")}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="edit-start" className="text-sm font-medium">{t("common.start")}</label>
+                <Input
+                  id="edit-start"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={editStart}
+                  onChange={(e) => setEditStart(Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="edit-end" className="text-sm font-medium">{t("common.end")}</label>
+                <Input
+                  id="edit-end"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={editEnd}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditEnd(Number(e.target.value))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="edit-annotation" className="text-sm font-medium">{t("bookmarks.annotation")}</label>
+              <Textarea
+                id="edit-annotation"
+                value={editAnnotation}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setEditAnnotation(e.target.value)
+                }
+                placeholder={t("bookmarks.annotationOptional")}
+                className="h-24"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+
+            <Button
+              variant="default"
+              onClick={handleSaveEdit}
+              disabled={!editName.trim()}
+            >
+              {t("bookmarks.saveChanges")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

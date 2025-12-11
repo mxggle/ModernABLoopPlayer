@@ -13,6 +13,9 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [localPlayState, setLocalPlayState] = useState(false);
 
+
+  const isDelayingRef = useRef(false);
+
   const {
     currentFile,
     isPlaying,
@@ -41,6 +44,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
     if (!mediaElement) return;
 
     if (isPlaying) {
+      if (isDelayingRef.current) return; // Don't interfere if delaying
       console.log("Attempting to play media:", currentFile?.url);
       mediaElement.play().catch((err) => {
         console.error("Error playing media:", err);
@@ -86,6 +90,9 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
     // Add listener for manual seeking from UI controls
     const handleUserSeeking = () => {
       if (document.body.classList.contains("user-seeking")) {
+        // Cancel any active delay
+        isDelayingRef.current = false;
+
         // Update the media element's time to the current value from the store
         const storeTime = usePlayerStore.getState().currentTime;
         mediaElement.currentTime = storeTime;
@@ -144,20 +151,58 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
         // Only jump back when we actually exceed the end time
         // Use a small tolerance to account for timing precision
         if (currentTimeValue >= loopEnd + 0.005) {
+          if (isDelayingRef.current) return;
+
           const state = usePlayerStore.getState();
-          const { autoAdvanceBookmarks, selectedBookmarkId, getCurrentMediaBookmarks, loadBookmark } = state as any;
-          if (autoAdvanceBookmarks && selectedBookmarkId) {
-            const list = (getCurrentMediaBookmarks?.() || []).slice().sort((a: any, b: any) => a.start - b.start);
-            const idx = list.findIndex((b: any) => b.id === selectedBookmarkId);
-            if (list.length > 0) {
-              const next = list[(idx + 1 + list.length) % list.length];
-              if (next) {
-                loadBookmark?.(next.id);
-                mediaElement.currentTime = next.start;
-                return; // skip default looping
+          const {
+            autoAdvanceBookmarks, selectedBookmarkId, getCurrentMediaBookmarks, loadBookmark,
+            maxLoops, loopCount, setLoopCount, setIsLooping, loopDelay
+          } = state as any;
+
+          // Increment loop counter
+          const nextCount = (loopCount || 0) + 1;
+          setLoopCount(nextCount);
+
+          // Check if we reached max loops
+          const isDone = maxLoops > 0 && nextCount >= maxLoops;
+
+          if (isDone) {
+            // If auto-advance enabled, move to next bookmark
+            if (autoAdvanceBookmarks && selectedBookmarkId) {
+              const list = (getCurrentMediaBookmarks?.() || []).slice().sort((a: any, b: any) => a.start - b.start);
+              const idx = list.findIndex((b: any) => b.id === selectedBookmarkId);
+              if (list.length > 0) {
+                const next = list[(idx + 1 + list.length) % list.length];
+                if (next) {
+                  loadBookmark?.(next.id);
+                  mediaElement.currentTime = next.start;
+                  return;
+                }
               }
             }
+            // Otherwise just stop looping and continue playing linear
+            setIsLooping(false);
+            return;
           }
+
+          // Continue looping (infinite or not yet reached max)
+          // Handle delay if set
+          if (loopDelay > 0) {
+            isDelayingRef.current = true;
+            mediaElement.pause();
+
+            setTimeout(() => {
+              // Valid check: ensuring we are still meant to loop
+              const currentState = usePlayerStore.getState();
+              if (currentState.isLooping && currentState.loopStart !== null) {
+                mediaElement.currentTime = currentState.loopStart;
+                mediaElement.play().catch(e => console.error("Play after gap failed", e));
+              }
+              isDelayingRef.current = false;
+            }, loopDelay * 1000);
+            return;
+          }
+
           mediaElement.currentTime = loopStart;
           // keep looping current A-B by default
         } else if (
@@ -165,8 +210,11 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
           currentTimeValue > 0
         ) {
           // If somehow we're before the start point (e.g., user dragged the slider)
-          mediaElement.currentTime = loopStart;
-          console.log("Loop: Jumping to start point", loopStart);
+          // Don't jump if delaying or seeking
+          if (!isDelayingRef.current && !document.body.classList.contains("user-seeking")) {
+            mediaElement.currentTime = loopStart;
+            console.log("Loop: Jumping to start point", loopStart);
+          }
         }
       }
     };

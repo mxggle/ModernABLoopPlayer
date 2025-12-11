@@ -37,6 +37,8 @@ export const BookmarkDrawer = () => {
     null
   );
   const [editName, setEditName] = useState("");
+  const [editStart, setEditStart] = useState<number>(0);
+  const [editEnd, setEditEnd] = useState<number>(0);
   const [editAnnotation, setEditAnnotation] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -94,6 +96,8 @@ export const BookmarkDrawer = () => {
   const handleEditBookmark = (bookmark: LoopBookmark) => {
     setEditingBookmarkId(bookmark.id);
     setEditName(bookmark.name);
+    setEditStart(bookmark.start);
+    setEditEnd(bookmark.end);
     setEditAnnotation(bookmark.annotation || "");
     setIsEditDialogOpen(true);
   };
@@ -109,6 +113,8 @@ export const BookmarkDrawer = () => {
 
     updateBookmark(editingBookmarkId, {
       name: editName.trim(),
+      start: editStart,
+      end: editEnd,
       annotation: editAnnotation.trim(),
     });
 
@@ -253,8 +259,8 @@ export const BookmarkDrawer = () => {
 
       {/* Backdrop overlay for click-outside */}
       {isDrawerOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-[64]" 
+        <div
+          className="fixed inset-0 bg-black/20 z-[64]"
           onClick={handleBackdropClick}
           aria-hidden="true"
         />
@@ -282,244 +288,269 @@ export const BookmarkDrawer = () => {
         </div>
 
         <div className="p-4">
-        <div className="flex space-x-1 mb-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsAddingBookmark(!isAddingBookmark)}
-            aria-label={t("bookmarks.addBookmark")}
-            className="flex-1"
-          >
-            <Plus size={16} className="mr-1" />
-            <span>{t("common.add")}</span>
-          </Button>
+          <div className="flex space-x-1 mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddingBookmark(!isAddingBookmark)}
+              aria-label={t("bookmarks.addBookmark")}
+              className="flex-1"
+            >
+              <Plus size={16} className="mr-1" />
+              <span>{t("common.add")}</span>
+            </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleShareLoopSettings}
-            aria-label={t("bookmarks.shareLoopSettings")}
-            disabled={loopStart === null || loopEnd === null}
-            className="flex-1"
-          >
-            <Share2 size={16} className="mr-1" />
-            <span>{t("common.share")}</span>
-          </Button>
-        </div>
-
-        <div className="flex space-x-1 mb-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportBookmarks}
-            aria-label={t("bookmarks.exportBookmarks")}
-            disabled={bookmarks.length === 0}
-            className="flex-1"
-          >
-            <Download size={16} className="mr-1" />
-            <span>{t("common.export")}</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleImportClick}
-            aria-label={t("bookmarks.importBookmarks")}
-            className="flex-1"
-          >
-            <Upload size={16} className="mr-1" />
-            <span>{t("common.import")}</span>
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept=".json"
-              className="hidden"
-              onChange={handleImportBookmarks}
-            />
-          </Button>
-        </div>
-
-        {isAddingBookmark && (
-          <div className="mb-4 space-y-3 p-3 border border-gray-200 dark:border-gray-700 rounded-md">
-            <div>
-              <Input
-                placeholder={t("bookmarks.bookmarkName")}
-                value={bookmarkName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setBookmarkName(e.target.value)
-                }
-                className="w-full"
-              />
-            </div>
-
-            <div>
-              <Textarea
-                placeholder={t("bookmarks.annotationOptional")}
-                value={bookmarkAnnotation}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                  setBookmarkAnnotation(e.target.value)
-                }
-                className="w-full h-20 resize-none"
-              />
-            </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsAddingBookmark(false)}
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleAddBookmark}
-                disabled={
-                  !bookmarkName.trim() ||
-                  loopStart === null ||
-                  loopEnd === null
-                }
-              >
-                {t("common.save")}
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShareLoopSettings}
+              aria-label={t("bookmarks.shareLoopSettings")}
+              disabled={loopStart === null || loopEnd === null}
+              className="flex-1"
+            >
+              <Share2 size={16} className="mr-1" />
+              <span>{t("common.share")}</span>
+            </Button>
           </div>
-        )}
 
-        {bookmarks.length === 0 ? (
-          <div className="text-center py-6 text-gray-500 dark:text-gray-400">
-            <Bookmark className="mx-auto h-8 w-8 opacity-50 mb-2" />
-            <p>{t("bookmarks.noBookmarks")}</p>
-            <p className="text-sm">
-              {t("bookmarks.createFirstBookmark")}
-            </p>
+          <div className="flex space-x-1 mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportBookmarks}
+              aria-label={t("bookmarks.exportBookmarks")}
+              disabled={bookmarks.length === 0}
+              className="flex-1"
+            >
+              <Download size={16} className="mr-1" />
+              <span>{t("common.export")}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleImportClick}
+              aria-label={t("bookmarks.importBookmarks")}
+              className="flex-1"
+            >
+              <Upload size={16} className="mr-1" />
+              <span>{t("common.import")}</span>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".json"
+                className="hidden"
+                onChange={handleImportBookmarks}
+              />
+            </Button>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {bookmarks.map((bookmark) => (
-              <div
-                key={bookmark.id}
-                className={cn(
-                  "p-3 rounded-md border flex items-start justify-between hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors",
-                  selectedBookmarkId === bookmark.id
-                    ? "border-primary bg-primary/5"
-                    : "border-gray-200 dark:border-gray-700"
-                )}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center min-w-0">
-                    <button
-                      onClick={() => handleLoadBookmark(bookmark.id)}
-                      className="flex items-center group text-left min-w-0 flex-1"
-                    >
-                      <PlayCircle
-                        size={16}
-                        className="mr-2 text-gray-500 group-hover:text-primary flex-shrink-0"
-                      />
-                      <span className="font-medium truncate group-hover:text-primary block">
-                        {bookmark.name}
-                      </span>
-                    </button>
-                  </div>
 
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    <span>
-                      {formatTime(bookmark.start)} -{" "}
-                      {formatTime(bookmark.end)}
-                    </span>
-                    {bookmark.annotation && (
-                      <div
-                        className="mt-1 italic truncate"
-                        title={bookmark.annotation}
-                      >
-                        {bookmark.annotation}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex space-x-1 ml-2 flex-shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => handleEditBookmark(bookmark)}
-                    aria-label={t("bookmarks.editBookmark")}
-                  >
-                    <Edit size={14} />
-                  </Button>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                    onClick={() => handleDeleteBookmark(bookmark.id)}
-                    aria-label={t("bookmarks.deleteBookmark")}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
+          {isAddingBookmark && (
+            <div className="mb-4 space-y-3 p-3 border border-gray-200 dark:border-gray-700 rounded-md">
+              <div>
+                <Input
+                  placeholder={t("bookmarks.bookmarkName")}
+                  value={bookmarkName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setBookmarkName(e.target.value)
+                  }
+                  className="w-full"
+                />
               </div>
-            ))}
-          </div>
-        )}
+
+              <div>
+                <Textarea
+                  placeholder={t("bookmarks.annotationOptional")}
+                  value={bookmarkAnnotation}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    setBookmarkAnnotation(e.target.value)
+                  }
+                  className="w-full h-20 resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsAddingBookmark(false)}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleAddBookmark}
+                  disabled={
+                    !bookmarkName.trim() ||
+                    loopStart === null ||
+                    loopEnd === null
+                  }
+                >
+                  {t("common.save")}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {bookmarks.length === 0 ? (
+            <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+              <Bookmark className="mx-auto h-8 w-8 opacity-50 mb-2" />
+              <p>{t("bookmarks.noBookmarks")}</p>
+              <p className="text-sm">
+                {t("bookmarks.createFirstBookmark")}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {bookmarks.map((bookmark) => (
+                <div
+                  key={bookmark.id}
+                  className={cn(
+                    "p-3 rounded-md border flex items-start justify-between hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors",
+                    selectedBookmarkId === bookmark.id
+                      ? "border-primary bg-primary/5"
+                      : "border-gray-200 dark:border-gray-700"
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center min-w-0">
+                      <button
+                        onClick={() => handleLoadBookmark(bookmark.id)}
+                        className="flex items-center group text-left min-w-0 flex-1"
+                      >
+                        <PlayCircle
+                          size={16}
+                          className="mr-2 text-gray-500 group-hover:text-primary flex-shrink-0"
+                        />
+                        <span className="font-medium truncate group-hover:text-primary block">
+                          {bookmark.name}
+                        </span>
+                      </button>
+                    </div>
+
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <span>
+                        {formatTime(bookmark.start)} -{" "}
+                        {formatTime(bookmark.end)}
+                      </span>
+                      {bookmark.annotation && (
+                        <div
+                          className="mt-1 italic truncate"
+                          title={bookmark.annotation}
+                        >
+                          {bookmark.annotation}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-1 ml-2 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => handleEditBookmark(bookmark)}
+                      aria-label={t("bookmarks.editBookmark")}
+                    >
+                      <Edit size={14} />
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                      onClick={() => handleDeleteBookmark(bookmark.id)}
+                      aria-label={t("bookmarks.deleteBookmark")}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Edit bookmark dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("bookmarks.editBookmark")}</DialogTitle>
-          <DialogDescription>{t("bookmarks.updateBookmarkDescription")}</DialogDescription>
-        </DialogHeader>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("bookmarks.editBookmark")}</DialogTitle>
+            <DialogDescription>{t("bookmarks.updateBookmarkDescription")}</DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <label htmlFor="edit-name" className="text-sm font-medium">{t("bookmarks.name")}</label>
-            <Input
-              id="edit-name"
-              value={editName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setEditName(e.target.value)
-              }
-              placeholder={t("bookmarks.bookmarkName")}
-            />
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label htmlFor="edit-name" className="text-sm font-medium">{t("bookmarks.name")}</label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setEditName(e.target.value)
+                }
+                placeholder={t("bookmarks.bookmarkName")}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="edit-start" className="text-sm font-medium">{t("common.start")}</label>
+                <Input
+                  id="edit-start"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={editStart}
+                  onChange={(e) => setEditStart(Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="edit-end" className="text-sm font-medium">{t("common.end")}</label>
+                <Input
+                  id="edit-end"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={editEnd}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditEnd(Number(e.target.value))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="edit-annotation" className="text-sm font-medium">{t("bookmarks.annotation")}</label>
+              <Textarea
+                id="edit-annotation"
+                value={editAnnotation}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setEditAnnotation(e.target.value)
+                }
+                placeholder={t("bookmarks.annotationOptional")}
+                className="h-24"
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="edit-annotation" className="text-sm font-medium">{t("bookmarks.annotation")}</label>
-            <Textarea
-              id="edit-annotation"
-              value={editAnnotation}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                setEditAnnotation(e.target.value)
-              }
-              placeholder={t("bookmarks.annotationOptional")}
-              className="h-24"
-            />
-          </div>
-        </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => setIsEditDialogOpen(false)}
-          >
-            {t("common.cancel")}
-          </Button>
-
-          <Button
-            variant="default"
-            onClick={handleSaveEdit}
-            disabled={!editName.trim()}
-          >
-            {t("bookmarks.saveChanges")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <Button
+              variant="default"
+              onClick={handleSaveEdit}
+              disabled={!editName.trim()}
+            >
+              {t("bookmarks.saveChanges")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog >
     </>
   );
 };

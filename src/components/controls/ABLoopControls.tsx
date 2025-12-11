@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePlayerStore } from '../../stores/playerStore'
 import { formatTime } from '../../utils/formatTime'
-import { 
-  SkipBack, 
-  SkipForward, 
-  Repeat, 
-  AlignStartHorizontal, 
+import {
+  SkipBack,
+  SkipForward,
+  Repeat,
+  AlignStartHorizontal,
   AlignEndHorizontal
 } from 'lucide-react'
 import { Slider } from '../ui/slider'
@@ -31,10 +31,10 @@ export const ABLoopControls = () => {
   // Update range slider when loop points change
   useEffect(() => {
     if (duration === 0) return
-    
+
     const start = loopStart !== null ? loopStart : 0
     const end = loopEnd !== null ? loopEnd : duration
-    
+
     setRangeValues([
       (start / duration) * 100,
       (end / duration) * 100
@@ -44,14 +44,14 @@ export const ABLoopControls = () => {
   // Handle range slider change
   const handleRangeChange = (values: number[]) => {
     if (duration === 0) return
-    
+
     const [startPercent, endPercent] = values as [number, number]
     const start = (startPercent / 100) * duration
     const end = (endPercent / 100) * duration
-    
+
     setRangeValues([startPercent, endPercent])
     setLoopPoints(start, end)
-    
+
     // Enable looping when points are set
     if (!isLooping) {
       setIsLooping(true)
@@ -92,11 +92,11 @@ export const ABLoopControls = () => {
   // Halve the loop duration
   const halveLoopDuration = () => {
     if (loopStart === null || loopEnd === null) return
-    
+
     const loopDuration = loopEnd - loopStart
     const newDuration = loopDuration / 2
     const newEnd = loopStart + newDuration
-    
+
     if (newEnd <= duration) {
       setLoopPoints(loopStart, newEnd)
     }
@@ -105,11 +105,11 @@ export const ABLoopControls = () => {
   // Double the loop duration
   const doubleLoopDuration = () => {
     if (loopStart === null || loopEnd === null) return
-    
+
     const loopDuration = loopEnd - loopStart
     const newDuration = loopDuration * 2
     const newEnd = loopStart + newDuration
-    
+
     if (newEnd <= duration) {
       setLoopPoints(loopStart, newEnd)
     } else {
@@ -120,22 +120,22 @@ export const ABLoopControls = () => {
   // Move loop window left
   const moveLoopLeft = () => {
     if (loopStart === null || loopEnd === null) return
-    
+
     const loopDuration = loopEnd - loopStart
     const newStart = Math.max(0, loopStart - loopDuration / 2)
     const newEnd = newStart + loopDuration
-    
+
     setLoopPoints(newStart, newEnd)
   }
 
   // Move loop window right
   const moveLoopRight = () => {
     if (loopStart === null || loopEnd === null) return
-    
+
     const loopDuration = loopEnd - loopStart
     const newEnd = Math.min(duration, loopEnd + loopDuration / 2)
     const newStart = newEnd - loopDuration
-    
+
     setLoopPoints(newStart, newEnd)
   }
 
@@ -163,7 +163,7 @@ export const ABLoopControls = () => {
     <div className="space-y-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">{t("loop.controlsTitle")}</h3>
-        <Button 
+        <Button
           variant={isLooping ? "default" : "outline"}
           size="sm"
           onClick={toggleLooping}
@@ -174,9 +174,9 @@ export const ABLoopControls = () => {
           <span>{t(isLooping ? "loop.looping" : "loop.loopOff")}</span>
         </Button>
       </div>
-      
+
       <div className="flex items-center gap-2">
-        <Button 
+        <Button
           variant="outline"
           size="sm"
           onClick={setLoopStartAtCurrentTime}
@@ -184,7 +184,7 @@ export const ABLoopControls = () => {
         >
           <AlignStartHorizontal size={16} />
         </Button>
-        
+
         <div className="flex-1">
           <Slider
             defaultValue={rangeValues}
@@ -195,8 +195,8 @@ export const ABLoopControls = () => {
             className="w-full"
           />
         </div>
-        
-        <Button 
+
+        <Button
           variant="outline"
           size="sm"
           onClick={setLoopEndAtCurrentTime}
@@ -205,7 +205,7 @@ export const ABLoopControls = () => {
           <AlignEndHorizontal size={16} />
         </Button>
       </div>
-      
+
       <div className="grid grid-cols-2 gap-4">
         <div className="flex items-center space-x-2">
           <span className="text-sm font-medium">{t("loop.loopStart")}</span>
@@ -214,7 +214,7 @@ export const ABLoopControls = () => {
             readOnly
             className="w-20 text-center"
           />
-          <Button 
+          <Button
             variant="outline"
             size="icon"
             onClick={jumpToLoopStart}
@@ -224,7 +224,7 @@ export const ABLoopControls = () => {
             <SkipBack size={16} />
           </Button>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <span className="text-sm font-medium">{t("loop.loopEnd")}</span>
           <Input
@@ -232,7 +232,7 @@ export const ABLoopControls = () => {
             readOnly
             className="w-20 text-center"
           />
-          <Button 
+          <Button
             variant="outline"
             size="icon"
             onClick={jumpToLoopEnd}
@@ -243,31 +243,31 @@ export const ABLoopControls = () => {
           </Button>
         </div>
       </div>
-      
+
       <div className="flex justify-between">
         <div className="flex space-x-1">
-          <button 
+          <button
             onClick={moveLoopLeft}
             className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
             aria-label={t("loop.moveLeft")}
           >
             «
           </button>
-          <button 
+          <button
             onClick={halveLoopDuration}
             className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
             aria-label={t("loop.halveLength")}
           >
             ×½
           </button>
-          <button 
+          <button
             onClick={doubleLoopDuration}
             className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
             aria-label={t("loop.doubleLength")}
           >
             ×2
           </button>
-          <button 
+          <button
             onClick={moveLoopRight}
             className="p-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
             aria-label={t("loop.moveRight")}
@@ -275,8 +275,8 @@ export const ABLoopControls = () => {
             »
           </button>
         </div>
-        
-        <button 
+
+        <button
           onClick={clearLoopPoints}
           className="px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
           aria-label={t("loop.clearLoopPoints")}

@@ -3,7 +3,7 @@ import i18n from "../i18n";
 
 // Default limits (can be made configurable in settings)
 const DEFAULT_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB per file
-const DEFAULT_MAX_TOTAL_STORAGE = 200 * 1024 * 1024; // 200MB total
+const DEFAULT_MAX_TOTAL_STORAGE = 10 * 1024 * 1024 * 1024; // 10GB total
 
 // IndexedDB setup
 const DB_NAME = "abloop-media-storage";

@@ -16,7 +16,8 @@
     "import": "导入",
     "upload": "上传",
     "create": "创建",
-    "back": "返回"
+    "back": "返回",
+    "remove": "移除"
   },
   "app": {
     "logoLabel": "LoopMate 标志"
@@ -200,7 +201,9 @@
     "bpmLabel": "BPM",
     "bpmPlaceholder": "例如 120",
     "autoQuantize": "自动将循环量化到节拍",
-    "quantizeNow": "立即量化"
+    "quantizeNow": "立即量化",
+    "repeats": "重复次数",
+    "gap": "间隔"
   },
   "explanation": {
     "title": "AI解释",
@@ -293,6 +296,7 @@
     "uploadExisting": "上传现有的转录文件 (.srt, .vtt, .txt)",
     "noTranscript": "无可用转录",
     "uploadTranscript": "上传转录",
+    "toggleSidebar": "切换侧边栏",
     "generateTranscript": "生成转录",
     "exportTranscript": "导出转录",
     "languages": {
@@ -335,6 +339,7 @@
     "enterBookmarkName": "请输入书签名称",
     "bookmarkAdded": "书签已添加",
     "nameCannotBeEmpty": "书签名称不能为空",
+    "deleteConfirmation": "您确定要删除此书签吗？",
     "noBookmarksToExport": "没有书签可导出",
     "bookmarksExported": "书签已导出",
     "bookmarksImported": "已导入 {{count}} 个书签",
