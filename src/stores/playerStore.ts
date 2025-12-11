@@ -100,6 +100,7 @@ export interface PlayerState {
   autoAdvanceBookmarks: boolean;
   bpm: number | null;
   quantizeLoop: boolean;
+  loopDelay: number; // Delay in seconds between loops
 
   // UI state
   theme: "light" | "dark";
@@ -165,6 +166,7 @@ export interface PlayerActions {
   setBpm: (bpm: number | null) => void;
   setQuantizeLoop: (quantize: boolean) => void;
   quantizeCurrentLoop: () => void;
+  setLoopDelay: (delay: number) => void;
 
   // UI actions
   setTheme: (theme: "light" | "dark") => void;
@@ -256,6 +258,7 @@ const initialState: PlayerState = {
   autoAdvanceBookmarks: false,
   bpm: null,
   quantizeLoop: false,
+  loopDelay: 0,
   theme: "dark",
   waveformZoom: 1,
   showWaveform: true,
@@ -470,12 +473,13 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
               loopStart: shortest.start,
               loopEnd: shortest.end,
               selectedBookmarkId: shortest.id,
+              loopCount: 0,
             });
             toast.success(i18n.t("bookmarks.loopingBookmark", { name: shortest.name }));
           } else {
             // Default behavior: just toggle on (restores previous loop or enables if set)
             // If no loop points set, user might expect something, but let's stick to standard toggle
-            set({ isLooping: true });
+            set({ isLooping: true, loopCount: 0 });
           }
         }
       },
@@ -551,9 +555,9 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
         // Calculate the new end time while keeping the start fixed
         const newEnd = loopStart + quantizedDuration;
-
         set({ loopEnd: newEnd });
       },
+      setLoopDelay: (loopDelay) => set({ loopDelay }),
 
       // UI actions
       setTheme: (theme) => set({ theme }),
@@ -648,6 +652,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             loopEnd: bookmark.end,
             isLooping: true,
             selectedBookmarkId: id,
+            loopCount: 0,
             ...(bookmark.playbackRate !== undefined
               ? { playbackRate: bookmark.playbackRate }
               : {}),

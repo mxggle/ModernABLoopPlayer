@@ -16,7 +16,8 @@
     "import": "インポート",
     "upload": "アップロード",
     "create": "作成",
-    "back": "戻る"
+    "back": "戻る",
+    "remove": "削除"
   },
   "app": {
     "logoLabel": "LoopMateロゴ"
@@ -200,7 +201,9 @@
     "bpmLabel": "BPM",
     "bpmPlaceholder": "例: 120",
     "autoQuantize": "ループをビートに自動でクオンタイズする",
-    "quantizeNow": "今すぐクオンタイズ"
+    "quantizeNow": "今すぐクオンタイズ",
+    "repeats": "リピート回数",
+    "gap": "間隔"
   },
   "explanation": {
     "title": "AIによる説明",
@@ -293,6 +296,7 @@
     "uploadExisting": "既存のトランスクリプトファイルをアップロード (.srt, .vtt, .txt)",
     "noTranscript": "トランスクリプトはありません",
     "uploadTranscript": "トランスクリプトをアップロード",
+    "toggleSidebar": "サイドバーの切り替え",
     "generateTranscript": "トランスクリプトを生成",
     "exportTranscript": "トランスクリプトをエクスポート",
     "languages": {
@@ -335,6 +339,7 @@
     "enterBookmarkName": "ブックマーク名を入力してください",
     "bookmarkAdded": "ブックマークが追加されました",
     "nameCannotBeEmpty": "ブックマーク名は空にできません",
+    "deleteConfirmation": "このブックマークを削除してもよろしいですか？",
     "noBookmarksToExport": "エクスポートするブックマークがありません",
     "bookmarksExported": "ブックマークがエクスポートされました",
     "bookmarksImported": "{{count}}個のブックマークをインポートしました",

@@ -18,7 +18,8 @@
     "create": "Create",
     "back": "Back",
     "start": "Start",
-    "end": "End"
+    "end": "End",
+    "remove": "Remove"
   },
   "app": {
     "logoLabel": "LoopMate logo"
@@ -34,7 +35,8 @@
     "bookmarkUpdated": "Bookmark updated",
     "bookmarkDeleted": "Bookmark deleted",
     "bookmarkLoaded": "Bookmark loaded",
-    "nameCannotBeEmpty": "Bookmark name cannot be empty"
+    "nameCannotBeEmpty": "Bookmark name cannot be empty",
+    "deleteConfirmation": "Are you sure you want to delete this bookmark?"
   },
   "settings": {
     "title": "Settings",
@@ -209,7 +211,9 @@
     "bpmLabel": "BPM",
     "bpmPlaceholder": "e.g. 120",
     "autoQuantize": "Auto-quantize loop to beats",
-    "quantizeNow": "Quantize Now"
+    "quantizeNow": "Quantize Now",
+    "repeats": "Repeats",
+    "gap": "Gap"
   },
   "explanation": {
     "title": "AI Explanation",
@@ -310,6 +314,7 @@
     "transcribeBookmark": "Transcribe this bookmark",
     "transcribeBookmarkButton": "Transcribe Bookmark",
     "noTranscriptForBookmark": "No transcript available for this bookmark range.",
+    "toggleSidebar": "Toggle Sidebar",
     "languages": {
       "en-US": "English (US)",
       "en-GB": "English (UK)",

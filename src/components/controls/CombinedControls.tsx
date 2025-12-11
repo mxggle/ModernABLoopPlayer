@@ -65,7 +65,7 @@ export const CombinedControls = () => {
   } = usePlayerStore();
 
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
-  const [showABControls, setShowABControls] = useState(true);
+  const [showABControls, setShowABControls] = useState(false);
 
   // Get current media bookmarks for the bookmark button
   const bookmarks = getCurrentMediaBookmarks();
