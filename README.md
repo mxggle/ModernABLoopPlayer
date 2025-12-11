@@ -1,175 +1,102 @@
 # LoopMate
 
-A modern web-based audio/video loop player with A-B repeat
-A sleek and intuitive web app for looping YouTube videos and local audio/video files with precision A-B points—perfect for language learners, musicians, and content reviewers.
-🎯 Supports MP3, MP4, WebM, FLAC, and more
-📼 Drag & drop local files or paste a YouTube link
-🔁 Set custom loop points to focus on what matters
+A modern web-based audio/video loop player with A-B repeat & Shadowing Recorder.
+
+LoopMate is a sleek and intuitive web app designed for language learners, musicians, and content reviewers. It allows you to loop YouTube videos and local files with precision, and now features a powerful **Shadowing Mode** to record and compare your voice with the original audio.
+
+🎯 **Supports:** MP3, MP4, WebM, FLAC, YouTube links, and more.
+📼 **Input:** Drag & drop local files or paste a YouTube URL.
+🔁 **Loop:** Set custom A-B loop points to focus on specific sections.
+🎙️ **Shadow:** Record your voice over the track to practice pronunciation.
 
 ![alt text](./screenshots/screenshot-1.png)
-![alt text](./screenshots/screenshot-2.png)
-![alt text](./screenshots/screenshot-3.png)
 
 ## ✨ Features
 
-- **Audio/Video Playback** - Supports both audio and video file formats
-- **A-B Loop** - Set precise loop points with start and end markers
-- **YouTube Integration** - Load and loop YouTube videos directly
-- **Bookmarking** - Save and manage timestamps for quick navigation
-- **Waveform Visualization** - Visual representation of audio for precise navigation
-- **Keyboard Shortcuts** - Full keyboard control for efficient workflow
-- **Responsive Design** - Works on desktop and mobile devices
-- **Dark/Light Theme** - Choose your preferred color scheme
-- **Local Storage** - Saves your recent files and bookmarks
-- **Shareable URLs** - Share timestamps with others via URL
+### Core Functionality
+- **Audio/Video Playback**: robust support for local media files and YouTube videos.
+- **A-B Loop**: Precise loop points with start/end markers and fine-tuning controls.
+- **Waveform Visualization**: Interactive waveform for precise navigation and loop setting.
+- **Playback Speed**: Adjustable playback rate (0.25x - 2.0x) without altering pitch.
+- **Bookmarks**: Save important timestamps with notes for quick access.
+
+### 🎙️ Shadowing Mode (New!)
+Designed for language learners to practice speaking:
+- **Integrated Recorder**: Record your voice while the media plays.
+- **Smart Overwrite**: Automatically trims or splits existing recordings if you re-record a section (non-destructive punch-in).
+- **Dual Waveforms**: Visualize your recorded audio output directly on top of the original track in real-time.
+- **Auto-Mute**: Automatically mutes your previous recording while you are recording a new take to prevent echo.
+- **Mobile Support**: Fully functional recording controls on mobile devices.
+
+### User Experience
+- **Responsive Design**: Optimized for both desktop and mobile usage.
+- **Touch Controls**: Mobile-friendly seek and loop controls.
+- **Dark/Light Theme**: Automatic or manual theme switching.
+- **Keyboard Shortcuts**: Comprehensive hotkeys for mouse-free operation.
+- **Privacy First**: All local files and recordings are stored locally in your browser (IndexedDB). Nothing is uploaded to a server.
 
 ## 🛠 Tech Stack
 
-- **Frontend**
-
-  - React 18 with TypeScript
-  - Vite (Build Tool)
-  - Tailwind CSS (Styling)
-  - Radix UI (Accessible UI Primitives)
-  - Framer Motion (Animations)
-  - Zustand (State Management)
-
-- **Audio Processing**
-  - Web Audio API
-  - Custom audio processing utilities
+- **Frontend**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS, Radix UI, Framer Motion
+- **State**: Zustand (with persistence)
+- **Audio**: Web Audio API (for advanced processing and visualization)
+- **Deployment**: Vercel ready
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 16+ and npm/yarn
-- Modern web browser with Web Audio API support
-- Vercel account (for deployment)
-
-### Deploy to Vercel
-
-Deploy your own instance of LoopMate with one click:
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyourusername%2Fmodern-ab-loop&project-name=modern-ab-loop&repository-name=modern-ab-loop)
-
-Or deploy manually:
-
-1. Install Vercel CLI: `npm install -g vercel`
-2. Run `vercel` in the project directory and follow the prompts
-3. For production: `vercel --prod`
-
-### Local Development
+- Node.js 16+
+- Browser with Web Audio API support (Chrome, Firefox, Safari, Edge)
 
 ### Installation
 
 1. Clone the repository:
-
-```bash
-git clone https://github.com/yourusername/modern-ab-loop.git
-cd modern-ab-loop
-```
+   ```bash
+   git clone https://github.com/yourusername/modern-ab-loop.git
+   cd modern-ab-loop
+   ```
 
 2. Install dependencies:
-
-```bash
-npm install
-# or
-yarn install
-```
+   ```bash
+   npm install
+   ```
 
 3. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-```
-
-4. Open your browser and navigate to `http://localhost:5173`
+4. Open `http://localhost:5173`
 
 ## 🎛 Usage
 
-1. **Upload Media**
+1. **Load Media**: Drag & drop a file or paste a YouTube link.
+2. **Looping**:
+   - Press **A** to set start, **B** to set end.
+   - Press **L** to toggle loop.
+3. **Shadowing**:
+   - Click the **Mic** icon to enable Shadowing Mode.
+   - Press **R** or click the Record button to start/stop recording.
+   - Your recording will be visualized in **Red** over the original **Green** waveform.
+   - Use the individual volume sliders to balance the original audio and your recording.
 
-   - Click "Open File" to upload audio/video files
-   - Or enter a YouTube URL to load a video
+## ⌨️ Keyboard Shortcuts
 
-2. **Basic Controls**
-
-   - Play/Pause: Spacebar or Play/Pause button
-   - Seek: Click on the timeline or use Left/Right arrow keys
-   - Volume: Use the volume slider or Up/Down arrow keys
-
-3. **A-B Looping**
-
-   - Set point A: Press `A` key or click "Set A"
-   - Set point B: Press `B` key or click "Set B"
-   - Toggle loop: Press `L` key or click the loop button
-
-4. **Bookmarks**
-   - Add bookmark: Press `M` key or click "Add Bookmark"
-   - Jump to bookmark: Click on a bookmark in the list
-   - Delete bookmark: Hover over a bookmark and click the delete icon
-
-## 🎨 Project Structure
-
-```
-src/
-├── components/            # Reusable UI components
-│   ├── controls/         # Player control components
-│   ├── layout/           # Layout components
-│   ├── player/           # Media player components
-│   ├── ui/               # Base UI elements
-│   └── waveform/         # Waveform visualization
-├── hooks/                # Custom React hooks
-├── stores/               # State management
-└── utils/                # Utility functions
-```
+| Key | Action |
+| :--- | :--- |
+| **Space** | Play/Pause |
+| **A** | Set Loop Start (A) |
+| **B** | Set Loop End (B) |
+| **L** | Toggle Loop |
+| **C** | Clear Loop Points |
+| **R** | Start/Stop Recording (Shadowing) |
+| **M** | Add Bookmark |
+| **← / →** | Seek -5s / +5s |
+| **Shift + ← / →** | Seek -1s / +1s |
+| **↑ / ↓** | Volume Up / Down |
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Built with modern web technologies
-- Inspired by professional audio/video editing software
-- Special thanks to all contributors and open-source libraries used
-
-3. Build for production:
-
-```bash
-npm run build
-```
-
-## Keyboard Shortcuts
-
-- **Spacebar:** Play/Pause
-- **A:** Set A point at current time
-- **B:** Set B point at current time
-- **L:** Toggle loop on/off
-- **C:** Clear loop points
-- **←/→:** Seek backward/forward 5 seconds
-- **Shift + ←/→:** Seek backward/forward 1 second
-- **↑/↓:** Volume up/down
-- **0-9:** Jump to 0-90% of track
-
-## License
-
-MIT
-
-## Navigation System
-
-The application uses a simplified two-route navigation system:
-
-- **Home Route (`/`)**: File upload, YouTube input, and media history
-- **Player Route (`/player`)**: Media player with all controls and features
-
-### Navigation Flow
-
-1. **Loading Media**: When a file is uploaded or YouTube URL is entered on the home page, the app automatically navigates to `/player`
-2. **No Media**: If the player page is accessed without any media loaded, it automatically redirects to home
-3. **History Navigation**: Clicking on any item in media history loads the media and navigates to `/player`
-4. **Home Button**: The LoopMate logo in the header clears current media and returns to home
-
-This simplified approach eliminates complex URL parameter handling and navigation loops that were causing issues in the previous implementation.
+MIT License. See [LICENSE](LICENSE) for details.
