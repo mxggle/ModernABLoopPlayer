@@ -15,7 +15,6 @@ import {
   Settings,
   Edit,
   PlayCircle,
-  MoreVertical,
   Sidebar,
   PanelLeftClose,
 } from "lucide-react";
@@ -406,15 +405,11 @@ export const TranscriptPanel = () => {
     exportTranscript,
     getCurrentMediaBookmarks,
     updateBookmark,
-    setLoopPoints,
-    setCurrentTime,
-    setIsPlaying,
-    setIsLooping,
-    loopStart,
-    loopEnd,
     selectedBookmarkId,
     loadBookmark,
     setSelectedBookmarkId,
+    setCurrentTime,
+    setIsPlaying,
   } = usePlayerStore();
 
   const transcriptSegments = getCurrentMediaTranscripts();
