@@ -19,7 +19,18 @@
     "back": "Back",
     "start": "Start",
     "end": "End",
-    "remove": "Remove"
+    "remove": "Remove",
+    "shadowing": "Shadowing"
+  },
+  "shadowing": {
+    "title": "Shadowing",
+    "mode": "Shadowing Mode",
+    "on": "Rec On",
+    "off": "Shadowing",
+    "delay": "Stop Delay (s)",
+    "recording": "Recording...",
+    "enable": "Enable Shadowing",
+    "disable": "Disable Shadowing"
   },
   "app": {
     "logoLabel": "LoopMate logo"

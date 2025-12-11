@@ -19,7 +19,13 @@ import {
   Bookmark,
   ListMusic,
   X,
+  Mic,
+  Settings,
 } from "lucide-react";
+import { Label } from "../ui/label";
+import { Input } from "../ui/input";
+import { useShadowingStore } from "../../stores/shadowingStore";
+import { useShadowingRecorder } from "../../hooks/useShadowingRecorder";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
 import { Plus } from "lucide-react";
@@ -63,6 +69,17 @@ export const CombinedControls = () => {
     setPlaybackMode,
     selectedBookmarkId,
   } = usePlayerStore();
+
+  const {
+    isShadowingMode,
+    setShadowingMode,
+    delay: shadowingDelay,
+    setDelay: setShadowingDelay,
+    isRecording,
+  } = useShadowingStore();
+
+  // Initialize shadowing recorder
+  useShadowingRecorder();
 
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
   const [showABControls, setShowABControls] = useState(false);
@@ -201,7 +218,21 @@ export const CombinedControls = () => {
 
   // Toggle mute
   const toggleMute = () => {
-    setMuted(!muted);
+    if (muted) {
+      // Unmute: restore previous volume
+      const previousVolume = usePlayerStore.getState().previousVolume;
+      if (previousVolume !== undefined && previousVolume > 0) {
+        setVolume(previousVolume);
+      } else {
+        setVolume(1);
+      }
+      setMuted(false);
+    } else {
+      // Mute: store current volume and set to 0
+      usePlayerStore.getState().setPreviousVolume(volume);
+      setVolume(0);
+      setMuted(true);
+    }
   };
 
   // Handle volume slider change
@@ -537,6 +568,59 @@ export const CombinedControls = () => {
                 )}
               </PopoverContent>
             </Popover>
+
+            {/* Shadowing Controls */}
+            <div className="flex items-center space-x-0 ml-1">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-r-none border-r-0 px-2 h-8"
+                    aria-label={t("shadowing.delay")}
+                  >
+                    <Settings size={13} className="sm:w-[14px] sm:h-[14px]" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">{t("shadowing.title")}</h4>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="shadowing-delay" className="text-xs">
+                        {t("shadowing.delay")}
+                      </Label>
+                      <Input
+                        id="shadowing-delay"
+                        type="number"
+                        min={0}
+                        max={10}
+                        step={0.5}
+                        className="h-7 w-20 text-xs"
+                        value={shadowingDelay}
+                        onChange={(e) => setShadowingDelay(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button
+                variant={isRecording ? "destructive" : isShadowingMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShadowingMode(!isShadowingMode)}
+                className={`gap-1 py-1 px-3 h-8 text-xs font-medium rounded-l-none ${isRecording ? "animate-pulse" : ""
+                  }`}
+                aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+              >
+                <Mic size={13} className="sm:w-[14px] sm:h-[14px]" />
+                <span className="hidden sm:inline">
+                  {isRecording
+                    ? t("shadowing.recording")
+                    : isShadowingMode
+                      ? t("shadowing.on")
+                      : t("shadowing.off")}
+                </span>
+              </Button>
+            </div>
 
             <Button
               variant="outline"

@@ -40,3 +40,4 @@ yarn-error.log*
 *.sln
 *.sw?
 .vercel
+/local
