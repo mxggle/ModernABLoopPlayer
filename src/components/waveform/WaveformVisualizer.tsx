@@ -109,7 +109,7 @@ export const WaveformVisualizer = () => {
 
   // Use getCurrentMediaId to ensure consistency with how segments are saved
   const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
-  console.log("📊 [WaveformVisualizer] Current media ID:", mediaId);
+
 
   const shadowingSegments = mediaId ? getSegments(mediaId) : [];
   const [shadowingWaveforms, setShadowingWaveforms] = useState<{ start: number; data: Float32Array; duration: number }[]>([]);
@@ -147,14 +147,34 @@ export const WaveformVisualizer = () => {
             const arrayBuffer = await file.arrayBuffer();
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-            const data = downsampleAudioData(audioBuffer.getChannelData(0), 1000); // Lower resolution for shadowing is fine
 
-            console.log(`📊 [WaveformVisualizer] Decoded and downsampled segment ${index}:`, { duration: audioBuffer.duration, dataPoints: data.length });
+            const fileOffset = seg.fileOffset || 0;
+            const segmentDuration = seg.duration > 0 ? seg.duration : (audioBuffer.duration - fileOffset);
+
+            const startSample = Math.floor(fileOffset * audioBuffer.sampleRate);
+            const endSample = Math.min(
+              Math.floor((fileOffset + segmentDuration) * audioBuffer.sampleRate),
+              audioBuffer.length
+            );
+
+            let rawData = audioBuffer.getChannelData(0);
+            if (fileOffset > 0 || endSample < rawData.length) {
+              rawData = rawData.slice(startSample, endSample);
+            }
+
+            const data = downsampleAudioData(rawData, 1000); // Lower resolution for shadowing is fine
+
+            console.log(`📊 [WaveformVisualizer] Decoded segment ${index}:`, {
+              originalDuration: audioBuffer.duration,
+              segmentDuration,
+              fileOffset,
+              samples: data.length
+            });
 
             return {
               start: seg.startTime,
               data,
-              duration: audioBuffer.duration
+              duration: segmentDuration
             };
           } catch (e) {
             console.error(`📊 [WaveformVisualizer] Failed to load shadowing segment ${index}:`, e);

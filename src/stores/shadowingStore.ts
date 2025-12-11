@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { storeMediaFile, retrieveMediaFile } from "../utils/mediaStorage";
+import { deleteMediaFile } from "../utils/mediaStorage";
 
 interface ShadowingSegment {
     id: string;
     startTime: number; // offset in seconds relative to media start
     duration: number; // in seconds
     storageId: string; // ID in IndexedDB
+    fileOffset?: number; // Start offset within the audio file (for trimmed/split segments)
 }
 
 interface ShadowingState {
@@ -35,6 +36,7 @@ interface ShadowingActions {
     addSegment: (mediaId: string, segment: ShadowingSegment) => void;
     getSegments: (mediaId: string) => ShadowingSegment[];
     clearSegments: (mediaId: string) => void;
+    removeOverlappingSegments: (mediaId: string, startTime: number, endTime: number) => Promise<void>;
 }
 
 export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
@@ -78,11 +80,141 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
             },
 
             clearSegments: (mediaId) => set((state) => {
-                // ideally we should also delete files from storage, but for now just clear local reference
-                // cleanup can happen lazily or via a separate action
                 const { [mediaId]: removed, ...rest } = state.sessions;
                 return { sessions: rest };
             }),
+
+            removeOverlappingSegments: async (mediaId, startTime, endTime) => {
+                const currentSession = get().sessions[mediaId];
+                if (!currentSession) return;
+
+                console.log(`🗑️ [ShadowingStore] Checking for overlaps: new recording [${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s]`);
+
+                const session = currentSession;
+                const newSegments: ShadowingSegment[] = [];
+                const idsToRemove = new Set<string>();
+                const storageIdsToCheckForDeletion = new Set<string>();
+
+                session.segments.forEach(seg => {
+                    const segDuration = seg.duration > 0.1 ? seg.duration : 5.0;
+                    const segStart = seg.startTime;
+                    const segEnd = segStart + segDuration;
+                    const fileOffset = seg.fileOffset || 0;
+
+                    // Check overlap
+                    // Overlap exists if start < segEnd AND end > segStart
+                    if (startTime < segEnd && endTime > segStart) {
+                        console.log(`🗑️ [ShadowingStore] Processing overlap for segment ${seg.id} [${segStart.toFixed(2)}-${segEnd.toFixed(2)}]`);
+
+                        idsToRemove.add(seg.id);
+                        storageIdsToCheckForDeletion.add(seg.storageId);
+
+                        // Case 1: Fully contained (New recording covers entire segment)
+                        // startTime <= segStart AND endTime >= segEnd
+                        if (startTime <= segStart && endTime >= segEnd) {
+                            console.log(`   -> Fully overwritten`);
+                            // Just remove, done.
+                        }
+                        // Case 2: Split in middle (New recording in middle of segment)
+                        // startTime > segStart AND endTime < segEnd
+                        else if (startTime > segStart && endTime < segEnd) {
+                            console.log(`   -> Split in middle`);
+                            // Create first half
+                            // [segStart, startTime]
+                            const firstDuration = startTime - segStart;
+                            newSegments.push({
+                                id: Math.random().toString(36).substring(7),
+                                startTime: segStart,
+                                duration: firstDuration,
+                                storageId: seg.storageId,
+                                fileOffset: fileOffset // Starts at same point in file
+                            });
+
+                            // Create second half
+                            // [endTime, segEnd]
+                            const secondDuration = segEnd - endTime;
+                            // Offset in file increases by (endTime - segStart)
+                            // Wait: fileOffset corresponds to segStart.
+                            // New start is endTime. Diff is endTime - segStart.
+                            const secondOffset = fileOffset + (endTime - segStart);
+                            newSegments.push({
+                                id: Math.random().toString(36).substring(7),
+                                startTime: endTime,
+                                duration: secondDuration,
+                                storageId: seg.storageId,
+                                fileOffset: secondOffset
+                            });
+                        }
+                        // Case 3: Trim end (New recording starts during segment)
+                        // startTime > segStart
+                        else if (startTime > segStart) {
+                            console.log(`   -> Trim end`);
+                            // Keep start part: [segStart, startTime]
+                            const newDuration = startTime - segStart;
+                            newSegments.push({
+                                id: Math.random().toString(36).substring(7),
+                                startTime: segStart,
+                                duration: newDuration,
+                                storageId: seg.storageId,
+                                fileOffset: fileOffset
+                            });
+                        }
+                        // Case 4: Trim start (New recording ends during segment)
+                        // endTime < segEnd
+                        else if (endTime < segEnd) {
+                            console.log(`   -> Trim start`);
+                            // Keep end part: [endTime, segEnd]
+                            const newDuration = segEnd - endTime;
+                            const newOffset = fileOffset + (endTime - segStart);
+                            newSegments.push({
+                                id: Math.random().toString(36).substring(7),
+                                startTime: endTime,
+                                duration: newDuration,
+                                storageId: seg.storageId,
+                                fileOffset: newOffset
+                            });
+                        }
+                    }
+                });
+
+                // Update state
+                set((state) => {
+                    const session = state.sessions[mediaId];
+                    if (!session) return state;
+
+                    // Filter out removed IDs and add new splits
+                    const keptSegments = session.segments.filter(s => !idsToRemove.has(s.id));
+                    const finalSegments = [...keptSegments, ...newSegments];
+
+                    return {
+                        sessions: {
+                            ...state.sessions,
+                            [mediaId]: {
+                                ...session,
+                                segments: finalSegments,
+                            },
+                        },
+                    };
+                });
+
+                // File Deletion Logic: Reference Counting
+                // We only delete a file if NO segments (including new ones) refer to it anymore.
+                const allSegmentsNow = get().sessions[mediaId]?.segments || [];
+                const activeStorageIds = new Set(allSegmentsNow.map(s => s.storageId));
+
+                for (const storageId of storageIdsToCheckForDeletion) {
+                    if (!activeStorageIds.has(storageId)) {
+                        try {
+                            console.log(`🗑️ [ShadowingStore] Deleting orphaned file:`, storageId);
+                            await deleteMediaFile(storageId);
+                        } catch (error) {
+                            console.error(`🗑️ [ShadowingStore] Failed to delete file ${storageId}:`, error);
+                        }
+                    } else {
+                        console.log(`🗑️ [ShadowingStore] Preserving file ${storageId} (still referenced)`);
+                    }
+                }
+            },
         }),
         {
             name: "shadowing-store",

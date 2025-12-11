@@ -27,7 +27,7 @@ export const useShadowingPlayer = () => {
     const audioContextRef = useRef<AudioContext | null>(null);
     const gainNodeRef = useRef<GainNode | null>(null);
     const activeNodesRef = useRef<AudioBufferSourceNode[]>([]);
-    const segmentsRef = useRef<{ start: number; buffer: AudioBuffer }[]>([]);
+    const segmentsRef = useRef<{ start: number; duration: number; fileOffset: number; buffer: AudioBuffer }[]>([]);
     const startTimeRef = useRef<number>(0);
     const contextStartTimeRef = useRef<number>(0);
 
@@ -36,7 +36,7 @@ export const useShadowingPlayer = () => {
 
     // Use getCurrentMediaId to ensure consistency
     const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
-    console.log("🎤 [ShadowingPlayer] Using media ID:", mediaId);
+
 
     // Get segments - getSegments is already destructured above
     const segments = mediaId ? getSegments(mediaId) : [];
@@ -135,6 +135,8 @@ export const useShadowingPlayer = () => {
 
                         return {
                             start: seg.startTime,
+                            duration: seg.duration,
+                            fileOffset: seg.fileOffset || 0,
                             buffer: audioBuffer
                         };
                     } catch (e) {
@@ -207,12 +209,15 @@ export const useShadowingPlayer = () => {
         });
 
         segmentsRef.current.forEach((seg, index) => {
-            const segEnd = seg.start + seg.buffer.duration;
+            // Use stored duration for playback logic, not just buffer duration. 
+            // Fallback to buffer duration if not set (legacy support)
+            const playDuration = seg.duration || seg.buffer.duration;
+            const segEnd = seg.start + playDuration;
 
             // Check if segment is in the future relative to 'time', or currently overlapping
             // If segment finished before 'time', skip
             if (segEnd < time) {
-                console.log(`🎤 [ShadowingPlayer] Skipping segment ${index} (already finished):`, { segStart: seg.start, segEnd, currentTime: time });
+                // console.log(`🎤 [ShadowingPlayer] Skipping segment ${index} (already finished)`);
                 return;
             }
 
@@ -221,44 +226,29 @@ export const useShadowingPlayer = () => {
             source.buffer = seg.buffer;
             source.playbackRate.value = playbackRate;
 
-            console.log(`🎤 [ShadowingPlayer] Created audio source for segment ${index}:`, {
-                hasBuffer: !!source.buffer,
-                bufferDuration: source.buffer?.duration,
-                bufferChannels: source.buffer?.numberOfChannels,
-                playbackRate: source.playbackRate.value,
-                gainNodeExists: !!gainNodeRef.current,
-                gainValue: gainNodeRef.current?.gain.value
-            });
-
             source.connect(gainNodeRef.current!);
-            console.log(`🎤 [ShadowingPlayer] Connected segment ${index} to gain node`);
 
             // Calculate start time in context time
             // time = where we want to start playing in media timeline
             // seg.start = where segment starts in media timeline
 
+            const fileOffset = seg.fileOffset || 0;
+
             if (seg.start >= time) {
                 // Segment starts in future
                 const delay = (seg.start - time) / playbackRate;
-                console.log(`🎤 [ShadowingPlayer] Scheduling segment ${index} for future:`, {
-                    segStart: seg.start,
-                    delay,
-                    scheduleTime: ctx.currentTime + delay
-                });
-                source.start(ctx.currentTime + delay);
+                // Start playing from fileOffset, for playDuration
+                source.start(ctx.currentTime + delay, fileOffset, playDuration);
             } else {
-                // Segment is already playing, start partially into it
-                const offset = (time - seg.start); // how much to skip
-                console.log(`🎤 [ShadowingPlayer] Starting segment ${index} with offset:`, {
-                    segStart: seg.start,
-                    offset,
-                    duration: seg.buffer.duration
-                });
-                // offset needs to be unaffected by playback rate for the source buffer mechanics?
-                // source.start(when, offset, duration)
-                // 'offset' is in buffer's time domain (unaffected by playbackRate usually)
+                // Segment is already playing, join in progress
+                const seekInSegment = (time - seg.start); // How many seconds we are into the segment
+                const bufferOffset = fileOffset + seekInSegment; // Where to read in the buffer
+                const timeRemaining = playDuration - seekInSegment;
 
-                source.start(ctx.currentTime, offset);
+                if (timeRemaining > 0) {
+                    // Start now, read from calculated buffer offset, play for remaining time
+                    source.start(ctx.currentTime, bufferOffset, timeRemaining);
+                }
             }
 
             activeNodesRef.current.push(source);

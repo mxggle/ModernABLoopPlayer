@@ -11,13 +11,17 @@ export const useShadowingRecorder = () => {
         delay,
         setIsRecording,
         addSegment,
+        muted: shadowingMuted,
+        setMuted: setShadowingMuted,
     } = useShadowingStore();
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const stopTimerRef = useRef<NodeJS.Timeout | null>(null);
     const startTimeRef = useRef<number>(0);
+    const endTimeRef = useRef<number>(0); // Track when recording actually ends
     const streamRef = useRef<MediaStream | null>(null);
+    const previousMuteStateRef = useRef<boolean>(false); // Store mute state before recording
 
     // Cleanup on unmount
     useEffect(() => {
@@ -66,6 +70,11 @@ export const useShadowingRecorder = () => {
             if (!streamRef.current) return;
             if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") return;
 
+            // FIRST: Save current mute state BEFORE any other operations
+            const currentMuteState = shadowingMuted;
+            previousMuteStateRef.current = currentMuteState;
+            console.log("💾 [ShadowingRecorder] Saved mute state BEFORE recording:", currentMuteState);
+
             try {
                 const recorder = new MediaRecorder(streamRef.current);
                 mediaRecorderRef.current = recorder;
@@ -94,6 +103,15 @@ export const useShadowingRecorder = () => {
                     console.log("🎙️ [ShadowingRecorder] Created file:", { name: file.name, size: file.size, type: file.type });
 
                     try {
+                        // Decode audio to get actual duration
+                        const arrayBuffer = await file.arrayBuffer();
+                        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        const actualDuration = audioBuffer.duration;
+                        audioContext.close();
+
+                        console.log("🎙️ [ShadowingRecorder] Decoded audio duration:", actualDuration);
+
                         console.log("🎙️ [ShadowingRecorder] Storing file to IndexedDB...");
                         const storageId = await storeMediaFile(file);
                         console.log("🎙️ [ShadowingRecorder] File stored with ID:", storageId);
@@ -104,17 +122,19 @@ export const useShadowingRecorder = () => {
                         console.log("🎙️ [ShadowingRecorder] Current media ID (using getCurrentMediaId):", mediaId);
 
                         if (mediaId) {
-                            // Calculate duration from blob if possible, or use wall clock diff?
-                            // WebM duration metadata might be missing.
-                            // For visualization, we might decode it later. 
-                            // For now, let's just save valid segments.
-                            // We'll trust the visualizer to figure out exact duration from the buffer.
+                            const recordingStartTime = startTimeRef.current;
+                            const recordingEndTime = endTimeRef.current; // Use actual played end time
 
-                            // Wait, we need the stored file ID to retrieve it later for visualization.
+                            console.log(`🎙️ [ShadowingRecorder] Recording time range: ${recordingStartTime.toFixed(2)}s - ${recordingEndTime.toFixed(2)}s (played duration: ${(recordingEndTime - recordingStartTime).toFixed(2)}s, audio duration: ${actualDuration.toFixed(2)}s)`);
+
+                            // Remove any overlapping segments in the PLAYED time range
+                            const { removeOverlappingSegments } = useShadowingStore.getState();
+                            await removeOverlappingSegments(mediaId, recordingStartTime, recordingEndTime);
+
                             const segment = {
                                 id: Math.random().toString(36).substring(7),
-                                startTime: startTimeRef.current,
-                                duration: 0, // Placeholder, will need to be calculated on load
+                                startTime: recordingStartTime,
+                                duration: actualDuration, // Store actual audio duration for playback
                                 storageId: storageId,
                             };
 
@@ -137,6 +157,12 @@ export const useShadowingRecorder = () => {
 
                 recorder.start();
                 setIsRecording(true);
+
+                // THEN: Mute shadowing playback if it wasn't already muted
+                if (!currentMuteState) {
+                    console.log("🔇 [ShadowingRecorder] Muting shadowing playback during recording");
+                    setShadowingMuted(true);
+                }
             } catch (err) {
                 console.error("Failed to start MediaRecorder:", err);
                 toast.error("Failed to start recording");
@@ -145,7 +171,16 @@ export const useShadowingRecorder = () => {
 
         const stopRecording = () => {
             if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+                // Capture the end time when recording actually stops
+                endTimeRef.current = currentTime;
+
                 mediaRecorderRef.current.stop();
+
+                // Restore previous mute state
+                const stateToRestore = previousMuteStateRef.current;
+                console.log("🔊 [ShadowingRecorder] RESTORING mute state:", stateToRestore, "(was saved at recording start)");
+                setShadowingMuted(stateToRestore);
+                console.log("🔊 [ShadowingRecorder] Mute state restoration called");
             }
         };
 

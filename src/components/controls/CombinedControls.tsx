@@ -391,6 +391,21 @@ export const CombinedControls = () => {
               )}
             </button>
 
+            {/* Shadowing toggle button */}
+            <button
+              onClick={() => setShadowingMode(!isShadowingMode)}
+              className={`p-2.5 rounded-full transition-all duration-150 ${isRecording
+                ? "bg-red-600 text-white animate-pulse"
+                : isShadowingMode
+                  ? "bg-orange-600 text-white hover:bg-orange-700"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                }`}
+              aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+              title={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+            >
+              <Mic size={18} className="sm:w-[20px] sm:h-[20px]" />
+            </button>
+
             <button
               onClick={seekForward}
               className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
@@ -569,58 +584,6 @@ export const CombinedControls = () => {
               </PopoverContent>
             </Popover>
 
-            {/* Shadowing Controls */}
-            <div className="flex items-center space-x-0 ml-1">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-r-none border-r-0 px-2 h-8"
-                    aria-label={t("shadowing.delay")}
-                  >
-                    <Settings size={13} className="sm:w-[14px] sm:h-[14px]" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-3">
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-sm">{t("shadowing.title")}</h4>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="shadowing-delay" className="text-xs">
-                        {t("shadowing.delay")}
-                      </Label>
-                      <Input
-                        id="shadowing-delay"
-                        type="number"
-                        min={0}
-                        max={10}
-                        step={0.5}
-                        className="h-7 w-20 text-xs"
-                        value={shadowingDelay}
-                        onChange={(e) => setShadowingDelay(Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <Button
-                variant={isRecording ? "destructive" : isShadowingMode ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShadowingMode(!isShadowingMode)}
-                className={`gap-1 py-1 px-3 h-8 text-xs font-medium rounded-l-none ${isRecording ? "animate-pulse" : ""
-                  }`}
-                aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
-              >
-                <Mic size={13} className="sm:w-[14px] sm:h-[14px]" />
-                <span className="hidden sm:inline">
-                  {isRecording
-                    ? t("shadowing.recording")
-                    : isShadowingMode
-                      ? t("shadowing.on")
-                      : t("shadowing.off")}
-                </span>
-              </Button>
-            </div>
 
             <Button
               variant="outline"
