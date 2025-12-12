@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-09-19
+
+### Added
+- **Shadowing Recorder (Major Feature)**:
+  - Integrated voice recorder to practice speaking alongside media
+  - **Real-time Visualization**: See your recording waveform (red) overlaid on the original audio (green) instantly
+  - **Smart Overwrite**: Re-recording a section automatically trims or splits existing recordings (non-destructive punch-in)
+  - **Auto-Mute**: Automatically mutes the shadowing track while recording to prevent echo/feedback
+  - **Dual Volume Control**: Independent volume sliders for the original track and your recorded voice
+- **Mobile Recording Controls**: Added a dedicated microphone button to the mobile player interface
+
+### Changed
+- Updated `ShadowingStore` to support file slicing (`fileOffset`) for efficient audio segment management
+- Optimized waveform rendering to handle layered audio visualizations
+- Refactored `useShadowingPlayer` to use Web Audio API for precise playback synchronization
+
 ## [0.6.1] - 2025-09-19
 
 ### Added
@@ -147,7 +163,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Layout optimizations for desktop view
   - TypeScript and React component structure
 
-[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/USERNAME/loopmate/compare/v0.6.1...v0.7.0
+[0.6.1]: https://github.com/USERNAME/loopmate/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/USERNAME/loopmate/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/USERNAME/loopmate/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/USERNAME/loopmate/compare/v0.3.0...v0.4.0
