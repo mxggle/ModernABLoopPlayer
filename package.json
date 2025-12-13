@@ -1,6 +1,24 @@
 {
   "name": "loopmate",
   "private": true,
+  "description": "The ultimate A-B loop player for language learners & musicians. 🎯 Shadowing recorder 🎙️, YouTube & local media support 📼, precision waveforms 🌊, and AI-powered transcripts. Master any audio with auto-save & advanced volume controls.",
+  "keywords": [
+    "react",
+    "typescript",
+    "youtube-player",
+    "audio-player",
+    "shadowing",
+    "language-learning",
+    "ab-loop",
+    "waveform",
+    "musician-tools",
+    "transcription",
+    "ai",
+    "vite",
+    "recorder",
+    "loop-station",
+    "media-player"
+  ],
   "version": "0.8.0",
   "type": "module",
   "scripts": {
