@@ -20,7 +20,9 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
     currentFile,
     isPlaying,
     currentTime,
-    volume,
+    volume: masterVolume,
+    mediaVolume,
+    muted: masterMuted,
     playbackRate,
     loopStart,
     loopEnd,
@@ -65,8 +67,10 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
       : audioRef.current;
     if (!mediaElement) return;
 
-    mediaElement.volume = volume;
-  }, [volume, currentFile]);
+    // Calculate effective volume
+    const effectiveVolume = masterMuted ? 0 : (masterVolume * mediaVolume);
+    mediaElement.volume = effectiveVolume;
+  }, [masterVolume, mediaVolume, masterMuted, currentFile]);
 
   // Handle playback rate changes
   useEffect(() => {

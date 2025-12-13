@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-12-13
+
+### Added
+- **Playback Persistence**:
+  - Automatically saves and restores playback position for media files and YouTube videos
+  - Includes new `mediaVolume` and `previousMediaVolume` states in store
+- **Advanced Audio Controls**:
+  - Three-level volume architecture: Media, Recording (Shadowing), and Master
+  - Independent mute controls for each level with visual feedback
+  - Synchronized volume state across all player components
+- **Shadowing Enhancements**:
+  - **Mobile Support**: Added dedicated recording button to mobile interface
+  - **Smart Overwrite**: New logic to handle overlapping shadowing recordings purely
+  - **Media Track Control**: Added volume slider and mute toggle for the backing media track in shadowing view
+- **Visual Updates**:
+  - **Bar Waveform**: Transitioned from line to bar-based waveform visualization for clearer silence formatting
+  - **YouTube UI**: Stylized "waveform not supported" notice with improved aesthetics
+
+### Changed
+- **Loop & Interaction Refinements**:
+  - Implemented "Smart Looping": auto-activates loop when clicking loop button inside a bookmark
+  - Restricted 'M' shortcut to strictly require A-B loop for bookmark creation
+  - Separated waveform interactions: body click for seeking, marker click for selection
+- **Shadowing Workflow**:
+  - Improved auto-mute behavior: restores previous mute state instead of always unmuting after recording
+  - Enhanced recording state management for mobile users
+
+### Fixed
+- Resolved block-scoped variable error in WaveformVisualizer
+- Removed redundant total storage display in StorageUsageInfo
+- Added missing `common.remove` translation key
+
 ## [0.7.0] - 2025-09-19
 
 ### Added
@@ -163,7 +195,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Layout optimizations for desktop view
   - TypeScript and React component structure
 
-[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/USERNAME/loopmate/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/USERNAME/loopmate/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/USERNAME/loopmate/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/USERNAME/loopmate/compare/v0.5.0...v0.6.0

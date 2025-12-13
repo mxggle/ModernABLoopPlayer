@@ -511,6 +511,7 @@
     "loopLabel": "Loop:",
     "loopSelection": "Loop Selection",
     "touchSelectHint": "Tap and drag to select loop",
-    "desktopSelectHint": "Drag on waveform to select loop region"
+    "desktopSelectHint": "Drag on waveform to select loop area",
+    "youtubePlaceholder": "Placeholder waveform displayed. Real waveform coming soon."
   }
 }

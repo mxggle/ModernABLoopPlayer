@@ -50,6 +50,7 @@ export interface MediaHistoryItem {
   name: string;
   accessedAt: number;
   folderId?: string | null;
+  playbackTime?: number;
   fileData?: Omit<MediaFile, "id">;
   youtubeData?: {
     title?: string;
@@ -87,6 +88,8 @@ export interface PlayerState {
   currentTime: number;
   duration: number;
   volume: number;
+  mediaVolume: number; // New separate media volume
+  previousMediaVolume?: number; // Store media volume before muting
   previousVolume?: number; // Store volume before muting
   playbackRate: number;
   muted: boolean;
@@ -146,6 +149,8 @@ export interface PlayerActions {
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   setVolume: (volume: number) => void;
+  setMediaVolume: (volume: number) => void;
+  setPreviousMediaVolume: (volume: number) => void;
   setPreviousVolume: (volume: number) => void;
   setPlaybackRate: (rate: number) => void;
   setMuted: (muted: boolean) => void;
@@ -218,6 +223,7 @@ export interface PlayerActions {
   addToMediaHistory: (
     item: Omit<MediaHistoryItem, "id" | "accessedAt">
   ) => void;
+  updateHistoryPlaybackTime: (id: string, time: number) => void;
   loadFromHistory: (historyItemId: string) => void;
   removeFromHistory: (historyItemId: string) => void;
   clearMediaHistory: () => void;
@@ -250,6 +256,7 @@ const initialState: PlayerState = {
   currentTime: 0,
   duration: 0,
   volume: 1,
+  mediaVolume: 1,
   playbackRate: 1,
   muted: false,
   loopStart: null,
@@ -359,10 +366,19 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
               storageId,
             });
 
+            // Resuming playback time if available in history
+            const startQuery = new URLSearchParams(window.location.search).get("t");
+            let initialTime = 0;
+            if (startQuery) {
+              initialTime = parseFloat(startQuery) || 0;
+            } else if (existingHistoryItem?.playbackTime) {
+              initialTime = existingHistoryItem.playbackTime;
+            }
+
             set({
               currentFile: fileWithId,
               currentYouTube: null,
-              currentTime: 0,
+              currentTime: initialTime,
               isPlaying: false,
               // Reset loop points and selected bookmark when switching media
               loopStart: null,
@@ -410,10 +426,27 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             },
           });
         }
+
+        // Find if we have a saved time for this video
+        const { mediaHistory } = get();
+        const existingHistoryItem = mediaHistory.find(
+          (item) =>
+            item.type === "youtube" &&
+            item.youtubeData?.youtubeId === youtube?.id
+        );
+
+        const startQuery = new URLSearchParams(window.location.search).get("t");
+        let initialTime = 0;
+        if (startQuery) {
+          initialTime = parseFloat(startQuery) || 0;
+        } else if (existingHistoryItem?.playbackTime) {
+          initialTime = existingHistoryItem.playbackTime;
+        }
+
         set({
           currentYouTube: youtube,
           currentFile: null,
-          currentTime: 0,
+          currentTime: initialTime,
           isPlaying: false,
           // Reset loop points and selected bookmark when switching media
           loopStart: null,
@@ -426,6 +459,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setCurrentTime: (currentTime) => set({ currentTime }),
       setDuration: (duration) => set({ duration }),
       setVolume: (volume) => set({ volume }),
+      setMediaVolume: (mediaVolume) => set({ mediaVolume }),
+      setPreviousMediaVolume: (previousMediaVolume) => set({ previousMediaVolume }),
       setPreviousVolume: (previousVolume) => set({ previousVolume }),
       setPlaybackRate: (playbackRate) => set({ playbackRate }),
       setMuted: (muted) => set({ muted }),
@@ -790,6 +825,13 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           };
         }),
 
+      updateHistoryPlaybackTime: (id, time) =>
+        set((state) => ({
+          mediaHistory: state.mediaHistory.map((item) =>
+            item.id === id ? { ...item, playbackTime: time } : item
+          ),
+        })),
+
       loadFromHistory: async (historyItemId) => {
         // Set loading state at the beginning
         set({ isLoadingMedia: true });
@@ -834,6 +876,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
                   };
 
                   get().setCurrentFile(fileData);
+                  // Restore playback time if available
+                  if (historyItem.playbackTime) {
+                    set({ currentTime: historyItem.playbackTime });
+                  }
                   set({ isLoadingMedia: false });
                   return;
                 }
@@ -853,6 +899,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             };
 
             get().setCurrentFile(fileData);
+            // Restore playback time if available
+            if (historyItem.playbackTime) {
+              set({ currentTime: historyItem.playbackTime });
+            }
 
             // If we couldn't retrieve from storage and the URL doesn't work, show an error
             if (historyItem.storageId) {
@@ -879,6 +929,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
               title: historyItem.youtubeData.title,
             };
             get().setCurrentYouTube(youtubeData);
+            // Restore playback time if available
+            if (historyItem.playbackTime) {
+              set({ currentTime: historyItem.playbackTime });
+            }
           }
 
           // Update the access timestamp but don't create a new entry

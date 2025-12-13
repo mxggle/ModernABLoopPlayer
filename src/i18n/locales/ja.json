@@ -485,6 +485,7 @@
     "loopLabel": "ループ:",
     "loopSelection": "ループ選択",
     "touchSelectHint": "タップしてドラッグするとループを選択できます",
-    "desktopSelectHint": "波形をドラッグしてループ範囲を選択します"
+    "desktopSelectHint": "波形をドラッグしてループ範囲を選択します",
+    "youtubePlaceholder": "プレースホルダー波形を表示中。リアル波形機能は近日公開予定"
   }
 }

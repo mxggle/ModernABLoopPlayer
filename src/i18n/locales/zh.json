@@ -485,6 +485,7 @@
     "loopLabel": "循环：",
     "loopSelection": "循环选择",
     "touchSelectHint": "轻触并拖动以选择循环",
-    "desktopSelectHint": "在波形上拖动以选择循环区域"
+    "desktopSelectHint": "在波形上拖动以选择循环区域",
+    "youtubePlaceholder": "此处为占位波形，真实波形功能即将上线"
   }
 }

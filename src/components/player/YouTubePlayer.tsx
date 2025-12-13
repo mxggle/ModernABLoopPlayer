@@ -72,7 +72,9 @@ export const YouTubePlayer = ({
 
   const {
     isPlaying,
-    volume,
+    volume: masterVolume,
+    mediaVolume,
+    muted: masterMuted,
     playbackRate,
     loopStart,
     loopEnd,
@@ -101,7 +103,7 @@ export const YouTubePlayer = ({
     }
 
     return () => {
-      window.onYouTubeIframeAPIReady = () => {};
+      window.onYouTubeIframeAPIReady = () => { };
     };
   }, []);
 
@@ -156,6 +158,17 @@ export const YouTubePlayer = ({
     };
   }, [apiLoaded, videoId, setDuration, setIsPlaying, setCurrentTime]);
 
+  // Handle initial seek when player is ready
+  const hasPerformedInitialSeek = useRef(false);
+  useEffect(() => {
+    if (player && !hasPerformedInitialSeek.current) {
+      hasPerformedInitialSeek.current = true;
+      if (currentTime > 0) {
+        player.seekTo(currentTime, true);
+      }
+    }
+  }, [player]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Handle play/pause
   useEffect(() => {
     if (!player) return;
@@ -173,8 +186,10 @@ export const YouTubePlayer = ({
   useEffect(() => {
     if (!player) return;
 
-    player.setVolume(volume * 100);
-  }, [volume, player]);
+    // Calculate effective volume (0-100 for YouTube)
+    const effectiveVolume = masterMuted ? 0 : (masterVolume * mediaVolume);
+    player.setVolume(effectiveVolume * 100);
+  }, [masterVolume, mediaVolume, masterMuted, player]);
 
   // Handle playback rate changes
   useEffect(() => {
@@ -216,8 +231,13 @@ export const YouTubePlayer = ({
     const checkTime = () => {
       if (!player) return;
 
-      const currentTime = player.getCurrentTime();
-      setCurrentTime(currentTime);
+      const playerTime = player.getCurrentTime();
+
+      // Update store time only if we're not currently seeking
+      // This prevents overwriting the optimistic store update with the old player time
+      if (!isSeeking) {
+        setCurrentTime(playerTime);
+      }
 
       // Don't enforce loop boundaries if user is currently seeking
       // or has recently seeked (within the last 500ms)
@@ -236,16 +256,16 @@ export const YouTubePlayer = ({
 
         // Only jump back when we reach or exceed the end time
         // Use a small tolerance to account for timing precision
-        if (currentTime >= loopEnd + 0.005) {
+        if (playerTime >= loopEnd + 0.005) {
           player.seekTo(loopStart, true);
           console.log(
-            `YouTube Loop: Audio reached ${currentTime.toFixed(
+            `YouTube Loop: Audio reached ${playerTime.toFixed(
               3
             )}s, end was ${loopEnd.toFixed(
               3
             )}s, jumping back to ${loopStart.toFixed(3)}s`
           );
-        } else if (currentTime < loopStart - startBuffer && currentTime > 0) {
+        } else if (playerTime < loopStart - startBuffer && playerTime > 0) {
           // If somehow we're before the start point (e.g., user dragged the slider)
           player.seekTo(loopStart, true);
           console.log("YouTube Loop: Jumping to start point", loopStart);

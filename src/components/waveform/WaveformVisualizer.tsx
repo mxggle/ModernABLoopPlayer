@@ -77,6 +77,7 @@ export const WaveformVisualizer = () => {
 
   const {
     currentFile,
+    currentYouTube,
     currentTime,
     duration,
     loopStart,
@@ -97,10 +98,10 @@ export const WaveformVisualizer = () => {
     autoAdvanceBookmarks,
     setAutoAdvanceBookmarks,
     updateBookmark,
-    volume,
-    setVolume,
-    muted,
-    setMuted,
+    mediaVolume,
+    setMediaVolume,
+    previousMediaVolume,
+    setPreviousMediaVolume,
   } = usePlayerStore();
 
   const { getSegments, volume: shadowVolume, setVolume: setShadowVolume, muted: shadowMuted, setMuted: setShadowMuted, currentRecording } = useShadowingStore();
@@ -206,6 +207,15 @@ export const WaveformVisualizer = () => {
   const activeBookmark =
     bookmarks?.find((b) => b.id === selectedBookmarkId) || null;
 
+  // YouTube notice dismissal state
+  const [isYoutubeNoticeDismissed, setIsYoutubeNoticeDismissed] = useState(false);
+
+  // Reset dismissal when youtube video changes
+  useEffect(() => {
+    if (currentYouTube?.id) {
+      setIsYoutubeNoticeDismissed(false);
+    }
+  }, [currentYouTube?.id]); // Close overlap menu on Escape
   // Ensure zoom stays a finite number (guards against accidental non-number assignments)
   useEffect(() => {
     if (typeof waveformZoom !== "number" || !isFinite(waveformZoom)) {
@@ -231,13 +241,14 @@ export const WaveformVisualizer = () => {
       showWaveform,
     });
 
+    const hasMedia = currentFile?.url || currentYouTube?.id;
     if (
-      !currentFile ||
-      !currentFile.url ||
-      (!currentFile.type.includes("audio") &&
+      !hasMedia ||
+      (currentFile &&
+        !currentFile.type.includes("audio") &&
         !currentFile.type.includes("video"))
     ) {
-      console.log("❌ WaveformVisualizer: File validation failed");
+      console.log("❌ WaveformVisualizer: File/Media validation failed");
       setWaveformData(null);
       return;
     }
@@ -246,7 +257,10 @@ export const WaveformVisualizer = () => {
 
     const loadAudio = async () => {
       try {
-        if (currentFile.type.includes("video")) {
+        if (currentYouTube) {
+          console.log("📺 Generating fake waveform for YouTube video");
+          generateFakeWaveform();
+        } else if (currentFile && currentFile.type.includes("video") && currentFile.url) {
           // For video files, extract audio using multiple methods
           console.log(
             "🎬 Loading video file for waveform:",
@@ -255,7 +269,7 @@ export const WaveformVisualizer = () => {
             currentFile.type
           );
           await loadVideoAudio(currentFile.url);
-        } else {
+        } else if (currentFile && currentFile.url) {
           // For audio files, use Tone.js as before
           buffer = new Tone.ToneAudioBuffer(currentFile.url, () => {
             // Get audio data
@@ -269,6 +283,22 @@ export const WaveformVisualizer = () => {
       } catch (error) {
         console.error("Error loading audio for waveform:", error);
       }
+    };
+
+    const generateFakeWaveform = () => {
+      const samples = 2000;
+      const fakeData = new Float32Array(samples);
+
+      // Generate a stylized sine wave pattern
+      // Looks vaguely audio-like but clearly artificial (not "too real" to avoid misleading)
+      for (let i = 0; i < samples; i++) {
+        // Main wave with varying frequency to look interesting
+        const x = (i / samples) * 100;
+        // Combine two sine waves: one fast, one slow, to create a "beating" pattern
+        // Amplitude is kept relatively low (0.3) to be unobtrusive
+        fakeData[i] = Math.sin(x) * Math.sin(x * 0.1) * 0.3;
+      }
+      setWaveformData(fakeData);
     };
 
     const loadVideoAudio = async (videoUrl: string) => {
@@ -388,16 +418,9 @@ export const WaveformVisualizer = () => {
         console.log("❌ Method 2 failed:", (error as Error).message);
       }
 
-      // Method 3: Generate placeholder waveform
+      // Method 3: Use the new fake waveform generator
       console.log("🎵 Using Method 3: Generating placeholder waveform");
-      const placeholderData = new Float32Array(2000);
-      for (let i = 0; i < placeholderData.length; i++) {
-        // Create a more interesting placeholder pattern
-        const t = i / 2000;
-        placeholderData[i] =
-          Math.sin(t * Math.PI * 20) * Math.exp(-t * 2) * 0.3;
-      }
-      setWaveformData(placeholderData);
+      generateFakeWaveform();
       console.log("✅ Placeholder waveform generated for video file");
     };
 
@@ -408,7 +431,7 @@ export const WaveformVisualizer = () => {
         buffer.dispose();
       }
     };
-  }, [currentFile]);
+  }, [currentFile, currentYouTube]);
 
   // Draw waveform
   useEffect(() => {
@@ -427,18 +450,27 @@ export const WaveformVisualizer = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Calculate visible portion based on zoom
-    const visibleDuration = duration / waveformZoom;
-    const startOffset = Math.max(
+    const visibleDuration = duration > 0 ? duration / waveformZoom : 1;
+    const startOffset = duration > 0 ? Math.max(
       0,
       Math.min(currentTime - visibleDuration / 2, duration - visibleDuration)
-    );
+    ) : 0;
     const endOffset = startOffset + visibleDuration;
 
     // Calculate start and end indices in the waveform data
-    const startIndex = Math.floor(
-      (startOffset / duration) * waveformData.length
-    );
-    const endIndex = Math.ceil((endOffset / duration) * waveformData.length);
+    let startIndex = 0;
+    let endIndex = waveformData.length;
+
+    if (duration > 0) {
+      startIndex = Math.floor(
+        (startOffset / duration) * waveformData.length
+      );
+      endIndex = Math.ceil((endOffset / duration) * waveformData.length);
+    }
+
+    // Clamp indices
+    startIndex = Math.max(0, startIndex);
+    endIndex = Math.min(waveformData.length, endIndex);
 
     // Calculate loop region in pixels
     const canvasLoopStart =
@@ -1038,11 +1070,8 @@ export const WaveformVisualizer = () => {
     ]
   );
 
-  if (
-    !showWaveform ||
-    !currentFile ||
-    (!currentFile.type.includes("audio") && !currentFile.type.includes("video"))
-  ) {
+  const hasMedia = currentFile?.url || currentYouTube?.id;
+  if (!showWaveform || !hasMedia) {
     return null;
   }
 
@@ -1639,6 +1668,24 @@ export const WaveformVisualizer = () => {
           />
         )}
 
+        {/* YouTube Waveform Notice */}
+        {currentYouTube && !isYoutubeNoticeDismissed && (
+          <div className="absolute top-2 right-2 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/50 backdrop-blur-sm rounded border border-white/10 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+            <span className="text-white/80 text-xs font-medium">
+              {t("waveform.youtubePlaceholder")}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsYoutubeNoticeDismissed(true);
+              }}
+              className="p-0.5 hover:bg-white/20 rounded-full text-white/70 hover:text-white transition-colors"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+
         {/* Tooltip for current hover/touch position */}
         {hoverTime !== null && (
           <div
@@ -1649,6 +1696,7 @@ export const WaveformVisualizer = () => {
               top: isMobile ? "10px" : "0px",
               transform: "translateX(-50%)",
             }}
+            onTouchStart={stopPropagation}
           >
             {formatTime(hoverTime)}
           </div>
@@ -1740,33 +1788,30 @@ export const WaveformVisualizer = () => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (muted) {
-                  // Unmute: restore previous volume from store
-                  const previousVolume = usePlayerStore.getState().previousVolume;
-                  if (previousVolume !== undefined && previousVolume > 0) {
-                    setVolume(previousVolume);
+                if (mediaVolume === 0) {
+                  // Unmute: restore previous volume
+                  if (previousMediaVolume !== undefined && previousMediaVolume > 0) {
+                    setMediaVolume(previousMediaVolume);
                   } else {
-                    setVolume(1); // Default to 100% if no previous volume
+                    setMediaVolume(1); // Default to 100%
                   }
-                  setMuted(false);
                 } else {
                   // Mute: store current volume and set to 0
-                  usePlayerStore.getState().setPreviousVolume(volume);
-                  setVolume(0);
-                  setMuted(true);
+                  setPreviousMediaVolume(mediaVolume);
+                  setMediaVolume(0);
                 }
               }}
               className="p-1 hover:bg-white/10 rounded text-white/90"
             >
-              {muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+              {mediaVolume === 0 ? <VolumeX size={12} /> : <Volume2 size={12} />}
             </button>
             <div className="w-16 px-1">
               <Slider
-                value={[volume]}
+                value={[mediaVolume]}
                 min={0}
                 max={1}
                 step={0.01}
-                onValueChange={(v) => setVolume(v[0])}
+                onValueChange={(v) => setMediaVolume(v[0])}
                 className="h-3 cursor-pointer [&>span:first-of-type]:bg-black/40 [&>span:first-of-type>span]:bg-white"
               />
             </div>
