@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useTranslation } from "react-i18next";
 import { formatTime } from "../../utils/formatTime";
+import { checkAudioRecordingSupport, getRecordingUnsupportedMessage } from "../../utils/browserCheck";
 import {
   Play,
   Pause,
@@ -91,6 +92,20 @@ export const CombinedControls = () => {
 
     setRangeValues([(start / duration) * 100, (end / duration) * 100]);
   }, [loopStart, loopEnd, duration]);
+
+  // Check if audio recording is supported in this browser
+  const recordingCapabilities = useMemo(() => checkAudioRecordingSupport(), []);
+  const canRecord = recordingCapabilities.supportsAudioRecording;
+
+  // Handle shadowing mode toggle
+  const handleShadowingToggle = () => {
+    if (!isShadowingMode && !canRecord) {
+      const errorMessage = getRecordingUnsupportedMessage(recordingCapabilities);
+      toast.error(errorMessage, { duration: 5000 });
+      return;
+    }
+    setShadowingMode(!isShadowingMode);
+  };
 
   // Toggle play/pause
   const togglePlayPause = () => {
@@ -388,15 +403,17 @@ export const CombinedControls = () => {
 
             {/* Shadowing toggle button */}
             <button
-              onClick={() => setShadowingMode(!isShadowingMode)}
+              onClick={handleShadowingToggle}
               className={`p-2.5 rounded-full transition-all duration-150 ${isRecording
-                ? "bg-red-600 text-white animate-pulse"
-                : isShadowingMode
-                  ? "bg-orange-600 text-white hover:bg-orange-700"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  ? "bg-red-600 text-white animate-pulse"
+                  : isShadowingMode
+                    ? "bg-orange-600 text-white hover:bg-orange-700"
+                    : canRecord
+                      ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50"
                 }`}
               aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
-              title={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+              title={!canRecord ? "Audio recording is not supported on this device/browser" : (isShadowingMode ? t("shadowing.disable") : t("shadowing.enable"))}
             >
               <Mic size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>

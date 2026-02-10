@@ -56,8 +56,6 @@ export const WaveformVisualizer = () => {
   const [dragEnd, setDragEnd] = useState<number | null>(null);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
-  const [lastTapTime, setLastTapTime] = useState<number>(0);
-  const [lastTapPosition, setLastTapPosition] = useState<number | null>(null);
   const [pinchStartDistance, setPinchStartDistance] = useState<number | null>(
     null
   );
@@ -71,6 +69,12 @@ export const WaveformVisualizer = () => {
   const dragStartXRef = useRef<number | null>(null);
   const [resizingBookmark, setResizingBookmark] = useState<{ id: string; edge: "start" | "end" } | null>(null);
   const resizingRef = useRef(false); // Ref to track resizing status avoiding closure staleness
+  const wasPlayingRef = useRef(false); // Ref to track if media was playing before drag
+  // Desktop: independent viewport scroll position (left edge of visible window in seconds)
+  const [scrollOffset, setScrollOffset] = useState(0);
+  // Desktop: Alt+drag to pan viewport
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartScrollRef = useRef(0);
 
   // Detect if device is mobile
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -102,6 +106,7 @@ export const WaveformVisualizer = () => {
     setMediaVolume,
     previousMediaVolume,
     setPreviousMediaVolume,
+    isPlaying,
   } = usePlayerStore();
 
   const { getSegments, volume: shadowVolume, setVolume: setShadowVolume, muted: shadowMuted, setMuted: setShadowMuted, currentRecording } = useShadowingStore();
@@ -433,6 +438,46 @@ export const WaveformVisualizer = () => {
     };
   }, [currentFile, currentYouTube]);
 
+  // Force update counter for smooth animation
+  const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
+
+  // Continuous animation loop when playing - ensures smooth waveform scrolling
+  const animationFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isPlaying || !showWaveform) {
+      // Cancel any pending animation frame when not playing
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
+
+    // Animation loop: continuously trigger canvas redraws while playing
+    const animate = () => {
+      // Force re-render by incrementing counter
+      setForceUpdateCounter((prev) => prev + 1);
+
+      // Request next frame
+      if (usePlayerStore.getState().isPlaying) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    // Start the animation loop
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    // Cleanup on unmount or when playing stops
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [isPlaying, showWaveform]);
+
+
   // Draw waveform
   useEffect(() => {
     if (!canvasRef.current || !waveformData || !showWaveform) return;
@@ -442,7 +487,8 @@ export const WaveformVisualizer = () => {
     if (!ctx) return;
 
     // Set canvas dimensions
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1;
+    if (!canvas.clientWidth || !canvas.clientHeight) return;
     canvas.width = canvas.clientWidth * dpr;
     canvas.height = canvas.clientHeight * dpr;
 
@@ -451,10 +497,18 @@ export const WaveformVisualizer = () => {
 
     // Calculate visible portion based on zoom
     const visibleDuration = duration > 0 ? duration / waveformZoom : 1;
-    const startOffset = duration > 0 ? Math.max(
-      0,
-      Math.min(currentTime - visibleDuration / 2, duration - visibleDuration)
-    ) : 0;
+
+    let startOffset = 0;
+    if (duration > 0) {
+      if (isMobile) {
+        // Mobile: always center playhead
+        startOffset = currentTime - visibleDuration / 2;
+      } else {
+        // Desktop: independent viewport position
+        startOffset = scrollOffset;
+      }
+    }
+
     const endOffset = startOffset + visibleDuration;
 
     // Calculate start and end indices in the waveform data
@@ -516,12 +570,51 @@ export const WaveformVisualizer = () => {
         }
       });
 
-    const lanePaddingCss = isMobile ? 8 : 6; // px from top
-    const laneHeightCss = isMobile ? 20 : 16; // px height per lane (bolder on mobile)
+    const lanePaddingCss = isMobile ? 36 : 28; // Increased padding for timeline ruler
+    const laneHeightCss = isMobile ? 24 : 16; // px height per lane (bolder on mobile)
     const laneGapCss = isMobile ? 4 : 3; // px spacing between lanes
     const toCanvasX = (t: number) =>
-      ((Math.max(t, startOffset) - startOffset) / visibleDuration) *
+      ((t - startOffset) / visibleDuration) *
       canvas.width;
+
+    // --- Draw Timeline Ruler ---
+    const rulerHeight = (isMobile ? 28 : 22) * dpr;
+    // Draw ruler background (Dark professional look like video editing apps)
+    ctx.fillStyle = "rgba(17, 24, 39, 0.85)"; // Dark slate
+    ctx.fillRect(0, 0, canvas.width, rulerHeight);
+
+    // Draw ticks and labels
+    const safeVisibleDuration = visibleDuration || 1;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"; // Brighter ticks
+    ctx.lineWidth = 1 * dpr;
+    const tickIntervals = [0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600];
+    let interval = tickIntervals.find(i => (safeVisibleDuration / i) <= 12) || 600;
+    const subInterval = interval / 5;
+
+    const firstTick = Math.floor(startOffset / subInterval) * subInterval;
+    ctx.font = `${isMobile ? 14 : 10}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; // Bright white for labels
+    ctx.textAlign = "center";
+
+    for (let t = firstTick; t <= endOffset; t += subInterval) {
+      if (t < startOffset) continue;
+      const x = toCanvasX(t);
+      const isMajor = Math.abs(t % interval) < (subInterval / 2);
+
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, (isMajor ? 10 : 5) * dpr);
+      ctx.stroke();
+
+      if (isMajor) {
+        // Use a simpler format for ruler labels to avoid clutter
+        const m = Math.floor(t / 60);
+        const s = Math.floor(t % 60);
+        const ms = Math.floor((t % 1) * 10);
+        const label = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}${interval < 1 ? `.${ms}` : ""}`;
+        ctx.fillText(label, x, (isMobile ? 24 : 18) * dpr);
+      }
+    }
     // const topYCanvas = lanePaddingCss * dpr; // Unused variable
     assigned.forEach(({ id, start, end, lane }) => {
       const x1c = toCanvasX(start);
@@ -557,8 +650,8 @@ export const WaveformVisualizer = () => {
       // Right handle
       ctx.fillRect(Math.max(x1c, x2c - handleW), yCanvas, handleW, hCanvas);
       // Save clickable rect in CSS pixels with a small hit padding for touch
-      const hitPadY = isMobile ? 4 : 2;
-      const hitPadX = isMobile ? 2 : 1;
+      const hitPadY = isMobile ? 12 : 2;
+      const hitPadX = isMobile ? 4 : 1;
       laneRectsRef.current.push({
         id,
         x1: x1c / dpr - hitPadX,
@@ -598,28 +691,52 @@ export const WaveformVisualizer = () => {
       );
     }
 
+    // Draw temporary drag selection (while dragging)
+    if (isDragging && dragStart !== null && dragEnd !== null) {
+      const start = Math.min(dragStart, dragEnd);
+      const end = Math.max(dragStart, dragEnd);
+
+      // Don't draw if outside visible range completely
+      if (!(end < startOffset || start > endOffset)) {
+        const x1 = ((start - startOffset) / visibleDuration) * canvas.width;
+        const x2 = ((end - startOffset) / visibleDuration) * canvas.width;
+        const w = x2 - x1;
+
+        if (w > 0) {
+          ctx.fillStyle = "rgba(139, 92, 246, 0.4)"; // Stronger purple for active selection
+          ctx.fillRect(x1, 0, w, canvas.height);
+        }
+      }
+    }
+
     // Draw waveform as bars
     const hasShadowing = shadowingWaveforms.length > 0;
     const mainWaveformHeight = hasShadowing ? canvas.height / 2 : canvas.height;
 
     ctx.fillStyle = "#8B5CF6"; // Purple
-    const sliceWidth = canvas.width / (endIndex - startIndex);
+
+    // Correct slice width calculation based on total valid data vs visible window
+    // Do NOT rely on clamped indices for scale, or it stretches at the ends
+    const totalSamples = waveformData.length || 1;
+    const sampleDuration = duration > 0 ? duration / totalSamples : 1;
+    const sliceWidth = (sampleDuration / visibleDuration) * canvas.width;
+
+    // Center point for bars
     const mainCenterY = mainWaveformHeight / 2;
-    const amplitudeScale = mainWaveformHeight * 2; // Scale up a bit since we have less height
+    const amplitudeScale = mainWaveformHeight * 2;
 
     // Calculate bar dimensions
-    // We want a small gap between bars if there's enough space
-
     const gap = sliceWidth > 4 * dpr ? 1 * dpr : 0;
     const barWidth = Math.max(1 * dpr, sliceWidth - gap);
 
     for (let i = startIndex; i < endIndex; i++) {
-      const x = (i - startIndex) * sliceWidth;
+      const timeAtSample = i * sampleDuration;
+      const x = ((timeAtSample - startOffset) / visibleDuration) * canvas.width;
+
       const value = waveformData[i];
 
-      // Calculate bar height based on amplitude
-      // Ensure even silence has a tiny presence (1px) or full silence
-      const height = Math.max(1 * dpr, value * amplitudeScale * 0.8); // 0.8 to leave some padding
+      // Ensure even silence has a tiny presence (1px)
+      const height = Math.max(1 * dpr, value * amplitudeScale * 0.8);
       const y = mainCenterY - height / 2;
 
       ctx.fillRect(x, y, barWidth, height);
@@ -667,7 +784,7 @@ export const WaveformVisualizer = () => {
       });
 
       // Draw Active Recording
-      if (currentRecording) {
+      if (currentRecording && currentRecording.peaks && shadowHeight > 0) {
         ctx.fillStyle = "#EF4444"; // Red for recording
         const startTime = currentRecording.startTime;
         const peaks = currentRecording.peaks;
@@ -686,7 +803,7 @@ export const WaveformVisualizer = () => {
           const h = Math.max(2 * dpr, peak * shadowHeight * 3.0); // Higher gain for RMS
           const y = shadowCenterY - h / 2;
 
-          ctx.fillRect(x, y, Math.max(1 * dpr, w), h);
+          ctx.fillRect(x, Math.max(shadowTop, y), Math.max(1 * dpr, w), Math.min(shadowHeight, h));
         });
       }
     }
@@ -694,12 +811,35 @@ export const WaveformVisualizer = () => {
     // Draw playhead
     const playheadX =
       ((currentTime - startOffset) / visibleDuration) * canvas.width;
-    if (playheadX >= 0 && playheadX <= canvas.width) {
+
+    // On mobile, playhead should always be visible (centered)
+    // On desktop, it might be out of view if we scroll away (though current logic keeps it in view mostly)
+    if (isMobile || (playheadX >= 0 && playheadX <= canvas.width)) {
+      // Draw playhead line
       ctx.beginPath();
       ctx.strokeStyle = "#EF4444"; // Red
       ctx.lineWidth = 2 * window.devicePixelRatio;
       ctx.moveTo(playheadX, 0);
       ctx.lineTo(playheadX, canvas.height);
+      ctx.stroke();
+
+      // Draw playhead handle at top (Video editing app style)
+      const handleW = 6 * dpr;
+      const handleH = 10 * dpr;
+      const pointH = 4 * dpr;
+      ctx.fillStyle = "#EF4444";
+      ctx.beginPath();
+      ctx.moveTo(playheadX - handleW, 0);
+      ctx.lineTo(playheadX + handleW, 0);
+      ctx.lineTo(playheadX + handleW, handleH);
+      ctx.lineTo(playheadX, handleH + pointH);
+      ctx.lineTo(playheadX - handleW, handleH);
+      ctx.closePath();
+      ctx.fill();
+
+      // Simple white outline for handle
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.lineWidth = 1 * dpr;
       ctx.stroke();
     }
 
@@ -731,6 +871,11 @@ export const WaveformVisualizer = () => {
     selectedBookmarkId,
     shadowingWaveforms,
     currentRecording,
+    isDragging,
+    dragStart,
+    dragEnd,
+    isMobile,
+    forceUpdateCounter,
   ]);
 
   // Helper function to draw markers
@@ -804,13 +949,17 @@ export const WaveformVisualizer = () => {
 
       // Calculate time based on visible portion and zoom
       const visibleDuration = duration / waveformZoom;
-      const startOffset = Math.max(
-        0,
-        Math.min(currentTime - visibleDuration / 2, duration - visibleDuration)
-      );
-      return startOffset + percentage * visibleDuration;
+
+      if (isMobile) {
+        // Mobile: center of screen is currentTime
+        const startOffset = currentTime - visibleDuration / 2;
+        return startOffset + percentage * visibleDuration;
+      }
+
+      // Desktop: uses independent scrollOffset
+      return scrollOffset + percentage * visibleDuration;
     },
-    [duration, waveformZoom, currentTime]
+    [duration, waveformZoom, currentTime, isMobile, scrollOffset]
   );
 
   // Convert time to canvas position (percentage) - wrapped in useCallback
@@ -820,19 +969,22 @@ export const WaveformVisualizer = () => {
 
       // Calculate visible portion based on zoom
       const visibleDuration = duration / waveformZoom;
-      const startOffset = Math.max(
-        0,
-        Math.min(currentTime - visibleDuration / 2, duration - visibleDuration)
-      );
+
+      let startOffset: number;
+      if (isMobile) {
+        startOffset = currentTime - visibleDuration / 2;
+      } else {
+        startOffset = scrollOffset;
+      }
 
       // If the time is outside the visible range, clamp it
-      if (time < startOffset) return 0;
-      if (time > startOffset + visibleDuration) return 100;
+      if (time < startOffset) return -10; // returns off-screen
+      if (time > startOffset + visibleDuration) return 110;
 
       // Calculate the percentage position within the visible window
       return ((time - startOffset) / visibleDuration) * 100;
     },
-    [duration, waveformZoom, currentTime]
+    [duration, waveformZoom, currentTime, isMobile, scrollOffset]
   );
 
   // Touch event handlers for mobile devices
@@ -841,16 +993,27 @@ export const WaveformVisualizer = () => {
       e.preventDefault(); // Prevent default touch behavior
 
       if (e.touches.length === 1) {
-        // Single touch - handle as a potential drag or tap
+        // Single touch - handle as a potential drag (scrub) or tap
         const touch = e.touches[0];
-        const time = positionToTime(touch.clientX);
 
-        if (time >= 0 && time <= duration) {
-          setIsDragging(true);
-          setDragStart(time);
-          setDragEnd(null);
-          setTouchStartTime(time);
+        setIsDragging(true);
+        setTouchStartTime(currentTime); // We use this to calculate delta
+        dragStartXRef.current = touch.clientX;
+
+        // Pause playback while scrubbing to prevent fighting updates
+        // Store previous state to restore later
+        const startWasPlaying = usePlayerStore.getState().isPlaying;
+        wasPlayingRef.current = startWasPlaying;
+
+        if (startWasPlaying) {
+          setIsPlaying(false);
         }
+
+        // Add seeking class to prevent other components from interfering
+        document.body.classList.add("user-seeking");
+
+        // For mobile, we don't start a selection drag immediately like desktop
+        // We assume scrubbing first
       } else if (e.touches.length === 2) {
         // Two finger touch - handle as pinch zoom
         const touch1 = e.touches[0];
@@ -868,12 +1031,9 @@ export const WaveformVisualizer = () => {
       }
     },
     [
-      duration,
-      positionToTime,
+      currentTime,
       waveformZoom,
       setIsDragging,
-      setDragStart,
-      setDragEnd,
       setTouchStartTime,
       setPinchStartDistance,
       setPinchStartZoom,
@@ -882,17 +1042,27 @@ export const WaveformVisualizer = () => {
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
-      e.preventDefault(); // Prevent default touch behavior
+      e.preventDefault(); // Prevent default touch behavior (and let React handle it)
 
-      if (e.touches.length === 1 && isDragging && dragStart !== null) {
-        // Single touch movement - update drag end
+      if (e.touches.length === 1 && isDragging && dragStartXRef.current !== null) {
+        // Single touch movement - Scrub/Pan the waveform
         const touch = e.touches[0];
-        const time = positionToTime(touch.clientX);
+        const deltaX = touch.clientX - dragStartXRef.current;
 
-        if (time >= 0 && time <= duration) {
-          setDragEnd(time);
-          setHoverTime(time);
-        }
+        if (!canvasRef.current) return;
+        const width = canvasRef.current.clientWidth;
+        const visibleDuration = duration / waveformZoom;
+
+        // Calculate time delta: moving finger LEFT (negative delta) should move time RIGHT (forward)
+        // Wait, standard mobile behavior: drag LEFT -> move to future (waveform moves left)
+        // So dragging left (negative px) -> add time.
+        const deltaTime = -(deltaX / width) * visibleDuration;
+
+        // Update current time locally for smooth scrubbing
+        // We use setTouchStartTime as the base to avoid accumulation errors
+        const newTime = Math.max(0, Math.min(duration, (touchStartTime || 0) + deltaTime));
+        setCurrentTime(newTime);
+
       } else if (e.touches.length === 2 && pinchStartDistance !== null) {
         // Two finger movement - handle pinch zoom
         const touch1 = e.touches[0];
@@ -906,143 +1076,65 @@ export const WaveformVisualizer = () => {
 
         // Calculate zoom ratio
         const ratio = distance / pinchStartDistance;
-        const newZoom = Math.min(Math.max(pinchStartZoom * ratio, 1), 20);
+        const newZoom = Math.min(Math.max(pinchStartZoom * ratio, 1), 50); // Improved max zoom
 
         setWaveformZoom(newZoom);
       }
     },
     [
       isDragging,
-      dragStart,
       duration,
-      positionToTime,
+      waveformZoom,
       pinchStartDistance,
       pinchStartZoom,
-      setDragEnd,
-      setHoverTime,
       setWaveformZoom,
-    ]
-  );
-
-  // Handle double-tap bookmark creation/removal
-  const handleDoubleTapBookmark = useCallback(
-    (tapTime: number) => {
-      if (!bookmarks) return;
-
-      const BOOKMARK_TOLERANCE = 1.0; // 1 second tolerance for finding nearby bookmarks
-
-      // Find bookmarks near the tap position
-      const nearbyBookmarks = bookmarks.filter(
-        (bookmark) => Math.abs(bookmark.start - tapTime) <= BOOKMARK_TOLERANCE
-      );
-
-      if (nearbyBookmarks.length === 0) {
-        // No nearby bookmarks - create a new one
-        const newBookmark = {
-          name: `Bookmark ${bookmarks.length + 1}`,
-          start: tapTime,
-          end: Math.min(tapTime + 5, duration), // 5-second default duration
-          playbackRate,
-          mediaName: currentFile?.name,
-          mediaType: currentFile?.type,
-          youtubeId: undefined,
-          annotation: "",
-        };
-
-        const added = storeAddBookmark(newBookmark);
-        if (added) {
-          toast.success(t("bookmarks.bookmarkAdded"), { id: BOOKMARK_TOAST_ID });
-        }
-      } else if (nearbyBookmarks.length === 1) {
-        // One bookmark nearby - remove it
-        deleteBookmark(nearbyBookmarks[0].id);
-        toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
-      } else {
-        // Multiple overlapping bookmarks - show selection menu
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const rect = canvas.getBoundingClientRect();
-        const tapPosition = timeToPosition(tapTime);
-        const x = (tapPosition / 100) * rect.width;
-
-        setOverlapMenu({
-          x: x + rect.left,
-          y: rect.top + rect.height / 2,
-          items: nearbyBookmarks.map((bookmark) => ({
-            id: bookmark.id,
-            name: bookmark.name || t("bookmarks.clipFallback"),
-            start: bookmark.start,
-            end: bookmark.end,
-          })),
-        });
-      }
-    },
-    [
-      bookmarks,
-      duration,
-      playbackRate,
-      currentFile,
-      storeAddBookmark,
-      deleteBookmark,
-      timeToPosition,
-      setOverlapMenu,
-      t,
+      touchStartTime,
+      setCurrentTime
     ]
   );
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
-      e.preventDefault(); // Prevent default touch behavior
+      e.preventDefault();
 
-      // Reset pinch zoom state
-      setPinchStartDistance(null);
-
-      const currentTime = Date.now();
-      const TAP_THRESHOLD = 0.2; // Maximum movement for a tap (in seconds)
-      const DOUBLE_TAP_DELAY = 300; // Maximum time between taps for double-tap (ms)
-
-      // Handle drag completion
-      if (isDragging && dragStart !== null && dragEnd !== null) {
-        if (Math.abs(dragStart - dragEnd) > TAP_THRESHOLD) {
-          // Set loop points if selection is significant
-          const start = Math.min(dragStart, dragEnd);
-          const end = Math.max(dragStart, dragEnd);
-          setLoopPoints(start, end);
-        } else if (
-          touchStartTime !== null &&
-          Math.abs(dragStart - touchStartTime) < TAP_THRESHOLD
-        ) {
-          // This was a tap - check for double-tap
-          const timeSinceLastTap = currentTime - lastTapTime;
-          const positionDiff =
-            lastTapPosition !== null
-              ? Math.abs(dragStart - lastTapPosition)
-              : Infinity;
-
-          if (
-            timeSinceLastTap < DOUBLE_TAP_DELAY &&
-            positionDiff < TAP_THRESHOLD
-          ) {
-            // Double-tap detected - handle bookmark creation/removal
-            handleDoubleTapBookmark(dragStart);
-            // Reset double-tap state
-            setLastTapTime(0);
-            setLastTapPosition(null);
-          } else {
-            // Single tap - seek to position and prepare for potential double-tap
-            setCurrentTime(dragStart);
-            document.body.classList.add("user-seeking");
-            setTimeout(() => {
-              document.body.classList.remove("user-seeking");
-            }, 100);
-
-            // Store tap info for potential double-tap
-            setLastTapTime(currentTime);
-            setLastTapPosition(dragStart);
+      // Detect tap (short touch with minimal movement) for seek-to-position
+      if (e.changedTouches.length === 1 && dragStartXRef.current !== null) {
+        const touch = e.changedTouches[0];
+        const pixelDist = Math.abs(touch.clientX - dragStartXRef.current);
+        if (pixelDist < 5) {
+          // Treat as a tap: seek to the tapped position
+          const time = positionToTime(touch.clientX);
+          if (time >= 0 && time <= duration) {
+            // Check if tap is within a bookmark lane
+            const rect = containerRef.current?.getBoundingClientRect();
+            const xCss = rect ? touch.clientX - rect.left : 0;
+            const yCss = rect ? touch.clientY - rect.top : 0;
+            const laneHit = laneRectsRef.current.find(
+              (r) => xCss >= r.x1 && xCss <= r.x2 && yCss >= r.y1 && yCss <= r.y2
+            );
+            if (laneHit) {
+              const bm = bookmarks?.find((b) => b.id === laneHit.id);
+              if (bm) {
+                loadBookmark(bm.id);
+                setCurrentTime(bm.start);
+                setIsPlaying(true);
+              }
+            } else {
+              // Seek to tapped position
+              setCurrentTime(time);
+              // If loop is active and tap is outside loop, disable looping
+              if (isLooping && loopStart !== null && loopEnd !== null) {
+                if (time < loopStart || time > loopEnd) {
+                  setIsLooping(false);
+                }
+              }
+            }
           }
         }
       }
+
+      // Reset pinch zoom state
+      setPinchStartDistance(null);
 
       // Reset drag state
       setIsDragging(false);
@@ -1050,23 +1142,34 @@ export const WaveformVisualizer = () => {
       setDragEnd(null);
       setTouchStartTime(null);
       setHoverTime(null);
+      dragStartXRef.current = null;
+
+      // Remove seeking class
+      document.body.classList.remove("user-seeking");
+
+      // Restore playback state if it was playing
+      if (wasPlayingRef.current) {
+        setIsPlaying(true);
+        wasPlayingRef.current = false;
+      }
     },
     [
-      isDragging,
-      dragStart,
-      dragEnd,
-      touchStartTime,
-      setLoopPoints,
-      setCurrentTime,
-      setPinchStartDistance,
+      setIsPlaying,
       setIsDragging,
       setDragStart,
       setDragEnd,
       setTouchStartTime,
       setHoverTime,
-      lastTapTime,
-      lastTapPosition,
-      handleDoubleTapBookmark,
+      setPinchStartDistance,
+      positionToTime,
+      duration,
+      bookmarks,
+      loadBookmark,
+      setCurrentTime,
+      isLooping,
+      loopStart,
+      loopEnd,
+      setIsLooping,
     ]
   );
 
@@ -1108,6 +1211,18 @@ export const WaveformVisualizer = () => {
     setWaveformZoom(nextZoom);
   };
 
+  // Desktop auto-follow: keep playhead visible during playback
+  useEffect(() => {
+    if (isMobile || !isPlaying || !duration) return;
+    const visibleDuration = duration / waveformZoom;
+    const playheadPos = (currentTime - scrollOffset) / visibleDuration; // 0..1 within viewport
+
+    // When playhead exits 5%..85% band, re-center viewport
+    if (playheadPos > 0.85 || playheadPos < 0.05) {
+      setScrollOffset(Math.max(0, Math.min(duration - visibleDuration, currentTime - visibleDuration * 0.15)));
+    }
+  }, [isMobile, isPlaying, currentTime, duration, waveformZoom, scrollOffset]);
+
   // Ensure wheel/touch listeners are non-passive so preventDefault works on all browsers
   useEffect(() => {
     const el = containerRef.current;
@@ -1116,20 +1231,43 @@ export const WaveformVisualizer = () => {
     const onWheel = (ev: WheelEvent) => {
       ev.preventDefault();
       ev.stopPropagation();
-      const delta = ev.deltaY;
-      const currentZoom = usePlayerStore.getState().waveformZoom;
-      const nextZoom =
-        delta < 0
-          ? Math.min(currentZoom * 1.1, 20)
-          : Math.max(currentZoom / 1.1, 1);
-      setWaveformZoom(nextZoom);
+
+      const state = usePlayerStore.getState();
+      const dur = state.duration;
+      const zoom = state.waveformZoom;
+
+      if (ev.ctrlKey || ev.metaKey) {
+        // Ctrl/Cmd + scroll = zoom
+        const delta = ev.deltaY;
+        const nextZoom = delta < 0
+          ? Math.min(zoom * 1.15, 50)
+          : Math.max(zoom / 1.15, 1);
+        setWaveformZoom(nextZoom);
+
+        // Re-center viewport around the zoom point
+        if (dur > 0) {
+          const visibleBefore = dur / zoom;
+          const visibleAfter = dur / nextZoom;
+          const rect = el.getBoundingClientRect();
+          const mousePercent = (ev.clientX - rect.left) / rect.width;
+          const mouseTime = scrollOffset + mousePercent * visibleBefore;
+          setScrollOffset(Math.max(0, Math.min(dur - visibleAfter, mouseTime - mousePercent * visibleAfter)));
+        }
+      } else {
+        // Plain scroll = horizontal pan
+        if (dur > 0) {
+          const visibleDuration = dur / zoom;
+          const panAmount = (ev.deltaY / el.clientWidth) * visibleDuration * 2;
+          setScrollOffset((prev: number) => Math.max(0, Math.min(dur - visibleDuration, prev + panAmount)));
+        }
+      }
     };
 
     const onTouchMove = (ev: TouchEvent) => {
       // When interacting inside the waveform, prevent the page from scrolling
       if (ev.touches.length >= 1) {
         ev.preventDefault();
-        ev.stopPropagation();
+        // Do NOT stop propagation here - let it bubble to React's onTouchMove
       }
     };
 
@@ -1140,15 +1278,15 @@ export const WaveformVisualizer = () => {
       el.removeEventListener("wheel", onWheel as EventListener);
       el.removeEventListener("touchmove", onTouchMove as EventListener);
     };
-  }, [setWaveformZoom]);
+  }, [setWaveformZoom, scrollOffset]);
 
 
-  // Handle mouse down for range selection or bookmark resizing
+  // Handle mouse down for range selection, bookmark resizing, or Alt+pan
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (overlapMenu) setOverlapMenu(null);
     if (!canvasRef.current) return;
 
-    // Only start selection with left mouse button
+    // Only handle left mouse button
     if (e.button !== 0) return;
 
     // Check for bookmark resize handles
@@ -1176,7 +1314,15 @@ export const WaveformVisualizer = () => {
       }
     }
 
-    // Get the time at the click position
+    // Alt + drag = pan viewport
+    if (e.altKey) {
+      setIsPanning(true);
+      dragStartXRef.current = e.clientX;
+      panStartScrollRef.current = scrollOffset;
+      return;
+    }
+
+    // Normal drag = range selection for loop points
     const time = positionToTime(e.clientX);
     if (time >= 0 && time <= duration) {
       setIsDragging(true);
@@ -1186,7 +1332,7 @@ export const WaveformVisualizer = () => {
     }
   };
 
-  // Handle mouse move during range selection or resizing
+  // Handle mouse move during range selection, resizing, or panning
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!canvasRef.current) return;
 
@@ -1194,7 +1340,6 @@ export const WaveformVisualizer = () => {
     const xCss = rect ? e.clientX - rect.left : 0;
     const yCss = rect ? e.clientY - rect.top : 0;
     const HANDLE_WIDTH = 8;
-    // Removed unused cursor variable declaration
 
     // Handle resizing
     if (resizingBookmark) {
@@ -1211,6 +1356,17 @@ export const WaveformVisualizer = () => {
           }
         }
       }
+      return;
+    }
+
+    // Handle Alt+drag viewport panning
+    if (isPanning && dragStartXRef.current !== null) {
+      const width = canvasRef.current.clientWidth;
+      const visibleDuration = duration / waveformZoom;
+      const deltaX = e.clientX - dragStartXRef.current;
+      const deltaTime = -(deltaX / width) * visibleDuration;
+      setScrollOffset(Math.max(0, Math.min(duration - visibleDuration, panStartScrollRef.current + deltaTime)));
+      if (containerRef.current) containerRef.current.style.cursor = "grabbing";
       return;
     }
 
@@ -1233,7 +1389,7 @@ export const WaveformVisualizer = () => {
     if (time >= 0 && time <= duration) {
       setHoverTime(time);
 
-      // Update end position if Loop dragging (not resizing)
+      // Update end position if range-dragging (not resizing)
       if (isDragging && dragStart !== null) {
         setDragEnd(time);
       }
@@ -1242,7 +1398,7 @@ export const WaveformVisualizer = () => {
     }
   };
 
-  // Handle mouse up to finalize range selection
+  // Handle mouse up to finalize range selection or panning
   const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
     if (resizingBookmark) {
       setResizingBookmark(null);
@@ -1251,10 +1407,17 @@ export const WaveformVisualizer = () => {
       return;
     }
 
+    // Finalize Alt+drag pan
+    if (isPanning) {
+      setIsPanning(false);
+      dragStartXRef.current = null;
+      return;
+    }
+
     if (!isDragging || dragStart === null) return;
 
     const time = positionToTime(e.clientX);
-    // Use pixel distance for threshold to avoid false positives from moving waveform while playing
+    // Use pixel distance for threshold to avoid false positives
     const pixelDist = dragStartXRef.current !== null ? Math.abs(e.clientX - dragStartXRef.current) : 0;
 
     // Only set loop points if the drag distance > 5px AND time diff > 0.1s
@@ -1276,11 +1439,15 @@ export const WaveformVisualizer = () => {
     setResizingBookmark(null);
     resizingRef.current = false;
 
-    // Cancel dragging if mouse leaves the component
+    // Cancel dragging/panning if mouse leaves the component
     if (isDragging) {
       setIsDragging(false);
       setDragStart(null);
       setDragEnd(null);
+      dragStartXRef.current = null;
+    }
+    if (isPanning) {
+      setIsPanning(false);
       dragStartXRef.current = null;
     }
     if (overlapMenu) setOverlapMenu(null);
@@ -1329,7 +1496,7 @@ export const WaveformVisualizer = () => {
 
   // Handle waveform click for seeking (only when not dragging)
   const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!canvasRef.current || isDragging || resizingRef.current) return;
+    if (!canvasRef.current || isDragging || resizingRef.current || isPanning) return;
 
     // Only handle left clicks that aren't part of a drag operation
     if (e.button !== 0 || dragStart !== null) return;
@@ -1355,8 +1522,6 @@ export const WaveformVisualizer = () => {
         }
       }
 
-
-
       // If loop is active and user clicks outside the loop range, disable looping
       if (isLooping && loopStart !== null && loopEnd !== null) {
         if (time < loopStart || time > loopEnd) {
@@ -1364,8 +1529,19 @@ export const WaveformVisualizer = () => {
         }
       }
 
-      // Otherwise, just seek to the clicked time
+      // Seek to the clicked time
       setCurrentTime(time);
+
+      // Desktop: auto-adjust viewport if click target is outside current view
+      if (!isMobile) {
+        const visibleDuration = duration / waveformZoom;
+        const relPos = (time - scrollOffset) / visibleDuration;
+        if (relPos < 0 || relPos > 1) {
+          // Target is outside visible range — center viewport on it
+          setScrollOffset(Math.max(0, Math.min(duration - visibleDuration, time - visibleDuration / 2)));
+        }
+      }
+
       document.body.classList.add("user-seeking");
       setTimeout(() => {
         document.body.classList.remove("user-seeking");
@@ -1426,8 +1602,9 @@ export const WaveformVisualizer = () => {
       {/* Waveform visualization with drag selection and touch support */}
       <div
         ref={containerRef}
-        className={`${isMobile ? "h-40" : "h-40 sm:h-48 lg:h-56"
-          } overflow-hidden relative overscroll-contain touch-none select-none`}
+        className={`${isMobile ? "h-56" : "h-40 sm:h-48 lg:h-56"
+          } overflow-hidden relative touch-none select-none`}
+        style={{ touchAction: "none" }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -1438,8 +1615,8 @@ export const WaveformVisualizer = () => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* In-canvas quick loop actions - desktop only to avoid overlap on mobile */}
-        {!isMobile && (
+        {/* In-canvas quick loop actions - shown on both mobile and desktop */}
+        {(
           <div
             className={`absolute bottom-2 right-2 z-10 flex items-center gap-1 bg-gray-900/60 backdrop-blur rounded-full ring-1 ring-white/10 shadow-md px-1.5 py-1`}
             onMouseDown={stopPropagation}
@@ -1701,6 +1878,20 @@ export const WaveformVisualizer = () => {
             {formatTime(hoverTime)}
           </div>
         )}
+
+        {/* Playhead time code - Video editing app style, moved to bottom */}
+        <div
+          className={`absolute bottom-0 mb-1 bg-red-600 text-white font-mono font-bold px-2 py-0.5 rounded-sm shadow-[0_2px_8px_rgba(0,0,0,0.4)] pointer-events-none z-[25] ${isMobile ? "text-[11px]" : "text-[10px]"
+            } border border-red-500/20`}
+          style={{
+            left: `${timeToPosition(currentTime)}%`,
+            transform: "translateX(-50%)",
+          }}
+        >
+          {formatTime(currentTime)}
+          {/* Tip pointer at bottom pointing UP */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[4px] border-b-red-600"></div>
+        </div>
       </div>
 
       {/* Loop controls - responsive design for mobile */}
@@ -1782,9 +1973,9 @@ export const WaveformVisualizer = () => {
 
       {/* Track Controls Overlay */}
       {showWaveform && (
-        <div className="absolute top-2 left-2 z-10 flex flex-col gap-2">
+        <div className="absolute top-2 left-2 z-10 flex flex-col gap-2 pointer-events-none">
           {/* Media Track Control */}
-          <div className="bg-black/50 backdrop-blur-sm rounded p-1 flex items-center gap-1 group transition-all hover:bg-black/70">
+          <div className="bg-black/50 backdrop-blur-sm rounded p-1 flex items-center gap-1 group transition-all hover:bg-black/70 pointer-events-auto">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -1820,7 +2011,7 @@ export const WaveformVisualizer = () => {
 
           {/* Shadowing Track Control */}
           {shadowingWaveforms.length > 0 && (
-            <div className="bg-black/50 backdrop-blur-sm rounded p-1 flex items-center gap-1 group transition-all hover:bg-black/70" style={{ marginTop: canvasRef.current ? (canvasRef.current.clientHeight / 2) - 40 : 100 }}>
+            <div className="bg-black/50 backdrop-blur-sm rounded p-1 flex items-center gap-1 group transition-all hover:bg-black/70 pointer-events-auto" style={{ marginTop: canvasRef.current ? (canvasRef.current.clientHeight / 2) - 40 : 100 }}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();

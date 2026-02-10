@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(lsof:*)",
+      "Bash(npm run build)"
+    ]
+  }
+}

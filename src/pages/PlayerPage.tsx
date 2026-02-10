@@ -122,7 +122,7 @@ export const PlayerPage = () => {
         (currentFile?.type.includes("audio") || currentFile?.type.includes("video") || youtubeId) &&
         showWaveform &&
         layoutSettings.showWaveform && (
-          <div className="mt-4 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50/50 to-indigo-50/50 dark:from-purple-900/10 dark:to-indigo-900/10 p-4">
+          <div className="sm:mt-4 sm:rounded-xl sm:border sm:border-gray-200 sm:dark:border-gray-700 sm:bg-gradient-to-r sm:from-purple-50/50 sm:to-indigo-50/50 sm:dark:from-purple-900/10 sm:dark:to-indigo-900/10 sm:p-4">
             <WaveformVisualizer />
           </div>
         )

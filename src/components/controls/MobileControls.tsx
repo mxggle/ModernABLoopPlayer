@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useTranslation } from "react-i18next";
-import { formatTime } from "../../utils/formatTime";
+import { checkAudioRecordingSupport, getRecordingUnsupportedMessage } from "../../utils/browserCheck";
+
 import { toast } from "react-hot-toast";
 import {
   Play,
@@ -34,9 +35,9 @@ export const MobileControls = () => {
 
   const {
     isPlaying,
-    currentTime,
     duration,
     volume,
+    muted,
     playbackRate,
     loopStart,
     loopEnd,
@@ -49,6 +50,7 @@ export const MobileControls = () => {
     setPlaybackRate,
     setLoopPoints,
     setIsLooping,
+    toggleMute,
     seekForward: storeSeekForward,
     seekBackward: storeSeekBackward,
     seekStepSeconds,
@@ -77,6 +79,10 @@ export const MobileControls = () => {
   const [showVolumeDrawer, setShowVolumeDrawer] = useState(false);
   const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(false);
 
+  // Check if audio recording is supported in this browser
+  const recordingCapabilities = useMemo(() => checkAudioRecordingSupport(), []);
+  const canRecord = recordingCapabilities.supportsAudioRecording;
+
   // Get current media bookmarks for the bookmark button
   const bookmarks = getCurrentMediaBookmarks();
 
@@ -85,20 +91,7 @@ export const MobileControls = () => {
     setIsPlaying(!isPlaying);
   };
 
-  // Handle timeline slider change with improved seeking capability
-  const handleTimelineChange = (value: number) => {
-    // Update the time in the store, which will be picked up by the media player
-    setCurrentTime(value);
 
-    // We apply a direct class to show this was a manual user action
-    // This helps distinguish manual seeking from normal playback updates
-    document.body.classList.add("user-seeking");
-
-    // Remove the class after a short delay
-    setTimeout(() => {
-      document.body.classList.remove("user-seeking");
-    }, 200); // Slightly longer timeout for mobile
-  };
 
   // Handle volume slider change
   const handleVolumeChange = (value: number) => {
@@ -115,10 +108,7 @@ export const MobileControls = () => {
     storeSeekForward(seekStepSeconds);
   };
 
-  // Toggle mute
-  const toggleMute = () => {
-    setVolume(volume > 0 ? 0 : 1);
-  };
+  // toggleMute is now from the store
 
   // Change playback rate
   const changePlaybackRate = (rate: number) => {
@@ -176,6 +166,7 @@ export const MobileControls = () => {
 
     // Find the bookmark that comes before the current time
     const sortedBookmarks = [...bookmarks].sort((a, b) => a.start - b.start);
+    const { currentTime } = usePlayerStore.getState();
     let targetBookmark = null;
 
     for (let i = sortedBookmarks.length - 1; i >= 0; i--) {
@@ -202,6 +193,7 @@ export const MobileControls = () => {
 
     // Find the bookmark that comes after the current time
     const sortedBookmarks = [...bookmarks].sort((a, b) => a.start - b.start);
+    const { currentTime } = usePlayerStore.getState();
     const targetBookmark = sortedBookmarks.find(
       (bookmark) => bookmark.start > currentTime + 0.5
     ); // 0.5s tolerance
@@ -216,6 +208,7 @@ export const MobileControls = () => {
 
   // Set loop start point at current time
   const setLoopStartAtCurrentTime = () => {
+    const { currentTime } = usePlayerStore.getState();
     const end = loopEnd !== null ? loopEnd : duration;
     if (currentTime < end) {
       setLoopPoints(currentTime, end);
@@ -228,6 +221,7 @@ export const MobileControls = () => {
 
   // Set loop end point at current time
   const setLoopEndAtCurrentTime = () => {
+    const { currentTime } = usePlayerStore.getState();
     const start = loopStart !== null ? loopStart : 0;
     if (currentTime > start) {
       setLoopPoints(start, currentTime);
@@ -242,45 +236,24 @@ export const MobileControls = () => {
 
   // Clear loop points function moved to waveform footer
 
+  // Handle shadowing mode toggle
+  const handleShadowingToggle = () => {
+    // If trying to enable shadowing mode, check browser support first
+    if (!isShadowingMode && !canRecord) {
+      const errorMessage = getRecordingUnsupportedMessage(recordingCapabilities);
+      toast.error(errorMessage, { duration: 5000 });
+      return;
+    }
+
+    // Toggle shadowing mode
+    setShadowingMode(!isShadowingMode);
+  };
+
   // Note: Loop jump functions removed as they're not used in the mobile interface
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-[50] pb-safe">
       <div className="px-3 pt-2 pb-3">
-        {/* Timeline */}
-        <div className="flex items-center mb-4">
-          <span className="text-xs font-medium min-w-[45px] text-right">
-            {formatTime(currentTime)}
-          </span>
-          <input
-            type="range"
-            value={currentTime}
-            min={0}
-            max={duration || 100}
-            step={0.1}
-            onChange={(e) => handleTimelineChange(parseFloat(e.target.value))}
-            onTouchStart={() => document.body.classList.add("user-seeking")}
-            onTouchEnd={() => {
-              // Short delay before removing class to ensure the seeking event is processed
-              setTimeout(
-                () => document.body.classList.remove("user-seeking"),
-                100
-              );
-            }}
-            className="mx-2 flex-1 h-12 appearance-none bg-gradient-to-r from-purple-200 to-purple-500 rounded-full focus:outline-none"
-            style={{
-              // Improve touch area for mobile users
-              WebkitAppearance: "none",
-              background: `linear-gradient(to right, #9333ea ${(currentTime / (duration || 100)) * 100
-                }%, #e2e8f0 ${(currentTime / (duration || 100)) * 100}%)`,
-              // Enhanced touch targeting
-              touchAction: "none",
-            }}
-          />
-          <span className="text-xs font-medium min-w-[45px]">
-            {formatTime(duration)}
-          </span>
-        </div>
 
         {/* Main controls - reorganized for better vertical space usage */}
         <div className="space-y-4">
@@ -322,14 +295,17 @@ export const MobileControls = () => {
 
             {/* Shadowing toggle button */}
             <button
-              onClick={() => setShadowingMode(!isShadowingMode)}
+              onClick={handleShadowingToggle}
               className={`p-3 rounded-full transition-all duration-150 ${isRecording
-                ? "bg-red-600 text-white animate-pulse"
-                : isShadowingMode
-                  ? "bg-orange-600 text-white hover:bg-orange-700"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  ? "bg-red-600 text-white animate-pulse"
+                  : isShadowingMode
+                    ? "bg-orange-600 text-white hover:bg-orange-700"
+                    : canRecord
+                      ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50"
                 }`}
               aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+              title={!canRecord ? "Audio recording is not supported on this device/browser" : undefined}
             >
               <Mic size={24} />
             </button>
@@ -491,10 +467,10 @@ export const MobileControls = () => {
                   onClick={toggleMute}
                   className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 mr-4"
                   aria-label={
-                    volume > 0 ? t("player.mute") : t("player.unmute")
+                    muted ? t("player.unmute") : t("player.mute")
                   }
                 >
-                  {volume > 0 ? <Volume2 size={24} /> : <VolumeX size={24} />}
+                  {muted || volume === 0 ? <VolumeX size={24} /> : <Volume2 size={24} />}
                 </button>
                 <span className="text-lg font-medium">
                   {Math.round(volume * 100)}%
@@ -503,7 +479,7 @@ export const MobileControls = () => {
 
               <input
                 type="range"
-                value={volume}
+                value={muted ? 0 : volume}
                 min={0}
                 max={1}
                 step={0.01}
@@ -511,8 +487,8 @@ export const MobileControls = () => {
                 className="w-full h-12 appearance-none bg-gradient-to-r from-purple-200 to-purple-500 rounded-full"
                 style={{
                   WebkitAppearance: "none",
-                  background: `linear-gradient(to right, #9333ea ${volume * 100
-                    }%, #e2e8f0 ${volume * 100}%)`,
+                  background: `linear-gradient(to right, #9333ea ${(muted ? 0 : volume) * 100
+                    }%, #e2e8f0 ${(muted ? 0 : volume) * 100}%)`,
                 }}
               />
             </div>
