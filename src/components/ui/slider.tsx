@@ -3,10 +3,17 @@ import * as SliderPrimitive from "@radix-ui/react-slider";
 
 import { cn } from "@/utils/cn";
 
+interface SliderProps
+  extends React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> {
+  thumbClassName?: string;
+  trackClassName?: string;
+  rangeClassName?: string;
+}
+
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...props }, ref) => (
+  SliderProps
+>(({ className, thumbClassName, trackClassName, rangeClassName, ...props }, ref) => (
   <SliderPrimitive.Root
     ref={ref}
     className={cn(
@@ -15,13 +22,16 @@ const Slider = React.forwardRef<
     )}
     {...props}
   >
-    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-      <SliderPrimitive.Range className="absolute h-full bg-gray-900 dark:bg-gray-400" />
+    <SliderPrimitive.Track className={cn("relative h-2 w-full grow overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800", trackClassName)}>
+      <SliderPrimitive.Range className={cn("absolute h-full bg-gray-900 dark:bg-gray-400", rangeClassName)} />
     </SliderPrimitive.Track>
     {props.value?.map((_, i) => (
       <SliderPrimitive.Thumb
         key={i}
-        className="block h-5 w-5 rounded-full border-2 border-gray-900 bg-white ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:border-gray-50 dark:bg-gray-950 dark:ring-offset-gray-950 dark:focus-visible:ring-gray-300"
+        className={cn(
+          "block h-5 w-5 rounded-full border-2 border-gray-900 bg-white ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:border-gray-50 dark:bg-gray-950 dark:ring-offset-gray-950 dark:focus-visible:ring-gray-300",
+          thumbClassName
+        )}
       />
     ))}
   </SliderPrimitive.Root>

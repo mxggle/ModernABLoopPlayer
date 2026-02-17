@@ -19,9 +19,12 @@ import {
   AIProvider,
   AIServiceConfig,
   DEFAULT_MODELS,
+  TranscriptionProvider,
+  TRANSCRIPTION_PROVIDERS,
 } from "../types/aiService";
 import { aiService } from "../services/aiService";
 import { useTranslation } from "react-i18next";
+import { FileAudio } from "lucide-react";
 
 export const AISettingsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -31,6 +34,7 @@ export const AISettingsPage: React.FC = () => {
   const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [grokApiKey, setGrokApiKey] = useState("");
+  const [groqApiKey, setGroqApiKey] = useState("");
 
   // Model selections
   const [openaiModel, setOpenaiModel] = useState(DEFAULT_MODELS.openai);
@@ -40,6 +44,8 @@ export const AISettingsPage: React.FC = () => {
   // Settings state
   const [preferredProvider, setPreferredProvider] =
     useState<AIProvider>("openai");
+  const [preferredTranscriptionProvider, setPreferredTranscriptionProvider] =
+    useState<TranscriptionProvider>("openai");
   const [targetLanguage, setTargetLanguage] = useState("English");
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(1000);
@@ -73,8 +79,11 @@ export const AISettingsPage: React.FC = () => {
     const savedOpenaiKey = localStorage.getItem("openai_api_key") || "";
     const savedGeminiKey = localStorage.getItem("gemini_api_key") || "";
     const savedGrokKey = localStorage.getItem("grok_api_key") || "";
+    const savedGroqKey = localStorage.getItem("groq_api_key") || "";
     const savedPreferredProvider =
       (localStorage.getItem("preferred_ai_provider") as AIProvider) || "openai";
+    const savedTranscriptionProvider =
+      (localStorage.getItem("preferred_transcription_provider") as TranscriptionProvider) || "openai";
     const savedTargetLanguage =
       localStorage.getItem("target_language") || "English";
     const savedTemperature = parseFloat(
@@ -93,7 +102,9 @@ export const AISettingsPage: React.FC = () => {
     setOpenaiApiKey(savedOpenaiKey);
     setGeminiApiKey(savedGeminiKey);
     setGrokApiKey(savedGrokKey);
+    setGroqApiKey(savedGroqKey);
     setPreferredProvider(savedPreferredProvider);
+    setPreferredTranscriptionProvider(savedTranscriptionProvider);
     setTargetLanguage(savedTargetLanguage);
     setTemperature(savedTemperature);
     setMaxTokens(savedMaxTokens);
@@ -107,6 +118,7 @@ export const AISettingsPage: React.FC = () => {
     localStorage.setItem("openai_api_key", openaiApiKey);
     localStorage.setItem("gemini_api_key", geminiApiKey);
     localStorage.setItem("grok_api_key", grokApiKey);
+    localStorage.setItem("groq_api_key", groqApiKey);
 
     // Save models
     localStorage.setItem("openai_model", openaiModel);
@@ -115,12 +127,14 @@ export const AISettingsPage: React.FC = () => {
 
     // Save general settings
     localStorage.setItem("preferred_ai_provider", preferredProvider);
+    localStorage.setItem("preferred_transcription_provider", preferredTranscriptionProvider);
     localStorage.setItem("target_language", targetLanguage);
     localStorage.setItem("ai_temperature", temperature.toString());
     localStorage.setItem("ai_max_tokens", maxTokens.toString());
 
     // Dispatch custom event to notify other components
     window.dispatchEvent(new CustomEvent("aiSettingsUpdated"));
+    window.dispatchEvent(new CustomEvent("ai-settings-updated"));
 
     toast.success(t("aiSettingsPage.saveSuccess"));
   };
@@ -130,14 +144,14 @@ export const AISettingsPage: React.FC = () => {
       provider === "openai"
         ? openaiApiKey
         : provider === "gemini"
-        ? geminiApiKey
-        : grokApiKey;
+          ? geminiApiKey
+          : grokApiKey;
     const model =
       provider === "openai"
         ? openaiModel
         : provider === "gemini"
-        ? geminiModel
-        : grokModel;
+          ? geminiModel
+          : grokModel;
 
     if (!apiKey.trim()) {
       toast.error(
@@ -223,13 +237,12 @@ export const AISettingsPage: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div
-              className={`p-2 rounded-lg ${
-                provider === "openai"
-                  ? "bg-green-100 text-green-600"
-                  : provider === "gemini"
+              className={`p-2 rounded-lg ${provider === "openai"
+                ? "bg-green-100 text-green-600"
+                : provider === "gemini"
                   ? "bg-blue-100 text-blue-600"
                   : "bg-purple-100 text-purple-600"
-              }`}
+                }`}
             >
               <Brain className="w-5 h-5" />
             </div>
@@ -257,9 +270,8 @@ export const AISettingsPage: React.FC = () => {
                 placeholder={t("aiSettingsPage.apiKeyPlaceholderLabel", {
                   provider: providerName,
                 })}
-                className={`w-full px-3 py-2 pr-20 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  apiKey && !isValidKey ? "border-red-300" : "border-gray-300"
-                }`}
+                className={`w-full px-3 py-2 pr-20 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${apiKey && !isValidKey ? "border-red-300" : "border-gray-300"
+                  }`}
               />
               <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
                 <button
@@ -447,6 +459,121 @@ export const AISettingsPage: React.FC = () => {
               grokModel,
               setGrokModel
             )}
+          </div>
+
+          {/* Transcription Service */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <FileAudio className="w-5 h-5" />
+              {t("aiSettingsPage.transcriptionSection")}
+            </h2>
+
+            <div className="space-y-6">
+              {/* Transcription Provider Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t("aiSettingsPage.transcriptionProvider")}
+                </label>
+                <p className="text-sm text-gray-500 mb-3">
+                  {t("aiSettingsPage.transcriptionProviderDesc")}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {(Object.keys(TRANSCRIPTION_PROVIDERS) as TranscriptionProvider[]).map((provider) => (
+                    <button
+                      key={provider}
+                      onClick={() => setPreferredTranscriptionProvider(provider)}
+                      className={`p-4 rounded-lg border-2 transition-all text-left ${preferredTranscriptionProvider === provider
+                        ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
+                        : "border-gray-200 hover:border-gray-300 dark:border-gray-700"
+                        }`}
+                    >
+                      <div className="font-medium text-sm">
+                        {t(`aiSettingsPage.transcriptionProviders.${provider}`)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {t(`aiSettingsPage.transcriptionProviderDescriptions.${provider}`)}
+                      </div>
+                      {preferredTranscriptionProvider === provider && (
+                        <div className="mt-2">
+                          <span className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 px-2 py-0.5 rounded-full">
+                            Active
+                          </span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Selected Provider Details */}
+              <div className="border border-gray-200 rounded-lg p-5 bg-white shadow-sm ring-1 ring-gray-100">
+                <div className="flex items-center gap-4 mb-5">
+                  <div className={`p-2.5 rounded-xl ${preferredTranscriptionProvider === "openai"
+                      ? "bg-green-100 text-green-600"
+                      : preferredTranscriptionProvider === "gemini"
+                        ? "bg-blue-100 text-blue-600"
+                        : "bg-orange-100 text-orange-600"
+                    }`}>
+                    <Brain className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {t(`aiSettingsPage.transcriptionProviders.${preferredTranscriptionProvider}`)}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {t(`aiSettingsPage.transcriptionProviderDescriptions.${preferredTranscriptionProvider}`)}
+                    </p>
+                  </div>
+                </div>
+
+                {preferredTranscriptionProvider === "groq" ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        {t("aiSettingsPage.groqApiKeyLabel")}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="password"
+                          value={groqApiKey}
+                          onChange={(e) => setGroqApiKey(e.target.value)}
+                          placeholder={t("aiSettingsPage.groqApiKeyPlaceholder")}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        <a
+                          href="https://console.groq.com/keys"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                        >
+                          {t("aiSettingsPage.getGroqApiKey")}
+                        </a>
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="p-1 bg-green-100 rounded-full mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {preferredTranscriptionProvider === "openai"
+                          ? "Using OpenAI API Key"
+                          : "Using Gemini API Key"}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {preferredTranscriptionProvider === "openai"
+                          ? "This service uses the OpenAI API key configured in the providers section above."
+                          : "This service uses the Gemini API key configured in the providers section above."}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Save Button */}

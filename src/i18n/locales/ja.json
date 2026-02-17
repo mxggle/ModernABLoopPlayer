@@ -60,12 +60,14 @@
     "providers": {
       "openai": "OpenAI",
       "gemini": "Google Gemini",
-      "grok": "xAI Grok"
+      "grok": "xAI Grok",
+      "groq": "Groq"
     },
     "providerDescriptions": {
       "openai": "OpenAI GPTモデル",
       "gemini": "Google Geminiモデル",
-      "grok": "xAI Grokモデル"
+      "grok": "xAI Grokモデル",
+      "groq": "Groq LPUによる超高速Whisper文字起こし"
     },
     "apiKeyLabel": "APIキー",
     "apiKeyPlaceholderLabel": "{{provider}}のAPIキーを入力してください",
@@ -78,6 +80,22 @@
     "connectionFailedWithError": "{{provider}}との接続に失敗しました: {{message}}",
     "saveSuccess": "AI設定を保存しました",
     "saveSettings": "設定を保存",
+    "transcriptionSection": "文字起こしサービス",
+    "transcriptionProvider": "文字起こしプロバイダー",
+    "transcriptionProviderDesc": "音声文字起こしに使用するサービスを選択",
+    "transcriptionProviders": {
+      "openai": "OpenAI Whisper",
+      "groq": "Groq Whisper（超高速）",
+      "gemini": "Google Gemini"
+    },
+    "transcriptionProviderDescriptions": {
+      "openai": "ワードレベルのタイムスタンプ付き高品質文字起こし",
+      "groq": "Groq LPUによる超高速文字起こし",
+      "gemini": "話者識別対応のマルチモーダルAI文字起こし"
+    },
+    "groqApiKeyLabel": "Groq APIキー",
+    "groqApiKeyPlaceholder": "gsk_...",
+    "getGroqApiKey": "Groq APIキーを取得",
     "languages": {
       "english": "英語",
       "spanish": "スペイン語",
@@ -247,7 +265,7 @@
     "mockExplanation": "生成された説明: \"{{snippet}}\""
   },
   "transcript": {
-    "title": "メディアトランスクリプト (OpenAI Whisper)",
+    "title": "メディアトランスクリプト",
     "processing": "処理中 {{progress}}%",
     "transcribed": "文字起こし完了",
     "language": "言語",
@@ -271,7 +289,7 @@
     "openaiClientNotInitialized": "OpenAIクライアントが初期化されていません",
     "youtubeTranscriptionWarning": "YouTubeの文字起こしにはサーバーサイドの処理が必要です。代わりにシミュレーションを使用しています。",
     "transcriptionFailed": "メディアの文字起こしに失敗しました。",
-    "invalidApiKey": "無効なAPIキーです。OpenAI APIキーを確認してください。",
+    "invalidApiKey": "無効なAPIキーです。APIキーを確認してください。",
     "rateLimitExceeded": "レート制限を超えました。後でもう一度お試しください。",
     "audioFileTooLarge": "音声ファイルが大きすぎます。短い音声ファイルを使用してください。",
     "networkError": "ネットワークエラー。インターネット接続を確認してください。",
@@ -279,20 +297,21 @@
     "unknownError": "不明なエラーが発生しました。",
     "setOpenAiApiKey": "OpenAI APIキーを設定",
     "openAiSettings": "AI設定を開く",
-    "transcribeWithWhisper": "Whisperでメディアを文字起こし",
+    "transcribeWithWhisper": "メディアを文字起こし",
     "exportAsTxt": "TXTとしてエクスポート",
     "clearTranscript": "トランスクリプトをクリア",
-    "apiKeyRequired": "OpenAI APIキーが必要です",
-    "apiKeyNotice": "Whisperを使用して文字起こしを行うには、OpenAI APIキーを提供する必要があります。このキーはブラウザのローカルストレージにのみ保存されます。",
-    "apiKeyPlaceholder": "sk-...",
+    "apiKeyRequired": "APIキーが必要です",
+    "apiKeyNotice": "文字起こしを使用するには、選択したプロバイダーのAPIキーが必要です。AI設定でキーを設定してください。",
+    "apiKeyPlaceholder": "APIキーを入力...",
     "noDataToExport": "エクスポートできる文字起こしデータがありません",
     "importError": "文字起こしファイルのインポートに失敗しました",
     "segmentNotFound": "該当する文字起こしセグメントが見つかりません",
     "saveApiKey": "APIキーを保存",
     "getApiKey": "OpenAIからAPIキーを取得",
+    "processingWithProvider": "{{provider}}でメディアを処理中...",
     "processingWithWhisper": "OpenAI Whisperでメディアを処理中...",
     "loadMediaFirst": "最初にメディアを読み込んでトランスクリプトを生成してください",
-    "clickToTranscribe": "文字起こしボタンをクリックして、OpenAI Whisperを使用してこのメディアのトランスクリプトを生成します",
+    "clickToTranscribe": "文字起こしボタンをクリックしてトランスクリプトを生成します",
     "uploadExisting": "既存のトランスクリプトファイルをアップロード (.srt, .vtt, .txt)",
     "noTranscript": "トランスクリプトはありません",
     "uploadTranscript": "トランスクリプトをアップロード",

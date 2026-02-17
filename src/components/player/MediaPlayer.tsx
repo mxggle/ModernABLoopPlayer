@@ -298,6 +298,24 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
       state.playNextInQueue?.();
       return;
     }
+
+    // If looping is enabled but no A-B region is set (or the region covers
+    // the whole track), restart from the beginning instead of stopping.
+    if (state.isLooping) {
+      const mediaElement = currentFile?.type.includes("video")
+        ? videoRef.current
+        : audioRef.current;
+      if (mediaElement) {
+        const restartTime = state.loopStart ?? 0;
+        mediaElement.currentTime = restartTime;
+        setCurrentTime(restartTime);
+        mediaElement.play().catch((err: Error) => {
+          console.error("Error restarting looped playback:", err);
+        });
+        return;
+      }
+    }
+
     setIsPlaying(false);
     setCurrentTime(0);
   };

@@ -465,7 +465,24 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setPlaybackRate: (playbackRate) => set({ playbackRate }),
       setMuted: (muted) => set({ muted }),
       togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
-      toggleMute: () => set((state) => ({ muted: !state.muted })),
+      toggleMute: () => {
+        const { muted, volume, previousVolume } = get();
+        if (muted) {
+          // Unmuting
+          if (volume === 0) {
+            if (previousVolume !== undefined && previousVolume > 0) {
+              set({ volume: previousVolume, muted: false });
+            } else {
+              set({ volume: 1, muted: false });
+            }
+          } else {
+            set({ muted: false });
+          }
+        } else {
+          // Muting
+          set({ previousVolume: volume, volume: 0, muted: true });
+        }
+      },
 
       // Seek forward/backward
       seekForward: (seconds) => {

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import { SettingsDrawer } from "./SettingsDrawer";
-import { Moon, Sun, Info, Settings, Layout, Eye, EyeOff } from "lucide-react";
+import { Moon, Sun, Info, Settings, Layout, Eye, EyeOff, Music, Video, Youtube } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
 
@@ -64,7 +64,7 @@ export const AppLayout = ({
       <header className="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 fixed top-0 left-0 right-0 z-[55] max-w-5xl mx-auto">
         <button
           onClick={navigateToHome}
-          className="flex items-center gap-1 sm:gap-2 focus:outline-none"
+          className="flex items-center gap-1 sm:gap-2 focus:outline-none shrink-0"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -81,6 +81,24 @@ export const AppLayout = ({
             LoopMate
           </h1>
         </button>
+
+        {/* Media Title - Centered in header */}
+        {(currentFile || currentYouTube) && (
+          <div className="flex-1 flex justify-center px-2 sm:px-4 overflow-hidden min-w-0">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-50/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-gray-700/60 max-w-full transition-all hover:bg-white dark:hover:bg-gray-800">
+              {currentYouTube ? (
+                <Youtube className="h-3 w-3 text-red-500 shrink-0" />
+              ) : currentFile?.type.includes("video") ? (
+                <Video className="h-3 w-3 text-blue-500 shrink-0" />
+              ) : (
+                <Music className="h-3 w-3 text-purple-500 shrink-0" />
+              )}
+              <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-[100px] sm:max-w-[350px]">
+                {currentYouTube ? (currentYouTube.title || currentYouTube.id) : currentFile?.name}
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center space-x-1 sm:space-x-3 shrink-0">
           {/* Layout Settings - Show when media is loaded and layout settings are available */}
@@ -129,18 +147,16 @@ export const AppLayout = ({
                               showPlayer: !layoutSettings.showPlayer,
                             })
                           }
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                            layoutSettings.showPlayer
-                              ? "bg-purple-600"
-                              : "bg-gray-200 dark:bg-gray-600"
-                          }`}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${layoutSettings.showPlayer
+                            ? "bg-purple-600"
+                            : "bg-gray-200 dark:bg-gray-600"
+                            }`}
                         >
                           <span
-                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                              layoutSettings.showPlayer
-                                ? "translate-x-5"
-                                : "translate-x-1"
-                            }`}
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${layoutSettings.showPlayer
+                              ? "translate-x-5"
+                              : "translate-x-1"
+                              }`}
                           />
                         </button>
                       </div>
@@ -164,18 +180,16 @@ export const AppLayout = ({
                               showWaveform: !layoutSettings.showWaveform,
                             })
                           }
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                            layoutSettings.showWaveform
-                              ? "bg-purple-600"
-                              : "bg-gray-200 dark:bg-gray-600"
-                          }`}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${layoutSettings.showWaveform
+                            ? "bg-purple-600"
+                            : "bg-gray-200 dark:bg-gray-600"
+                            }`}
                         >
                           <span
-                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                              layoutSettings.showWaveform
-                                ? "translate-x-5"
-                                : "translate-x-1"
-                            }`}
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${layoutSettings.showWaveform
+                              ? "translate-x-5"
+                              : "translate-x-1"
+                              }`}
                           />
                         </button>
                       </div>
@@ -199,18 +213,16 @@ export const AppLayout = ({
                               showTranscript: !layoutSettings.showTranscript,
                             })
                           }
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                            layoutSettings.showTranscript
-                              ? "bg-purple-600"
-                              : "bg-gray-200 dark:bg-gray-600"
-                          }`}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${layoutSettings.showTranscript
+                            ? "bg-purple-600"
+                            : "bg-gray-200 dark:bg-gray-600"
+                            }`}
                         >
                           <span
-                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                              layoutSettings.showTranscript
-                                ? "translate-x-5"
-                                : "translate-x-1"
-                            }`}
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${layoutSettings.showTranscript
+                              ? "translate-x-5"
+                              : "translate-x-1"
+                              }`}
                           />
                         </button>
                       </div>
@@ -234,18 +246,16 @@ export const AppLayout = ({
                               showControls: !layoutSettings.showControls,
                             })
                           }
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                            layoutSettings.showControls
-                              ? "bg-purple-600"
-                              : "bg-gray-200 dark:bg-gray-600"
-                          }`}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${layoutSettings.showControls
+                            ? "bg-purple-600"
+                            : "bg-gray-200 dark:bg-gray-600"
+                            }`}
                         >
                           <span
-                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                              layoutSettings.showControls
-                                ? "translate-x-5"
-                                : "translate-x-1"
-                            }`}
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${layoutSettings.showControls
+                              ? "translate-x-5"
+                              : "translate-x-1"
+                              }`}
                           />
                         </button>
                       </div>

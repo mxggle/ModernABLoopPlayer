@@ -1,7 +1,7 @@
 // AI Service Types and Configurations
 export type AIProvider = "openai" | "gemini" | "grok";
 
-// OpenAI Models - Updated with latest 2025 models
+// OpenAI Models - Updated February 2026
 export interface OpenAIModel {
   id: string;
   name: string;
@@ -14,22 +14,62 @@ export interface OpenAIModel {
 }
 
 export const OPENAI_MODELS: Record<string, OpenAIModel> = {
-  "o3-mini": {
-    id: "o3-mini",
-    name: "o3-mini",
-    description: "Latest small reasoning model with high intelligence",
-    contextWindow: 200000,
+  "gpt-5.2": {
+    id: "gpt-5.2",
+    name: "GPT-5.2",
+    description: "Best model for coding, agentic tasks, and complex reasoning",
+    contextWindow: 400000,
     maxOutputTokens: 100000,
-    inputPricing: 1.1,
-    outputPricing: 4.4,
-    capabilities: ["text", "reasoning", "function-calling"],
+    inputPricing: 1.75,
+    outputPricing: 14.0,
+    capabilities: ["text", "vision", "audio", "reasoning", "function-calling"],
+  },
+  "gpt-5-mini": {
+    id: "gpt-5-mini",
+    name: "GPT-5 Mini",
+    description: "Fast and cost-efficient version of GPT-5",
+    contextWindow: 400000,
+    maxOutputTokens: 65536,
+    inputPricing: 0.25,
+    outputPricing: 2.0,
+    capabilities: ["text", "vision", "reasoning", "function-calling"],
+  },
+  "gpt-4.1": {
+    id: "gpt-4.1",
+    name: "GPT-4.1",
+    description: "Powerful and versatile with 1M context, great instruction following",
+    contextWindow: 1047576,
+    maxOutputTokens: 32768,
+    inputPricing: 2.0,
+    outputPricing: 8.0,
+    capabilities: ["text", "vision", "function-calling"],
+  },
+  "gpt-4.1-mini": {
+    id: "gpt-4.1-mini",
+    name: "GPT-4.1 Mini",
+    description: "Great balance of power, speed, and affordability",
+    contextWindow: 1047576,
+    maxOutputTokens: 32768,
+    inputPricing: 0.4,
+    outputPricing: 1.6,
+    capabilities: ["text", "vision", "function-calling"],
+  },
+  "gpt-4.1-nano": {
+    id: "gpt-4.1-nano",
+    name: "GPT-4.1 Nano",
+    description: "Fastest and most affordable GPT-4.1 variant",
+    contextWindow: 1047576,
+    maxOutputTokens: 32768,
+    inputPricing: 0.1,
+    outputPricing: 1.4,
+    capabilities: ["text", "vision", "function-calling"],
   },
   "gpt-4o": {
     id: "gpt-4o",
     name: "GPT-4o",
-    description: "Most advanced multimodal model",
+    description: "Advanced multimodal model (legacy, available via API)",
     contextWindow: 128000,
-    maxOutputTokens: 4096,
+    maxOutputTokens: 16384,
     inputPricing: 2.5,
     outputPricing: 10.0,
     capabilities: ["text", "vision", "audio", "function-calling"],
@@ -37,56 +77,36 @@ export const OPENAI_MODELS: Record<string, OpenAIModel> = {
   "gpt-4o-mini": {
     id: "gpt-4o-mini",
     name: "GPT-4o Mini",
-    description: "Affordable and intelligent small model",
+    description: "Affordable small model (legacy, available via API)",
     contextWindow: 128000,
     maxOutputTokens: 16384,
-    inputPricing: 0.15,
-    outputPricing: 0.6,
+    inputPricing: 0.6,
+    outputPricing: 2.4,
     capabilities: ["text", "vision", "function-calling"],
   },
-  "gpt-4-turbo": {
-    id: "gpt-4-turbo",
-    name: "GPT-4 Turbo",
-    description: "Previous generation flagship model",
-    contextWindow: 128000,
-    maxOutputTokens: 4096,
-    inputPricing: 10.0,
-    outputPricing: 30.0,
-    capabilities: ["text", "vision", "function-calling"],
-  },
-  "gpt-3.5-turbo": {
-    id: "gpt-3.5-turbo",
-    name: "GPT-3.5 Turbo",
-    description: "Fast and affordable model",
-    contextWindow: 16385,
-    maxOutputTokens: 4096,
-    inputPricing: 0.5,
-    outputPricing: 1.5,
-    capabilities: ["text", "function-calling"],
-  },
-  o1: {
-    id: "o1",
-    name: "o1",
-    description: "Reasoning model for complex problems",
+  o3: {
+    id: "o3",
+    name: "o3",
+    description: "Advanced reasoning model for complex STEM problems",
     contextWindow: 200000,
     maxOutputTokens: 100000,
-    inputPricing: 15.0,
-    outputPricing: 60.0,
-    capabilities: ["text", "reasoning"],
+    inputPricing: 10.0,
+    outputPricing: 40.0,
+    capabilities: ["text", "reasoning", "function-calling"],
   },
-  "o1-mini": {
-    id: "o1-mini",
-    name: "o1-mini",
-    description: "Faster reasoning model",
-    contextWindow: 128000,
-    maxOutputTokens: 65536,
-    inputPricing: 3.0,
-    outputPricing: 12.0,
-    capabilities: ["text", "reasoning"],
+  "o3-mini": {
+    id: "o3-mini",
+    name: "o3-mini",
+    description: "Compact reasoning model for STEM domains",
+    contextWindow: 200000,
+    maxOutputTokens: 100000,
+    inputPricing: 1.1,
+    outputPricing: 4.4,
+    capabilities: ["text", "reasoning", "function-calling"],
   },
 };
 
-// Gemini Models - Updated with latest 2025 models from official documentation
+// Gemini Models - Updated February 2026 from official documentation
 export interface GeminiModel {
   id: string;
   name: string;
@@ -99,14 +119,52 @@ export interface GeminiModel {
 }
 
 export const GEMINI_MODELS: Record<string, GeminiModel> = {
-  "gemini-2.5-flash-preview-05-20": {
-    id: "gemini-2.5-flash-preview-05-20",
-    name: "Gemini 2.5 Flash",
-    description: "Best price-performance with adaptive thinking",
+  "gemini-3-pro-preview": {
+    id: "gemini-3-pro-preview",
+    name: "Gemini 3 Pro",
+    description: "Most powerful model for multimodal understanding and agentic tasks",
     contextWindow: 1048576,
     maxOutputTokens: 65536,
-    inputPricing: 0.15,
-    outputPricing: 0.6,
+    inputPricing: 2.0,
+    outputPricing: 12.0,
+    capabilities: [
+      "text",
+      "vision",
+      "audio",
+      "video",
+      "thinking",
+      "function-calling",
+      "code-execution",
+      "structured-outputs",
+    ],
+  },
+  "gemini-3-flash-preview": {
+    id: "gemini-3-flash-preview",
+    name: "Gemini 3 Flash",
+    description: "Frontier intelligence with speed, search, and grounding",
+    contextWindow: 1048576,
+    maxOutputTokens: 65536,
+    inputPricing: 0.5,
+    outputPricing: 3.0,
+    capabilities: [
+      "text",
+      "vision",
+      "audio",
+      "video",
+      "thinking",
+      "function-calling",
+      "code-execution",
+      "structured-outputs",
+    ],
+  },
+  "gemini-2.5-pro": {
+    id: "gemini-2.5-pro",
+    name: "Gemini 2.5 Pro",
+    description: "State-of-the-art thinking model for code, math, and STEM",
+    contextWindow: 1048576,
+    maxOutputTokens: 65536,
+    inputPricing: 1.25,
+    outputPricing: 10.0,
     capabilities: [
       "text",
       "vision",
@@ -117,14 +175,32 @@ export const GEMINI_MODELS: Record<string, GeminiModel> = {
       "code-execution",
     ],
   },
-  "gemini-2.5-pro-preview-05-06": {
-    id: "gemini-2.5-pro-preview-05-06",
-    name: "Gemini 2.5 Pro",
-    description: "Most powerful thinking model",
+  "gemini-2.5-flash": {
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    description: "Best price-performance with adaptive thinking and 1M context",
     contextWindow: 1048576,
     maxOutputTokens: 65536,
-    inputPricing: 1.25,
-    outputPricing: 5.0,
+    inputPricing: 0.3,
+    outputPricing: 2.5,
+    capabilities: [
+      "text",
+      "vision",
+      "audio",
+      "video",
+      "thinking",
+      "function-calling",
+      "code-execution",
+    ],
+  },
+  "gemini-2.5-flash-lite": {
+    id: "gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash-Lite",
+    description: "Fastest and most cost-efficient model for at-scale usage",
+    contextWindow: 1048576,
+    maxOutputTokens: 65536,
+    inputPricing: 0.1,
+    outputPricing: 0.4,
     capabilities: [
       "text",
       "vision",
@@ -138,46 +214,16 @@ export const GEMINI_MODELS: Record<string, GeminiModel> = {
   "gemini-2.0-flash": {
     id: "gemini-2.0-flash",
     name: "Gemini 2.0 Flash",
-    description: "Next generation features and speed",
+    description: "Deprecated (shutdown March 31, 2026) — use 2.5 Flash instead",
     contextWindow: 1048576,
     maxOutputTokens: 8192,
     inputPricing: 0.075,
     outputPricing: 0.3,
-    capabilities: ["text", "vision", "audio", "video", "function-calling"],
-  },
-  "gemini-2.0-flash-lite": {
-    id: "gemini-2.0-flash-lite",
-    name: "Gemini 2.0 Flash Lite",
-    description: "Cost efficient and low latency",
-    contextWindow: 1048576,
-    maxOutputTokens: 8192,
-    inputPricing: 0.075,
-    outputPricing: 0.3,
-    capabilities: ["text", "vision", "audio", "video", "function-calling"],
-  },
-  "gemini-1.5-flash": {
-    id: "gemini-1.5-flash",
-    name: "Gemini 1.5 Flash",
-    description: "Fast and versatile multimodal model",
-    contextWindow: 1048576,
-    maxOutputTokens: 8192,
-    inputPricing: 0.075,
-    outputPricing: 0.3,
-    capabilities: ["text", "vision", "audio", "video", "function-calling"],
-  },
-  "gemini-1.5-pro": {
-    id: "gemini-1.5-pro",
-    name: "Gemini 1.5 Pro",
-    description: "Complex reasoning tasks",
-    contextWindow: 2097152,
-    maxOutputTokens: 8192,
-    inputPricing: 1.25,
-    outputPricing: 5.0,
     capabilities: ["text", "vision", "audio", "video", "function-calling"],
   },
 };
 
-// Grok Models - Updated with latest 2025 models from xAI
+// Grok Models - Updated February 2026 from xAI official documentation
 export interface GrokModel {
   id: string;
   name: string;
@@ -190,55 +236,45 @@ export interface GrokModel {
 }
 
 export const GROK_MODELS: Record<string, GrokModel> = {
+  "grok-4": {
+    id: "grok-4",
+    name: "Grok 4",
+    description: "Most advanced reasoning model from xAI",
+    contextWindow: 256000,
+    maxOutputTokens: 131072,
+    inputPricing: 3.0,
+    outputPricing: 15.0,
+    capabilities: ["text", "vision", "reasoning", "function-calling", "structured-outputs"],
+  },
+  "grok-4-fast": {
+    id: "grok-4-fast",
+    name: "Grok 4 Fast",
+    description: "Cost-efficient reasoning with 2M context window",
+    contextWindow: 2000000,
+    maxOutputTokens: 131072,
+    inputPricing: 0.2,
+    outputPricing: 0.5,
+    capabilities: ["text", "reasoning", "function-calling", "structured-outputs"],
+  },
   "grok-3": {
     id: "grok-3",
     name: "Grok 3",
-    description: "Latest and most advanced Grok model",
+    description: "Previous generation powerful Grok model",
     contextWindow: 131072,
     maxOutputTokens: 131072,
-    inputPricing: 2.0,
-    outputPricing: 10.0,
+    inputPricing: 3.0,
+    outputPricing: 15.0,
     capabilities: ["text", "function-calling", "structured-outputs"],
   },
-  "grok-3-beta": {
-    id: "grok-3-beta",
-    name: "Grok 3 Beta",
-    description: "Beta version of Grok 3 with latest features",
+  "grok-3-mini": {
+    id: "grok-3-mini",
+    name: "Grok 3 Mini",
+    description: "Fast and affordable mini reasoning model",
     contextWindow: 131072,
     maxOutputTokens: 131072,
-    inputPricing: 2.0,
-    outputPricing: 10.0,
-    capabilities: ["text", "function-calling", "structured-outputs"],
-  },
-  "grok-3-mini-fast-beta": {
-    id: "grok-3-mini-fast-beta",
-    name: "Grok 3 Mini Fast",
-    description: "Fast and efficient mini version of Grok 3",
-    contextWindow: 131072,
-    maxOutputTokens: 131072,
-    inputPricing: 1.0,
-    outputPricing: 5.0,
-    capabilities: ["text", "function-calling"],
-  },
-  "grok-2-1212": {
-    id: "grok-2-1212",
-    name: "Grok 2",
-    description: "Previous generation Grok model",
-    contextWindow: 131072,
-    maxOutputTokens: 131072,
-    inputPricing: 2.0,
-    outputPricing: 10.0,
-    capabilities: ["text", "function-calling"],
-  },
-  "grok-2-vision-1212": {
-    id: "grok-2-vision-1212",
-    name: "Grok 2 Vision",
-    description: "Grok 2 with vision capabilities",
-    contextWindow: 32768,
-    maxOutputTokens: 32768,
-    inputPricing: 2.0,
-    outputPricing: 10.0,
-    capabilities: ["text", "vision", "function-calling"],
+    inputPricing: 0.3,
+    outputPricing: 0.5,
+    capabilities: ["text", "reasoning", "function-calling", "structured-outputs"],
   },
 };
 
@@ -248,12 +284,12 @@ export interface OpenAIRequest {
   messages: Array<{
     role: "system" | "user" | "assistant" | "function";
     content:
-      | string
-      | Array<{
-          type: "text" | "image_url";
-          text?: string;
-          image_url?: { url: string };
-        }>;
+    | string
+    | Array<{
+      type: "text" | "image_url";
+      text?: string;
+      image_url?: { url: string };
+    }>;
     name?: string;
     function_call?: Record<string, unknown>;
   }>;
@@ -495,9 +531,32 @@ export function getModelById(modelId: string): ModelOption | undefined {
   return getAllModels().find((model) => model.id === modelId);
 }
 
-// Default models for each provider - Updated to use latest available models
+// Default models for each provider - Updated February 2026
 export const DEFAULT_MODELS: Record<AIProvider, string> = {
-  openai: "gpt-4o-mini",
-  gemini: "gemini-2.5-flash-preview-05-20",
-  grok: "grok-3",
+  openai: "gpt-4.1",
+  gemini: "gemini-2.5-flash",
+  grok: "grok-4-fast",
+};
+
+// Transcription Provider Types
+export type TranscriptionProvider = "openai" | "groq" | "gemini";
+
+export const DEFAULT_TRANSCRIPTION_PROVIDER: TranscriptionProvider = "openai";
+
+export const TRANSCRIPTION_PROVIDERS: Record<TranscriptionProvider, { name: string; description: string; model: string }> = {
+  openai: {
+    name: "OpenAI Whisper",
+    description: "High-quality transcription with word-level timestamps",
+    model: "whisper-1",
+  },
+  groq: {
+    name: "Groq Whisper",
+    description: "Ultra-fast transcription powered by Groq LPU",
+    model: "whisper-large-v3-turbo",
+  },
+  gemini: {
+    name: "Google Gemini",
+    description: "Multimodal AI transcription with speaker diarization",
+    model: "gemini-2.5-flash",
+  },
 };

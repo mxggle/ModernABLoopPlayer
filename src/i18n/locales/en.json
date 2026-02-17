@@ -81,12 +81,14 @@
     "providers": {
       "openai": "OpenAI",
       "gemini": "Google Gemini",
-      "grok": "xAI Grok"
+      "grok": "xAI Grok",
+      "groq": "Groq"
     },
     "providerDescriptions": {
       "openai": "OpenAI GPT models",
       "gemini": "Google Gemini models",
-      "grok": "xAI Grok models"
+      "grok": "xAI Grok models",
+      "groq": "Ultra-fast Whisper transcription via Groq LPU"
     },
     "apiKeyLabel": "API Key",
     "apiKeyPlaceholderLabel": "Enter your {{provider}} API key",
@@ -99,6 +101,22 @@
     "connectionFailedWithError": "{{provider}} connection failed: {{message}}",
     "saveSuccess": "AI settings saved successfully!",
     "saveSettings": "Save Settings",
+    "transcriptionSection": "Transcription Service",
+    "transcriptionProvider": "Transcription Provider",
+    "transcriptionProviderDesc": "Select which service to use for audio transcription",
+    "transcriptionProviders": {
+      "openai": "OpenAI Whisper",
+      "groq": "Groq Whisper (Ultra-fast)",
+      "gemini": "Google Gemini"
+    },
+    "transcriptionProviderDescriptions": {
+      "openai": "High-quality transcription with word-level timestamps",
+      "groq": "Ultra-fast transcription powered by Groq LPU",
+      "gemini": "Multimodal AI transcription with speaker diarization"
+    },
+    "groqApiKeyLabel": "Groq API Key",
+    "groqApiKeyPlaceholder": "gsk_...",
+    "getGroqApiKey": "Get a Groq API key",
     "languages": {
       "english": "English",
       "spanish": "Spanish",
@@ -268,7 +286,7 @@
     "mockExplanation": "This is a generated explanation for: \"{{snippet}}\""
   },
   "transcript": {
-    "title": "Media Transcript (OpenAI Whisper)",
+    "title": "Media Transcript",
     "processing": "Processing {{progress}}%",
     "transcribed": "Transcribed",
     "language": "Language",
@@ -292,7 +310,7 @@
     "openaiClientNotInitialized": "OpenAI client not initialized",
     "youtubeTranscriptionWarning": "YouTube transcription requires server-side processing. Using simulation instead.",
     "transcriptionFailed": "Failed to transcribe media. ",
-    "invalidApiKey": "Invalid API key. Please check your OpenAI API key.",
+    "invalidApiKey": "Invalid API key. Please check your API key.",
     "rateLimitExceeded": "Rate limit exceeded. Please try again later.",
     "audioFileTooLarge": "Audio file is too large. Please use a shorter audio file.",
     "networkError": "Network error. Please check your internet connection.",
@@ -300,20 +318,21 @@
     "unknownError": "Unknown error occurred.",
     "setOpenAiApiKey": "Set OpenAI API Key",
     "openAiSettings": "Open AI Settings",
-    "transcribeWithWhisper": "Transcribe media with Whisper",
+    "transcribeWithWhisper": "Transcribe media",
     "exportAsTxt": "Export transcript as TXT",
     "clearTranscript": "Clear transcript",
-    "apiKeyRequired": "OpenAI API Key Required",
-    "apiKeyNotice": "To use Whisper for transcription, you need to provide your OpenAI API key. This key is stored only in your browser's local storage.",
-    "apiKeyPlaceholder": "sk-...",
+    "apiKeyRequired": "API Key Required",
+    "apiKeyNotice": "To use transcription, you need to provide an API key for your selected provider. Configure keys in AI Settings.",
+    "apiKeyPlaceholder": "Enter API key...",
     "noDataToExport": "No transcript data to export",
     "importError": "Failed to import transcript file",
     "segmentNotFound": "Transcript segment not found",
     "saveApiKey": "Save API Key",
     "getApiKey": "Get an API key from OpenAI",
+    "processingWithProvider": "Processing media with {{provider}}...",
     "processingWithWhisper": "Processing media with OpenAI Whisper...",
     "loadMediaFirst": "Load media first to generate a transcript",
-    "clickToTranscribe": "Click the transcribe button to generate a transcript of this media using OpenAI Whisper",
+    "clickToTranscribe": "Click the transcribe button to generate a transcript",
     "uploadExisting": "Upload an existing transcript file (.srt, .vtt, .txt)",
     "noTranscript": "No transcript available",
     "uploadTranscript": "Upload Transcript",

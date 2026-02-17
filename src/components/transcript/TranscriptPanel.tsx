@@ -19,7 +19,8 @@ import {
   PanelLeftClose,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { OpenAI } from "openai";
+import { transcriptionService } from "../../services/transcriptionService";
+import { TranscriptionProvider } from "../../types/aiService";
 import { TranscriptUploader } from "./TranscriptUploader";
 import { ExplanationDrawer } from "./ExplanationDrawer";
 import { useNavigate } from "react-router-dom";
@@ -40,27 +41,7 @@ import {
 } from "../ui/dialog";
 
 
-// Define interfaces for OpenAI Whisper API response
-interface WhisperSegment {
-  id: number;
-  seek: number;
-  start: number;
-  end: number;
-  text: string;
-  tokens: number[];
-  temperature: number;
-  avg_logprob: number;
-  compression_ratio: number;
-  no_speech_prob: number;
-}
-
-interface WhisperResponse {
-  task: string;
-  language: string;
-  duration: number;
-  text: string;
-  segments: WhisperSegment[];
-}
+// WhisperSegment/WhisperResponse types moved to transcriptionService.ts
 
 // TranscriptSegmentItem component
 const TranscriptSegmentItem = ({
@@ -517,53 +498,31 @@ export const TranscriptPanel = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [apiKey, setApiKey] = useState<string>("");
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [currentProvider, setCurrentProvider] = useState<TranscriptionProvider>("openai");
   const transcriptRef = useRef<HTMLDivElement>(null);
-  const openaiRef = useRef<OpenAI | null>(null);
 
-  // Initialize OpenAI client when API key is provided
+  // Load API key and transcription provider from localStorage on component mount
   useEffect(() => {
-    if (apiKey) {
-      openaiRef.current = new OpenAI({
-        apiKey: apiKey,
-        dangerouslyAllowBrowser: true, // This is necessary for client-side use
-      });
-    }
-  }, [apiKey]);
+    const loadSettings = () => {
+      const provider = transcriptionService.getPreferredProvider();
+      setCurrentProvider(provider);
+      const key = transcriptionService.getApiKeyForProvider(provider);
+      setApiKey(key);
+    };
 
-  // Function to handle API key input
-  const handleApiKeySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (apiKey.trim()) {
-      localStorage.setItem("openai_api_key", apiKey);
-      setShowApiKeyInput(false);
-      toast.success(t("transcript.apiKeySaved"));
-
-      // Dispatch event to notify other components
-      window.dispatchEvent(new CustomEvent("ai-settings-updated"));
-    }
-  };
-
-  // Load API key from localStorage on component mount
-  useEffect(() => {
-    const savedApiKey = localStorage.getItem("openai_api_key");
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
-    }
+    loadSettings();
 
     // Listen for AI settings updates from the AI Settings page
     const handleSettingsUpdate = () => {
-      const updatedApiKey = localStorage.getItem("openai_api_key");
-      if (updatedApiKey) {
-        setApiKey(updatedApiKey);
-      } else {
-        setApiKey("");
-      }
+      loadSettings();
     };
 
     window.addEventListener("ai-settings-updated", handleSettingsUpdate);
+    window.addEventListener("aiSettingsUpdated", handleSettingsUpdate);
 
     return () => {
       window.removeEventListener("ai-settings-updated", handleSettingsUpdate);
+      window.removeEventListener("aiSettingsUpdated", handleSettingsUpdate);
     };
   }, []);
 
@@ -701,7 +660,7 @@ export const TranscriptPanel = () => {
     });
   };
 
-  // Function to transcribe the current media using OpenAI's Whisper API
+  // Function to transcribe the current media using the selected transcription service
   const transcribeMedia = async (range?: { start: number; end: number }) => {
     // Check if we have media to transcribe
     if (!currentFile && !currentYouTube) {
@@ -709,15 +668,9 @@ export const TranscriptPanel = () => {
       return;
     }
 
-    // Check if API key is provided
+    // Check if API key is provided for the current provider
     if (!apiKey) {
       setShowApiKeyInput(true);
-      return;
-    }
-
-    // Check if OpenAI client is initialized
-    if (!openaiRef.current) {
-      toast.error(t("transcript.openaiClientNotInitialized"));
       return;
     }
 
@@ -734,7 +687,6 @@ export const TranscriptPanel = () => {
       setProcessingProgress(10);
 
       // For YouTube videos, we can't directly access the audio
-      // We would need a server-side component to download and process the video
       if (currentYouTube) {
         toast.error(t("transcript.youtubeTranscriptionWarning"));
         await simulateTranscription();
@@ -745,85 +697,52 @@ export const TranscriptPanel = () => {
       const audioBlob = await extractAudioFromMedia(range);
       setProcessingProgress(30);
 
-      // Convert the blob to a File object for the OpenAI API
-      const audioFile = new File([audioBlob], "audio.wav", {
-        type: "audio/wav",
-      });
+      const providerInfo = transcriptionService.getProviderInfo(currentProvider);
+      toast(t("transcript.processingWithProvider", { provider: providerInfo.name }));
 
       setProcessingProgress(50);
 
-      // Enhanced Whisper API call with better sentence segmentation parameters
-      let response;
-      try {
-        // Try with advanced parameters first - request both word and segment timestamps
-        response = await openaiRef.current.audio.transcriptions.create({
-          file: audioFile,
-          model: "whisper-1",
-          response_format: "verbose_json",
-          timestamp_granularities: ["word", "segment"],
-          prompt:
-            "Please transcribe this audio with proper sentence breaks and punctuation. Break long sentences into shorter, more natural segments.", // Prompt to encourage better sentence breaking
-          temperature: 0.0, // Lower temperature for more consistent results
-        });
-      } catch (advancedError) {
-        console.warn(
-          "Advanced Whisper parameters failed, falling back to basic:",
-          advancedError
-        );
-
-        // Fallback to basic parameters
-        response = await openaiRef.current.audio.transcriptions.create({
-          file: audioFile,
-          model: "whisper-1",
-          response_format: "verbose_json",
-          temperature: 0.0,
-        });
-      }
+      // Call the unified transcription service
+      const result = await transcriptionService.transcribe(
+        {
+          provider: currentProvider,
+          apiKey: apiKey,
+        },
+        audioBlob
+      );
 
       setProcessingProgress(80);
 
-      // Process the response with enhanced continuous segment creation
-      const whisperResponse = response as unknown as WhisperResponse & {
-        words?: Array<{
-          word: string;
-          start: number;
-          end: number;
-        }>;
-      };
+      const startTimeOffset = range ? range.start : 0;
 
-      if (whisperResponse && whisperResponse.segments) {
-        // Use the enhanced continuous segments approach
-        const continuousSegments = createContinuousSegments(whisperResponse);
-        const startTimeOffset = range ? range.start : 0;
-
-        continuousSegments.forEach((segment, index) => {
+      if (result.segments && result.segments.length > 0) {
+        result.segments.forEach((segment, index) => {
           addTranscriptSegment({
             text: segment.text.trim(),
             startTime: Math.max(0, segment.start + startTimeOffset),
             endTime: Math.max(segment.start + startTimeOffset, segment.end + startTimeOffset),
-            confidence: Math.exp(segment.avg_logprob),
+            confidence: segment.confidence,
             isFinal: true,
           });
 
           // Update progress
           const progress =
-            Math.round(((index + 1) / continuousSegments.length) * 20) + 80;
+            Math.round(((index + 1) / result.segments.length) * 20) + 80;
           setProcessingProgress(Math.min(progress, 100));
         });
       } else {
         // If no segments are returned, use the full transcript with basic sentence breaking
-        const sentences = await utilBreakIntoSentences(response.text);
-        const startTimeOffset = range ? range.start : 0;
+        const sentences = await utilBreakIntoSentences(result.fullText);
 
         sentences.forEach((sentence, index) => {
-          const startTime = (index * 30) / sentences.length; // Estimate timing
+          const startTime = (index * 30) / sentences.length;
           const endTime = ((index + 1) * 30) / sentences.length;
 
           addTranscriptSegment({
             text: sentence.trim(),
             startTime: Math.max(0, startTime + startTimeOffset),
-            endTime: Math.max(startTime + startTimeOffset, endTime + startTimeOffset), // Ensure at least 1s duration
-            confidence: 0.95,
+            endTime: Math.max(startTime + startTimeOffset, endTime + startTimeOffset),
+            confidence: 0.85,
             isFinal: true,
           });
         });
@@ -1036,253 +955,8 @@ export const TranscriptPanel = () => {
   };
   */
 
-  // Enhanced function to create continuous segments from Whisper response
-  const createContinuousSegments = (
-    whisperResponse: WhisperResponse & {
-      words?: Array<{
-        word: string;
-        start: number;
-        end: number;
-      }>;
-    }
-  ) => {
-    console.log("Creating continuous segments from Whisper response");
+  // Segment processing is now handled by transcriptionService.ts
 
-    // Strategy 1: Use word-level timestamps if available (most accurate)
-    if (whisperResponse.words && whisperResponse.words.length > 0) {
-      console.log("Using word-level timestamps for better accuracy");
-      return createSegmentsFromWords(
-        whisperResponse.words,
-        whisperResponse.segments
-      );
-    }
-
-    // Strategy 2: Fill gaps in segment-level timestamps
-    console.log("Using segment-level timestamps with gap filling");
-    return fillSegmentGaps(whisperResponse.segments);
-  };
-
-  // Create segments from word-level timestamps (most accurate approach)
-  const createSegmentsFromWords = (
-    words: Array<{ word: string; start: number; end: number }>,
-    originalSegments: WhisperSegment[]
-  ) => {
-    const segments: WhisperSegment[] = [];
-    const maxSegmentDuration = 10; // Maximum 10 seconds per segment
-    const minSegmentDuration = 1; // Minimum 1 second per segment
-
-    let wordIndex = 0;
-
-    for (const originalSegment of originalSegments) {
-      // Find words that belong to this segment based on timing overlap
-      const segmentWords = [];
-      const segmentStartTime = originalSegment.start;
-      const segmentEndTime = originalSegment.end;
-
-      // Collect words that fall within this segment's timeframe
-      while (wordIndex < words.length) {
-        const word = words[wordIndex];
-
-        // Check if word overlaps with current segment
-        if (word.start >= segmentStartTime && word.start <= segmentEndTime) {
-          segmentWords.push(word);
-          wordIndex++;
-        } else if (word.start > segmentEndTime) {
-          // Word is beyond current segment, break to next segment
-          break;
-        } else {
-          // Word is before current segment, skip it
-          wordIndex++;
-        }
-      }
-
-      if (segmentWords.length === 0) {
-        // No words found, use original segment with gap filling
-        const adjustedStart: number =
-          segments.length > 0
-            ? segments[segments.length - 1].end
-            : originalSegment.start;
-        segments.push({
-          ...originalSegment,
-          start: adjustedStart,
-          end: Math.max(
-            adjustedStart + minSegmentDuration,
-            originalSegment.end
-          ),
-        });
-        continue;
-      }
-
-      // Create continuous segments from words
-      let segmentStart = segmentWords[0].start;
-      const segmentEnd = segmentWords[segmentWords.length - 1].end;
-
-      // Ensure continuity with previous segment (aggressive anti-cutoff approach)
-      if (segments.length > 0) {
-        const lastSegment = segments[segments.length - 1];
-        const gap = segmentStart - lastSegment.end;
-
-        if (gap > 0) {
-          if (gap <= 1.0) {
-            // Small to medium gaps - fill almost completely
-            lastSegment.end = segmentStart - 0.05;
-          } else if (gap <= 2.5) {
-            // Large gaps - fill most of it
-            const extension = gap * 0.8;
-            lastSegment.end = lastSegment.end + extension;
-            segmentStart = lastSegment.end + 0.05;
-          } else {
-            // Very large gaps - still extend significantly to prevent cutoff
-            const extension = Math.min(1.2, gap * 0.5);
-            lastSegment.end = lastSegment.end + extension;
-          }
-        } else if (gap < 0) {
-          // Overlap - adjust current segment start
-          segmentStart = lastSegment.end + 0.05;
-        }
-      }
-
-      // Split long segments if necessary
-      if (segmentEnd - segmentStart > maxSegmentDuration) {
-        // Split into multiple segments
-        const wordsPerSegment = Math.ceil(
-          segmentWords.length /
-          Math.ceil((segmentEnd - segmentStart) / maxSegmentDuration)
-        );
-
-        for (let i = 0; i < segmentWords.length; i += wordsPerSegment) {
-          const segmentWordSlice = segmentWords.slice(i, i + wordsPerSegment);
-          const subSegmentStart =
-            i === 0 ? segmentStart : segmentWordSlice[0].start;
-          const subSegmentEnd =
-            segmentWordSlice[segmentWordSlice.length - 1].end;
-          const subSegmentText = segmentWordSlice.map((w) => w.word).join("");
-
-          segments.push({
-            ...originalSegment,
-            id: segments.length,
-            start: subSegmentStart,
-            end: subSegmentEnd,
-            text: subSegmentText,
-          });
-        }
-      } else {
-        // Single segment
-        segments.push({
-          ...originalSegment,
-          id: segments.length,
-          start: segmentStart,
-          end: segmentEnd,
-          text: segmentWords.map((w) => w.word).join(""),
-        });
-      }
-    }
-
-    // Final pass: aggressively eliminate gaps that could cause cutoff
-    for (let i = 1; i < segments.length; i++) {
-      const prevSegment = segments[i - 1];
-      const currentSegment = segments[i];
-
-      if (currentSegment.start > prevSegment.end) {
-        const gap = currentSegment.start - prevSegment.end;
-
-        if (gap <= 1.0) {
-          // Small to medium gaps - fill almost completely
-          const buffer = 0.05;
-          const fillableGap = gap - buffer;
-          const extension = fillableGap * 0.9; // Fill 90% of fillable gap
-          prevSegment.end = prevSegment.end + extension;
-          currentSegment.start = prevSegment.end + buffer;
-        } else if (gap <= 2.5) {
-          // Large gaps - fill most of it
-          const extension = gap * 0.7;
-          prevSegment.end = prevSegment.end + extension;
-          currentSegment.start =
-            currentSegment.start - (gap - extension - 0.05);
-        } else {
-          // Very large gaps - still fill significantly to prevent cutoff
-          const extension = Math.min(1.0, gap * 0.4);
-          prevSegment.end = prevSegment.end + extension;
-        }
-      }
-    }
-
-    console.log(
-      `Created ${segments.length} continuous segments from word-level timestamps`
-    );
-    return segments;
-  };
-
-  // Enhanced gap-filling function optimized to prevent any audio cutoff
-  const fillSegmentGaps = (segments: WhisperSegment[]) => {
-    if (segments.length === 0) return segments;
-
-    const filledSegments = [];
-    const sortedSegments = [...segments].sort((a, b) => a.start - b.start);
-    const minSegmentDuration = 0.5; // Minimum segment duration
-
-    for (let i = 0; i < sortedSegments.length; i++) {
-      const currentSegment = { ...sortedSegments[i] };
-      const nextSegment = sortedSegments[i + 1];
-
-      // Ensure minimum duration
-      if (currentSegment.end - currentSegment.start < minSegmentDuration) {
-        currentSegment.end = currentSegment.start + minSegmentDuration;
-      }
-
-      // Aggressive gap filling to prevent any audio cutoff
-      if (nextSegment) {
-        const gap = nextSegment.start - currentSegment.end;
-
-        if (gap > 0) {
-          if (gap <= 1.0) {
-            // Small to medium gaps (≤1s) - fill almost completely to prevent cutoff
-            currentSegment.end = nextSegment.start - 0.05; // Leave minimal buffer
-            console.log(
-              `Aggressively filled gap of ${gap.toFixed(
-                3
-              )}s between segments ${i} and ${i + 1}`
-            );
-          } else if (gap <= 2.0) {
-            // Larger gaps (1-2s) - fill most of it to prevent cutoff
-            const extension = gap * 0.85; // Fill 85% of gap
-            currentSegment.end = currentSegment.end + extension;
-            console.log(
-              `Filled large gap of ${gap.toFixed(
-                3
-              )}s by extending ${extension.toFixed(3)}s`
-            );
-          } else if (gap <= 4.0) {
-            // Very large gaps (2-4s) - still extend significantly to prevent cutoff
-            const extension = Math.min(1.0, gap * 0.6); // Max 1s extension, or 60% of gap
-            currentSegment.end = currentSegment.end + extension;
-            console.log(
-              `Extended for very large gap of ${gap.toFixed(
-                3
-              )}s by ${extension.toFixed(3)}s`
-            );
-          } else {
-            // Extremely large gaps (>4s) - minimal extension but still prevent cutoff
-            const extension = Math.min(0.8, gap * 0.3); // Max 0.8s extension
-            currentSegment.end = currentSegment.end + extension;
-            console.log(
-              `Minimal extension for huge gap of ${gap.toFixed(
-                3
-              )}s by ${extension.toFixed(3)}s`
-            );
-          }
-        } else if (gap < 0) {
-          // Overlap - adjust current segment end but leave small buffer
-          currentSegment.end = nextSegment.start - 0.05;
-          console.log(`Resolved overlap between segments ${i} and ${i + 1}`);
-        }
-      }
-
-      filledSegments.push(currentSegment);
-    }
-
-    return filledSegments;
-  };
 
   // Simulate transcription process for demo purposes
   const simulateTranscription = async () => {
@@ -1601,44 +1275,21 @@ export const TranscriptPanel = () => {
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-md mb-3">
               <h4 className="font-medium mb-2">{t("transcript.apiKeyRequired")}</h4>
               <p className="text-xs mb-3">{t("transcript.apiKeyNotice")}</p>
-              <form
-                onSubmit={handleApiKeySubmit}
-                className="flex flex-col space-y-2"
-              >
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={t("transcript.apiKeyPlaceholder")}
-                  className="px-3 py-2 border border-blue-300 dark:border-blue-700 rounded text-sm dark:bg-gray-800 dark:text-gray-200"
-                  required
-                />
-                <div className="flex space-x-2">
-                  <button
-                    type="submit"
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium"
-                  >
-                    {t("transcript.saveApiKey")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKeyInput(false)}
-                    className="px-3 py-1 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs font-medium"
-                  >
-                    {t("common.cancel")}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  <a
-                    href="https://platform.openai.com/api-keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    {t("transcript.getApiKey")}
-                  </a>
-                </p>
-              </form>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleOpenAISettings}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium flex items-center gap-1"
+                >
+                  <Settings size={14} />
+                  {t("transcript.openAiSettings")}
+                </button>
+                <button
+                  onClick={() => setShowApiKeyInput(false)}
+                  className="px-3 py-1 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded text-xs font-medium"
+                >
+                  {t("common.cancel")}
+                </button>
+              </div>
             </div>
           )}
 
@@ -1652,7 +1303,7 @@ export const TranscriptPanel = () => {
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Loader size={24} className="animate-spin text-blue-500 mb-2" />
               <p className="text-gray-600 dark:text-gray-400">
-                {t("transcript.processingWithWhisper")}
+                {t("transcript.processingTranscription")}
               </p>
               <div className="w-full max-w-xs bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-3">
                 <div

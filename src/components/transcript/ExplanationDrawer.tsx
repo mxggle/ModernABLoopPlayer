@@ -1,21 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Drawer } from "../ui/drawer";
-import { ModelSelector } from "../ui/ModelSelector";
 import { MarkdownRenderer } from "../ui/MarkdownRenderer";
 import {
   Loader,
-  Brain,
-  Globe,
   BookOpen,
-  Settings,
   FileText,
-  Zap,
   CheckCircle,
   X,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
 import {
   AIProvider,
   AIServiceConfig,
@@ -77,7 +71,6 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
   text,
 }) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [explanation, setExplanation] = useState<ExplanationResult | null>(
     null
   );
@@ -118,7 +111,7 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-    }, [isOpen, handleClose]);
+  }, [isOpen, handleClose]);
 
   // Subscribe to global explanation state
   useEffect(() => {
@@ -210,7 +203,7 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
     return aiService.validateApiKey(provider, apiKey);
   }, [getApiKey]);
 
-    const generateExplanation = useCallback(async () => {
+  const generateExplanation = useCallback(async () => {
     if (!text.trim()) {
       toast.error(t("explanation.noTextSelected"));
       return;
@@ -289,7 +282,7 @@ Provide a clear, comprehensive explanation that would help someone understand th
       setIsLoading(false);
       setCanCloseWhileLoading(false);
     }
-    }, [text, selectedProvider, selectedModel, targetLanguage, getApiKey, hasValidApiKey, t]);
+  }, [text, selectedProvider, selectedModel, targetLanguage, getApiKey, hasValidApiKey, t]);
 
   // Auto-generate explanation when drawer opens
   useEffect(() => {
@@ -298,23 +291,9 @@ Provide a clear, comprehensive explanation that would help someone understand th
     }
   }, [isOpen, text, explanation, isLoading, error, generateExplanation]);
 
-  const handleProviderChange = (provider: AIProvider) => {
-    setSelectedProvider(provider);
-    // Clear current explanation when provider changes
-    setExplanation(null);
-    setError(null);
-  };
 
-  const handleModelChange = (modelId: string) => {
-    setSelectedModel(modelId);
-    // Save the selected model for this provider
-    localStorage.setItem(`${selectedProvider}_model`, modelId);
-    // Clear current explanation when model changes
-    setExplanation(null);
-    setError(null);
-  };
 
-      
+
   const formatTokenUsage = (usage?: {
     promptTokens: number;
     completionTokens: number;
@@ -353,90 +332,12 @@ Provide a clear, comprehensive explanation that would help someone understand th
           </div>
         )}
 
-        {/* Model Selection */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold flex items-center gap-2"><Brain className="w-5 h-5" />{t("explanation.aiModelSelection")}</h3>
-            <button
-              onClick={() => navigate("/ai-settings")}
-              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
-            >
-              <Settings className="w-4 h-4" />
-              {t("common.settings")}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t("explanation.aiProvider")}</label>
-              <select
-                value={selectedProvider}
-                onChange={(e) =>
-                  handleProviderChange(e.target.value as AIProvider)
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isLoading}
-              >
-                <option value="openai">{t("explanation.providers.openai")}</option>
-                <option value="gemini">{t("explanation.providers.gemini")}</option>
-                <option value="grok">{t("explanation.providers.grok")}</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t("explanation.model")}</label>
-              <ModelSelector
-                selectedModel={selectedModel}
-                onModelSelect={handleModelChange}
-                provider={selectedProvider}
-                placeholder={t("explanation.selectModel")}
-                compact={true}
-                showPricing={false}
-                showCapabilities={false}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          {!hasValidApiKey(selectedProvider) && (
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-              <div className="flex items-center gap-2 text-yellow-800">
-                <Settings className="w-4 h-4" />
-                <span className="text-sm">
-                  {t("explanation.configureApiKeyInSettings", { provider: selectedProvider.toUpperCase() })} <button onClick={() => navigate("/ai-settings")} className="underline hover:no-underline">{t("common.settings")}</button>
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Selected Text */}
         <div>
           <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><FileText className="w-5 h-5" />{t("explanation.selectedText")}</h3>
           <div className="p-4 bg-gray-50 rounded-lg border">
             <p className="text-gray-700 whitespace-pre-wrap">{text}</p>
           </div>
-        </div>
-
-        {/* Generate Button */}
-        <div className="flex gap-3">
-          <button
-            onClick={generateExplanation}
-            disabled={isLoading || !hasValidApiKey(selectedProvider)}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <>
-                <Loader className="w-4 h-4 animate-spin" />
-                {t("explanation.generating")}
-              </>
-            ) : (
-              <>
-                <Zap className="w-4 h-4" />
-                {t(explanation ? "explanation.regenerate" : "explanation.generate")} {t("explanation.explanation")}
-              </>
-            )}
-          </button>
         </div>
 
         {/* Error Display */}
@@ -460,13 +361,12 @@ Provide a clear, comprehensive explanation that would help someone understand th
             <div className="p-4 bg-white border rounded-lg">
               <div className="flex items-center gap-2 mb-3 text-xs text-gray-500">
                 <span
-                  className={`px-2 py-1 rounded text-xs font-medium ${
-                    explanation.provider === "openai"
+                  className={`px-2 py-1 rounded text-xs font-medium ${explanation.provider === "openai"
                       ? "bg-green-100 text-green-700"
                       : explanation.provider === "gemini"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-purple-100 text-purple-700"
-                  }`}
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-purple-100 text-purple-700"
+                    }`}
                 >
                   {explanation.provider.toUpperCase()}
                 </span>
@@ -479,30 +379,7 @@ Provide a clear, comprehensive explanation that would help someone understand th
           </div>
         )}
 
-        {/* Language Settings */}
-        <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><Globe className="w-5 h-5" />{t("explanation.languageSettings")}</h3>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{t("explanation.targetLanguage")}</label>
-            <select
-              value={targetLanguage}
-              onChange={(e) => {
-                setTargetLanguage(e.target.value);
-                localStorage.setItem("target_language", e.target.value);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={isLoading}
-            >
-              <option value="English">{t("explanation.languages.english")}</option>
-              <option value="Spanish">{t("explanation.languages.spanish")}</option>
-              <option value="French">{t("explanation.languages.french")}</option>
-              <option value="German">{t("explanation.languages.german")}</option>
-              <option value="Chinese">{t("explanation.languages.chinese")}</option>
-              <option value="Japanese">{t("explanation.languages.japanese")}</option>
-              <option value="Korean">{t("explanation.languages.korean")}</option>
-            </select>
-          </div>
-        </div>
+
       </div>
     </Drawer>
   );

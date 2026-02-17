@@ -43,6 +43,7 @@ interface ShadowingActions {
     addSegment: (mediaId: string, segment: ShadowingSegment) => void;
     getSegments: (mediaId: string) => ShadowingSegment[];
     clearSegments: (mediaId: string) => void;
+    deleteAllSegments: (mediaId: string) => Promise<void>;
     removeOverlappingSegments: (mediaId: string, startTime: number, endTime: number) => Promise<void>;
 }
 
@@ -75,6 +76,9 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
             addSegment: (mediaId, segment) => set((state) => {
                 const currentSession = state.sessions[mediaId] || { segments: [] };
                 return {
+                    // Ensure new recordings are audible
+                    muted: false,
+                    volume: state.volume === 0 ? 1 : state.volume,
                     sessions: {
                         ...state.sessions,
                         [mediaId]: {
@@ -93,6 +97,30 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
                 const { [mediaId]: removed, ...rest } = state.sessions;
                 return { sessions: rest };
             }),
+
+            deleteAllSegments: async (mediaId) => {
+                const session = get().sessions[mediaId];
+                if (!session) return;
+
+                // Collect unique storage IDs to delete
+                const storageIds = new Set(session.segments.map(s => s.storageId));
+
+                // Clear the session state first
+                set((state) => {
+                    const { [mediaId]: removed, ...rest } = state.sessions;
+                    return { sessions: rest };
+                });
+
+                // Delete all audio files from IndexedDB
+                for (const storageId of storageIds) {
+                    try {
+                        await deleteMediaFile(storageId);
+                        console.log(`🗑️ [ShadowingStore] Deleted recording file:`, storageId);
+                    } catch (error) {
+                        console.error(`🗑️ [ShadowingStore] Failed to delete file ${storageId}:`, error);
+                    }
+                }
+            },
 
             removeOverlappingSegments: async (mediaId, startTime, endTime) => {
                 const currentSession = get().sessions[mediaId];

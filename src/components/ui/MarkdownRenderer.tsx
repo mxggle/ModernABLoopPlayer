@@ -137,12 +137,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
           // Lists
           ul: ({ children }) => (
-            <ul className="list-disc list-inside mb-4 space-y-1 text-gray-700 dark:text-gray-300 ml-4">
+            <ul className="list-disc list-outside pl-6 mb-4 space-y-2 text-gray-700 dark:text-gray-300">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="list-decimal list-inside mb-4 space-y-1 text-gray-700 dark:text-gray-300 ml-4">
+            <ol className="list-decimal list-outside pl-6 mb-4 space-y-2 text-gray-700 dark:text-gray-300">
               {children}
             </ol>
           ),

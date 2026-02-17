@@ -80,8 +80,7 @@ export class AIService {
       // If strict mode is enabled, don't fallback to other services
       if (strictMode) {
         throw new Error(
-          `Failed to generate explanation with ${preferredService}. Fallback to other services is disabled. ${
-            error instanceof Error ? error.message : "Unknown error"
+          `Failed to generate explanation with ${preferredService}. Fallback to other services is disabled. ${error instanceof Error ? error.message : "Unknown error"
           }`
         );
       }
@@ -184,7 +183,7 @@ Please respond in this exact JSON format:
     console.log("Sending prompt to OpenAI:", prompt);
 
     const response = await this.openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4.1-nano",
       messages: [
         {
           role: "system",
@@ -229,7 +228,7 @@ Please respond in this exact JSON format:
     console.log("Sending prompt to Gemini:", prompt);
 
     const response = await this.gemini.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       contents: [
         {
           role: "user",
@@ -272,7 +271,7 @@ Please respond in this exact JSON format:
 
     try {
       const response = await generateText({
-        model: this.grok("grok-2-flash"),
+        model: this.grok("grok-3-mini"),
         messages: [
           {
             role: "system",
@@ -338,8 +337,7 @@ Please respond in this exact JSON format:
     } catch (error) {
       console.error("Error calling Grok API:", error);
       throw new Error(
-        `Grok API error: ${
-          error instanceof Error ? error.message : "Unknown error"
+        `Grok API error: ${error instanceof Error ? error.message : "Unknown error"
         }`
       );
     }

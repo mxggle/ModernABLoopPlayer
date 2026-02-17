@@ -16,6 +16,7 @@ import {
   ChevronsRight,
   Volume2,
   VolumeX,
+  Trash2,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "react-hot-toast";
@@ -24,9 +25,10 @@ import { useTranslation } from "react-i18next";
 // Constant toast ID to ensure only one bookmark notification is shown at a time
 const BOOKMARK_TOAST_ID = "bookmark-action-toast";
 
-// Stable empty array used in selectors to avoid creating
-// a new [] on every render (prevents getSnapshot warnings)
+// Stable empty arrays used in selectors to avoid creating
+// a new [] on every render (prevents infinite re-render loops)
 const EMPTY_BOOKMARKS: readonly any[] = Object.freeze([]);
+const EMPTY_SEGMENTS: readonly any[] = Object.freeze([]);
 
 // Utility function to format time in mm:ss.ms format
 const formatTime = (time: number): string => {
@@ -107,46 +109,46 @@ export const WaveformVisualizer = () => {
     previousMediaVolume,
     setPreviousMediaVolume,
     isPlaying,
+    muted,
+    toggleMute,
   } = usePlayerStore();
 
-  const { getSegments, volume: shadowVolume, setVolume: setShadowVolume, muted: shadowMuted, setMuted: setShadowMuted, currentRecording } = useShadowingStore();
+  const { volume: shadowVolume, setVolume: setShadowVolume, muted: shadowMuted, setMuted: setShadowMuted, currentRecording } = useShadowingStore();
 
   // Use getCurrentMediaId to ensure consistency with how segments are saved
   const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
 
-
-  const shadowingSegments = mediaId ? getSegments(mediaId) : [];
+  // Use a Zustand selector for shadowingSegments to ensure referential stability.
+  // Without this, getSegments() returns a new [] on every render when there are
+  // no segments, which triggers the useEffect -> setShadowingWaveforms -> re-render
+  // loop infinitely.
+  const shadowingSegments = useShadowingStore((state) => {
+    if (!mediaId) return EMPTY_SEGMENTS as any[];
+    return state.sessions[mediaId]?.segments || (EMPTY_SEGMENTS as any[]);
+  });
   const [shadowingWaveforms, setShadowingWaveforms] = useState<{ start: number; data: Float32Array; duration: number }[]>([]);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   // Initialize Shadowing Player
   useShadowingPlayer();
 
   // Load shadowing waveforms
   useEffect(() => {
-    console.log("📊 [WaveformVisualizer] Shadowing segments changed:", { count: shadowingSegments.length, segments: shadowingSegments });
-
     if (shadowingSegments.length === 0) {
-      console.log("📊 [WaveformVisualizer] No shadowing segments, clearing waveforms");
       setShadowingWaveforms([]);
       return;
     }
 
     let active = true;
     const loadShadowing = async () => {
-      console.log("📊 [WaveformVisualizer] Loading shadowing waveforms for", shadowingSegments.length, "segments");
-
       const loaded = await Promise.all(
         shadowingSegments.map(async (seg, index) => {
           try {
-            console.log(`📊 [WaveformVisualizer] Loading segment ${index}:`, { storageId: seg.storageId, startTime: seg.startTime });
-
             const file = await retrieveMediaFile(seg.storageId);
             if (!file) {
-              console.warn(`📊 [WaveformVisualizer] No file found for segment ${index}`);
+              console.warn(`[WaveformVisualizer] No file found for segment ${index}`);
               return null;
             }
-
-            console.log(`📊 [WaveformVisualizer] Retrieved file for segment ${index}:`, { name: file.name, size: file.size });
 
             const arrayBuffer = await file.arrayBuffer();
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -166,14 +168,9 @@ export const WaveformVisualizer = () => {
               rawData = rawData.slice(startSample, endSample);
             }
 
-            const data = downsampleAudioData(rawData, 1000); // Lower resolution for shadowing is fine
+            const data = downsampleAudioData(rawData, 1000);
 
-            console.log(`📊 [WaveformVisualizer] Decoded segment ${index}:`, {
-              originalDuration: audioBuffer.duration,
-              segmentDuration,
-              fileOffset,
-              samples: data.length
-            });
+            audioContext.close();
 
             return {
               start: seg.startTime,
@@ -181,7 +178,7 @@ export const WaveformVisualizer = () => {
               duration: segmentDuration
             };
           } catch (e) {
-            console.error(`📊 [WaveformVisualizer] Failed to load shadowing segment ${index}:`, e);
+            console.error(`[WaveformVisualizer] Failed to load shadowing segment ${index}:`, e);
             return null;
           }
         })
@@ -189,7 +186,6 @@ export const WaveformVisualizer = () => {
 
       if (active) {
         const validWaveforms = loaded.filter((s): s is NonNullable<typeof s> => s !== null);
-        console.log("📊 [WaveformVisualizer] Loaded shadowing waveforms:", { total: shadowingSegments.length, valid: validWaveforms.length });
         setShadowingWaveforms(validWaveforms);
       }
     };
@@ -570,51 +566,12 @@ export const WaveformVisualizer = () => {
         }
       });
 
-    const lanePaddingCss = isMobile ? 36 : 28; // Increased padding for timeline ruler
+    const lanePaddingCss = isMobile ? 8 : 4; // Minimal top padding (ruler removed)
     const laneHeightCss = isMobile ? 24 : 16; // px height per lane (bolder on mobile)
     const laneGapCss = isMobile ? 4 : 3; // px spacing between lanes
     const toCanvasX = (t: number) =>
       ((t - startOffset) / visibleDuration) *
       canvas.width;
-
-    // --- Draw Timeline Ruler ---
-    const rulerHeight = (isMobile ? 28 : 22) * dpr;
-    // Draw ruler background (Dark professional look like video editing apps)
-    ctx.fillStyle = "rgba(17, 24, 39, 0.85)"; // Dark slate
-    ctx.fillRect(0, 0, canvas.width, rulerHeight);
-
-    // Draw ticks and labels
-    const safeVisibleDuration = visibleDuration || 1;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"; // Brighter ticks
-    ctx.lineWidth = 1 * dpr;
-    const tickIntervals = [0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600];
-    let interval = tickIntervals.find(i => (safeVisibleDuration / i) <= 12) || 600;
-    const subInterval = interval / 5;
-
-    const firstTick = Math.floor(startOffset / subInterval) * subInterval;
-    ctx.font = `${isMobile ? 14 : 10}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; // Bright white for labels
-    ctx.textAlign = "center";
-
-    for (let t = firstTick; t <= endOffset; t += subInterval) {
-      if (t < startOffset) continue;
-      const x = toCanvasX(t);
-      const isMajor = Math.abs(t % interval) < (subInterval / 2);
-
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, (isMajor ? 10 : 5) * dpr);
-      ctx.stroke();
-
-      if (isMajor) {
-        // Use a simpler format for ruler labels to avoid clutter
-        const m = Math.floor(t / 60);
-        const s = Math.floor(t % 60);
-        const ms = Math.floor((t % 1) * 10);
-        const label = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}${interval < 1 ? `.${ms}` : ""}`;
-        ctx.fillText(label, x, (isMobile ? 24 : 18) * dpr);
-      }
-    }
     // const topYCanvas = lanePaddingCss * dpr; // Unused variable
     assigned.forEach(({ id, start, end, lane }) => {
       const x1c = toCanvasX(start);
@@ -866,6 +823,7 @@ export const WaveformVisualizer = () => {
     loopStart,
     loopEnd,
     waveformZoom,
+    scrollOffset,
     showWaveform,
     bookmarks,
     selectedBookmarkId,
@@ -1568,9 +1526,10 @@ export const WaveformVisualizer = () => {
   };
 
   return (
-    <div className="mt-2 backdrop-blur-sm rounded-lg overflow-hidden border border-purple-500/30 relative">
-      {/* Zoom controls - moved to top-left; hidden on mobile (use pinch) */}
-      {/* {!isMobile && (
+    <>
+      <div className="mt-2 backdrop-blur-sm rounded-lg overflow-hidden border border-purple-500/30 relative">
+        {/* Zoom controls - moved to top-left; hidden on mobile (use pinch) */}
+        {/* {!isMobile && (
         <div className={`absolute top-1 left-1 z-10 flex items-center gap-1 bg-gray-900/60 backdrop-blur rounded-full ring-1 ring-white/10 shadow-md px-1.5 py-1`}>
           <button
             className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-8 w-8`}
@@ -1597,426 +1556,91 @@ export const WaveformVisualizer = () => {
         </div>
       )} */}
 
-      {/* Quick loop actions were moved inside the canvas container to avoid overlapping the footer */}
+        {/* Quick loop actions were moved inside the canvas container to avoid overlapping the footer */}
 
-      {/* Waveform visualization with drag selection and touch support */}
-      <div
-        ref={containerRef}
-        className={`${isMobile ? "h-56" : "h-40 sm:h-48 lg:h-56"
-          } overflow-hidden relative touch-none select-none`}
-        style={{ touchAction: "none" }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-        onClick={handleWaveformClick}
-        onWheel={handleMouseWheel}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* In-canvas quick loop actions - shown on both mobile and desktop */}
-        {(
-          <div
-            className={`absolute bottom-2 right-2 z-10 flex items-center gap-1 bg-gray-900/60 backdrop-blur rounded-full ring-1 ring-white/10 shadow-md px-1.5 py-1`}
-            onMouseDown={stopPropagation}
-            onClick={stopPropagation}
-            onTouchStart={stopPropagation}
-            onWheel={
-              stopPropagation as unknown as React.WheelEventHandler<HTMLDivElement>
-            }
-            onPointerDown={stopPropagation}
-          >
-            <button
-              className={`${isLooping
-                ? "bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white"
-                : "text-white hover:bg-white/10 active:bg-white/20"
-                } inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
-                }`}
-              onClick={() => setIsLooping(!isLooping)}
-              title={isLooping ? t("loop.disableLoop") : t("loop.enableLoop")}
-              aria-label={t("player.toggleLooping")}
-            >
-              <Repeat size={isMobile ? 16 : 14} />
-            </button>
-            <button
-              className={`${autoAdvanceBookmarks
-                ? "bg-purple-600 text-white"
-                : "text-white hover:bg-white/10 active:bg-white/20"
-                } inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
-                }`}
-              onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}
-              title={
-                autoAdvanceBookmarks
-                  ? t("player.autoAdvanceOn")
-                  : t("player.autoAdvanceOff")
-              }
-              aria-label={t("player.toggleAutoAdvance")}
-            >
-              <ChevronsRight size={isMobile ? 16 : 14} />
-            </button>
-            <button
-              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
-                }`}
-              onClick={() => {
-                if (duration === 0) return;
-                if (loopEnd !== null && currentTime >= loopEnd) {
-                  setLoopPoints(currentTime, null);
-                  setIsLooping(false);
-                } else {
-                  setLoopPoints(currentTime, loopEnd);
-                  if (loopEnd !== null) setIsLooping(true);
-                }
-              }}
-              title={t("loop.setStart")}
-              aria-label={t("loop.setStart")}
-            >
-              <AlignStartHorizontal size={isMobile ? 16 : 14} />
-            </button>
-            <button
-              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
-                }`}
-              onClick={() => {
-                if (duration === 0) return;
-                const start = loopStart !== null ? loopStart : 0;
-                if (currentTime > start) {
-                  setLoopPoints(start, currentTime);
-                  setIsLooping(true);
-                }
-              }}
-              title={t("loop.setEnd")}
-              aria-label={t("loop.setEnd")}
-            >
-              <AlignEndHorizontal size={isMobile ? 16 : 14} />
-            </button>
-            <button
-              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
-                }`}
-              onClick={() => {
-                setLoopPoints(null, null);
-                setIsLooping(false);
-              }}
-              title={t("loop.clearLoopPoints")}
-              aria-label={t("loop.clearLoopPoints")}
-            >
-              <X size={isMobile ? 16 : 14} />
-            </button>
-            <button
-              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
-                }`}
-              onClick={() => goToBookmark("prev")}
-              title={t("player.previousBookmark")}
-              aria-label={t("player.previousBookmark")}
-              disabled={(bookmarks?.length || 0) === 0}
-            >
-              <ChevronLeft size={isMobile ? 16 : 14} />
-            </button>
-            <button
-              className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
-                }`}
-              onClick={() => goToBookmark("next")}
-              title={t("player.nextBookmark")}
-              aria-label={t("player.nextBookmark")}
-              disabled={(bookmarks?.length || 0) === 0}
-            >
-              <ChevronRight size={isMobile ? 16 : 14} />
-            </button>
-
-            <button
-              className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
-                } ${selectedBookmarkId
-                  ? "bg-purple-700 hover:bg-red-500/80 active:bg-red-500/90" // Active/Delete mode
-                  : loopStart !== null && loopEnd !== null
-                    ? "bg-purple-600/50 hover:bg-purple-700 active:bg-purple-800" // Add mode
-                    : "bg-purple-600/40 cursor-not-allowed" // Disabled
-                }`}
-              onClick={() => {
-                if (selectedBookmarkId) {
-                  // Delete mode
-                  deleteBookmark(selectedBookmarkId);
-                  toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
-                } else if (loopStart !== null && loopEnd !== null) {
-                  // Check if a bookmark already exists for this range
-                  const TOL = 0.05; // 50ms tolerance (same as in playerStore)
-                  const existingBookmarks = usePlayerStore.getState().getCurrentMediaBookmarks();
-                  const existingBookmark = existingBookmarks.find(
-                    (b) => Math.abs(b.start - loopStart) < TOL && Math.abs(b.end - loopEnd) < TOL
-                  );
-
-                  if (existingBookmark) {
-                    // If a bookmark already exists for this exact range, remove it (toggle behavior)
-                    deleteBookmark(existingBookmark.id);
-                    toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
-                  } else {
-                    // Add mode - create new bookmark
-                    const added = storeAddBookmark({
-                      name: `Clip ${usePlayerStore.getState().getCurrentMediaBookmarks()
-                        .length + 1
-                        }`,
-                      start: loopStart,
-                      end: loopEnd,
-                      playbackRate,
-                      mediaName: currentFile?.name,
-                      mediaType: currentFile?.type,
-                      youtubeId: undefined,
-                      annotation: "",
-                    });
-                    if (added) toast.success(t("bookmarks.bookmarkAdded"), { id: BOOKMARK_TOAST_ID });
-                  }
-                }
-              }}
-              disabled={!selectedBookmarkId && !(loopStart !== null && loopEnd !== null)}
-              title={selectedBookmarkId ? t("bookmarks.removeBookmarkTooltip") : t("bookmarks.addBookmarkTooltip")}
-              aria-label={selectedBookmarkId ? t("bookmarks.removeBookmarkTooltip") : t("bookmarks.addBookmarkTooltip")}
-            >
-              <Bookmark size={isMobile ? 16 : 14} />
-            </button>
-          </div>
-        )}
-        <canvas ref={canvasRef} className="w-full h-full cursor-crosshair" />
-
-        {/* Overlapping bookmarks picker */}
-        {overlapMenu && (
-          <div
-            className={
-              isMobile
-                ? "absolute z-20 bg-gray-900/90 text-white rounded-lg shadow-lg ring-1 ring-white/10 backdrop-blur"
-                : "absolute z-20 bg-gray-900/90 text-white text-xs rounded-lg shadow-lg ring-1 ring-white/10 backdrop-blur min-w-[160px]"
-            }
-            style={
-              isMobile
-                ? { left: 8, right: 8, top: 8 }
-                : {
-                  left: overlapMenu.x,
-                  top: Math.min(
-                    overlapMenu.y,
-                    (containerRef.current?.clientHeight || 0) - 8
-                  ),
-                }
-            }
-            onMouseDown={stopPropagation}
-            onClick={stopPropagation}
-            onTouchStart={stopPropagation}
-          >
-            {overlapMenu.items.map((item) => (
-              <button
-                key={item.id}
-                className={
-                  isMobile
-                    ? "w-full text-left px-4 py-3 text-sm hover:bg-white/10 focus:bg-white/10 focus:outline-none"
-                    : "w-full text-left px-3 py-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none"
-                }
-                onClick={() => handleSelectBookmark(item.id)}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={isMobile ? "truncate" : "truncate max-w-[120px]"}
-                  >
-                    {item.name || "Clip"}
-                  </span>
-                  <span
-                    className={
-                      isMobile
-                        ? "ml-2 text-xs text-white/70"
-                        : "ml-2 text-[11px] text-white/70"
-                    }
-                  >
-                    {formatTime(item.start)}–{formatTime(item.end)}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Visual indicator for dragging selection */}
-        {isDragging && dragStart !== null && dragEnd !== null && (
-          <div
-            className="absolute bg-purple-500/30 border border-purple-500 pointer-events-none"
-            style={{
-              left: `${timeToPosition(Math.min(dragStart, dragEnd))}%`,
-              width: `${timeToPosition(Math.max(dragStart, dragEnd)) -
-                timeToPosition(Math.min(dragStart, dragEnd))
-                }%`,
-              top: 0,
-              height: "100%",
-              zIndex: 5,
-            }}
-          />
-        )}
-
-        {/* YouTube Waveform Notice */}
-        {currentYouTube && !isYoutubeNoticeDismissed && (
-          <div className="absolute top-2 right-2 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/50 backdrop-blur-sm rounded border border-white/10 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
-            <span className="text-white/80 text-xs font-medium">
-              {t("waveform.youtubePlaceholder")}
-            </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsYoutubeNoticeDismissed(true);
-              }}
-              className="p-0.5 hover:bg-white/20 rounded-full text-white/70 hover:text-white transition-colors"
-            >
-              <X size={12} />
-            </button>
-          </div>
-        )}
-
-        {/* Tooltip for current hover/touch position */}
-        {hoverTime !== null && (
-          <div
-            className={`absolute bg-gray-800/90 text-white ${isMobile ? "text-sm px-3 py-1.5" : "text-xs px-2 py-1"
-              } rounded pointer-events-none z-10`}
-            style={{
-              left: `${timeToPosition(hoverTime)}%`,
-              top: isMobile ? "10px" : "0px",
-              transform: "translateX(-50%)",
-            }}
-            onTouchStart={stopPropagation}
-          >
-            {formatTime(hoverTime)}
-          </div>
-        )}
-
-        {/* Playhead time code - Video editing app style, moved to bottom */}
+        {/* Waveform visualization with drag selection and touch support */}
         <div
-          className={`absolute bottom-0 mb-1 bg-red-600 text-white font-mono font-bold px-2 py-0.5 rounded-sm shadow-[0_2px_8px_rgba(0,0,0,0.4)] pointer-events-none z-[25] ${isMobile ? "text-[11px]" : "text-[10px]"
-            } border border-red-500/20`}
-          style={{
-            left: `${timeToPosition(currentTime)}%`,
-            transform: "translateX(-50%)",
-          }}
+          ref={containerRef}
+          className={`${isMobile ? "h-56" : "h-40 sm:h-48 lg:h-56"
+            } overflow-hidden relative touch-none select-none`}
+          style={{ touchAction: "none" }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleWaveformClick}
+          onWheel={handleMouseWheel}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
-          {formatTime(currentTime)}
-          {/* Tip pointer at bottom pointing UP */}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[4px] border-b-red-600"></div>
-        </div>
-      </div>
 
-      {/* Loop controls - responsive design for mobile */}
-      <div
-        className={`flex ${isMobile ? "flex-col" : "items-center justify-between"
-          } p-1 bg-gray-900/50`}
-        onMouseDown={stopPropagation}
-        onClick={stopPropagation}
-        onTouchStart={stopPropagation}
-      >
-        {/* Mobile bookmark controls moved to PlaybackControls component */}
-        <div
-          className={`flex items-center ${isMobile ? "mb-1 justify-between w-full" : "space-x-2"
-            }`}
-        >
-          <span
-            className={
-              isMobile ? "text-sm text-white font-medium" : "text-xs text-white"
-            }
-          >
-            {t("waveform.loopLabel")}{" "}
-          </span>
-          {loopStart !== null && loopEnd !== null ? (
+          <canvas ref={canvasRef} className="w-full h-full cursor-crosshair" />
+
+          {/* Media Volume Control - overlaid on top-left of media waveform lane */}
+          {showWaveform && (
             <div
-              className={`flex items-center ${isMobile ? "space-x-2 flex-1 justify-end" : "space-x-1"
-                }`}
+              className={`absolute left-2 z-10 group/vol flex items-center bg-black/60 backdrop-blur-md border border-white/20 rounded-full h-8 pointer-events-auto transition-all duration-200 -translate-y-1/2 ${shadowingWaveforms.length > 0 ? "top-[25%]" : "top-1/2"} ${isMobile ? "opacity-100" : ""}`}
+              onMouseDown={stopPropagation}
+              onClick={stopPropagation}
+              onTouchStart={stopPropagation}
+              onPointerDown={stopPropagation}
             >
-              <span
-                className={
-                  isMobile ? "text-sm text-white" : "text-xs text-white"
-                }
-              >
-                {formatTime(loopStart)} - {formatTime(loopEnd)}
-              </span>
               <button
-                className={`bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded ${isMobile ? "text-sm px-3 py-1 ml-2" : "text-xs px-2 py-0.5"
-                  }`}
-                onClick={handleLoopSelection}
-                title={
-                  activeBookmark
-                    ? activeBookmark.name
-                    : t("waveform.loopSelection")
-                }
-              >
-                <span className="inline-block max-w-[50vw] sm:max-w-[220px] truncate align-middle">
-                  {activeBookmark
-                    ? activeBookmark.name
-                    : t("waveform.loopSelection")}
-                </span>
-              </button>
-              <button
-                className={`bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded ${isMobile ? "text-sm px-2 py-1 ml-1" : "text-xs px-1.5 py-0.5 ml-1"
-                  }`}
-                onClick={() => {
-                  setLoopPoints(null, null);
-                  setIsLooping(false);
-                }}
-                title={t("loop.clearLoopPoints")}
-                aria-label={t("loop.clearLoopPoints")}
-              >
-                <X size={isMobile ? 16 : 12} />
-              </button>
-            </div>
-          ) : (
-            <span
-              className={
-                isMobile
-                  ? "text-sm text-gray-400 flex-1 text-right"
-                  : "text-xs text-gray-400"
-              }
-            >
-              {isMobile
-                ? t("waveform.touchSelectHint")
-                : t("waveform.desktopSelectHint")}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Track Controls Overlay */}
-      {showWaveform && (
-        <div className="absolute top-2 left-2 z-10 flex flex-col gap-2 pointer-events-none">
-          {/* Media Track Control */}
-          <div className="bg-black/50 backdrop-blur-sm rounded p-1 flex items-center gap-1 group transition-all hover:bg-black/70 pointer-events-auto">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (mediaVolume === 0) {
-                  // Unmute: restore previous volume
-                  if (previousMediaVolume !== undefined && previousMediaVolume > 0) {
-                    setMediaVolume(previousMediaVolume);
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (mediaVolume === 0) {
+                    if (previousMediaVolume !== undefined && previousMediaVolume > 0) {
+                      setMediaVolume(previousMediaVolume);
+                    } else {
+                      setMediaVolume(1);
+                    }
                   } else {
-                    setMediaVolume(1); // Default to 100%
+                    setPreviousMediaVolume(mediaVolume);
+                    setMediaVolume(0);
                   }
-                } else {
-                  // Mute: store current volume and set to 0
-                  setPreviousMediaVolume(mediaVolume);
-                  setMediaVolume(0);
-                }
-              }}
-              className="p-1 hover:bg-white/10 rounded text-white/90"
-            >
-              {mediaVolume === 0 ? <VolumeX size={12} /> : <Volume2 size={12} />}
-            </button>
-            <div className="w-16 px-1">
-              <Slider
-                value={[mediaVolume]}
-                min={0}
-                max={1}
-                step={0.01}
-                onValueChange={(v) => setMediaVolume(v[0])}
-                className="h-3 cursor-pointer [&>span:first-of-type]:bg-black/40 [&>span:first-of-type>span]:bg-white"
-              />
+                }}
+                className="h-full px-2.5 text-white/70 hover:text-white transition-colors"
+                title="Media Volume"
+              >
+                {(mediaVolume === 0 || muted) ? <VolumeX size={isMobile ? 16 : 14} /> : <Volume2 size={isMobile ? 16 : 14} />}
+              </button>
+              <div className={`overflow-hidden transition-all duration-300 ${isMobile ? "max-w-[120px]" : "max-w-0 group-hover/vol:max-w-[100px]"}`}>
+                <div className={`${isMobile ? "w-[100px]" : "w-24"} pr-4`}>
+                  <Slider
+                    value={[muted ? 0 : mediaVolume]}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    onValueChange={(v) => {
+                      setMediaVolume(v[0]);
+                      if (v[0] > 0 && muted) {
+                        toggleMute();
+                      }
+                    }}
+                    className="cursor-pointer"
+                    thumbClassName="!h-3.5 !w-3.5 !border-0 !bg-white !shadow-[0_0_6px_rgba(255,255,255,0.6)]"
+                    trackClassName="!h-1 !bg-white/20"
+                    rangeClassName="!bg-white"
+                  />
+                </div>
+              </div>
             </div>
-            <span className="text-[10px] text-white/70 px-1 font-mono">MEDIA</span>
-          </div>
+          )}
 
-          {/* Shadowing Track Control */}
-          {shadowingWaveforms.length > 0 && (
-            <div className="bg-black/50 backdrop-blur-sm rounded p-1 flex items-center gap-1 group transition-all hover:bg-black/70 pointer-events-auto" style={{ marginTop: canvasRef.current ? (canvasRef.current.clientHeight / 2) - 40 : 100 }}>
+          {/* REC Volume Control - overlaid on left of shadowing waveform lane (bottom half) */}
+          {showWaveform && shadowingWaveforms.length > 0 && (
+            <div
+              className={`absolute left-2 top-[75%] -translate-y-1/2 z-10 group/svol flex items-center bg-black/60 backdrop-blur-md border border-white/20 rounded-full h-8 pointer-events-auto transition-all duration-200 ${isMobile ? "opacity-100" : ""}`}
+              onMouseDown={stopPropagation}
+              onClick={stopPropagation}
+              onTouchStart={stopPropagation}
+              onPointerDown={stopPropagation}
+            >
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   if (shadowMuted) {
-                    // Unmute: restore previous volume
                     const previousVolume = useShadowingStore.getState().previousShadowVolume;
                     if (previousVolume !== undefined && previousVolume > 0) {
                       setShadowVolume(previousVolume);
@@ -2025,31 +1649,439 @@ export const WaveformVisualizer = () => {
                     }
                     setShadowMuted(false);
                   } else {
-                    // Mute: store current volume and set to 0
                     useShadowingStore.getState().setPreviousShadowVolume(shadowVolume);
                     setShadowVolume(0);
                     setShadowMuted(true);
                   }
                 }}
-                className="p-1 hover:bg-white/10 rounded text-white/90"
+                className="h-full px-2.5 text-white/70 hover:text-white transition-colors"
+                title="Recording Volume"
               >
-                {shadowMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                {(shadowMuted || shadowVolume === 0 || muted) ? <VolumeX size={isMobile ? 16 : 14} /> : <Volume2 size={isMobile ? 16 : 14} />}
               </button>
-              <div className="w-16 px-1">
-                <Slider
-                  value={[shadowVolume]}
-                  min={0}
-                  max={1}
-                  step={0.1}
-                  onValueChange={(v) => setShadowVolume(v[0])}
-                  className="h-3 cursor-pointer [&>span:first-of-type]:bg-black/40 [&>span:first-of-type>span]:bg-white"
-                />
+              <div className={`overflow-hidden transition-all duration-300 ${isMobile ? "max-w-[120px]" : "max-w-0 group-hover/svol:max-w-[100px]"}`}>
+                <div className={`${isMobile ? "w-[100px]" : "w-24"} pr-4`}>
+                  <Slider
+                    value={[(shadowMuted || muted) ? 0 : shadowVolume]}
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    onValueChange={(v) => {
+                      setShadowVolume(v[0]);
+                      if (v[0] > 0) {
+                        if (shadowMuted) setShadowMuted(false);
+                        if (muted) toggleMute();
+                      }
+                    }}
+                    className="cursor-pointer"
+                    thumbClassName="!h-3.5 !w-3.5 !border-0 !bg-white !shadow-[0_0_6px_rgba(255,255,255,0.6)]"
+                    trackClassName="!h-1 !bg-white/20"
+                    rangeClassName="!bg-white"
+                  />
+                </div>
               </div>
-              <span className="text-[10px] text-white/70 px-1 font-mono">REC</span>
+            </div>
+          )}
+
+          {/* Overlapping bookmarks picker */}
+          {overlapMenu && (
+            <div
+              className={
+                isMobile
+                  ? "absolute z-20 bg-gray-900/90 text-white rounded-lg shadow-lg ring-1 ring-white/10 backdrop-blur"
+                  : "absolute z-20 bg-gray-900/90 text-white text-xs rounded-lg shadow-lg ring-1 ring-white/10 backdrop-blur min-w-[160px]"
+              }
+              style={
+                isMobile
+                  ? { left: 8, right: 8, top: 8 }
+                  : {
+                    left: overlapMenu.x,
+                    top: Math.min(
+                      overlapMenu.y,
+                      (containerRef.current?.clientHeight || 0) - 8
+                    ),
+                  }
+              }
+              onMouseDown={stopPropagation}
+              onClick={stopPropagation}
+              onTouchStart={stopPropagation}
+            >
+              {overlapMenu.items.map((item) => (
+                <button
+                  key={item.id}
+                  className={
+                    isMobile
+                      ? "w-full text-left px-4 py-3 text-sm hover:bg-white/10 focus:bg-white/10 focus:outline-none"
+                      : "w-full text-left px-3 py-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none"
+                  }
+                  onClick={() => handleSelectBookmark(item.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={isMobile ? "truncate" : "truncate max-w-[120px]"}
+                    >
+                      {item.name || "Clip"}
+                    </span>
+                    <span
+                      className={
+                        isMobile
+                          ? "ml-2 text-xs text-white/70"
+                          : "ml-2 text-[11px] text-white/70"
+                      }
+                    >
+                      {formatTime(item.start)}–{formatTime(item.end)}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Visual indicator for dragging selection */}
+          {isDragging && dragStart !== null && dragEnd !== null && (
+            <div
+              className="absolute bg-purple-500/30 border border-purple-500 pointer-events-none"
+              style={{
+                left: `${timeToPosition(Math.min(dragStart, dragEnd))}%`,
+                width: `${timeToPosition(Math.max(dragStart, dragEnd)) -
+                  timeToPosition(Math.min(dragStart, dragEnd))
+                  }%`,
+                top: 0,
+                height: "100%",
+                zIndex: 5,
+              }}
+            />
+          )}
+
+          {/* YouTube Waveform Notice */}
+          {currentYouTube && !isYoutubeNoticeDismissed && (
+            <div className="absolute top-2 right-2 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/50 backdrop-blur-sm rounded border border-white/10 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+              <span className="text-white/80 text-xs font-medium">
+                {t("waveform.youtubePlaceholder")}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsYoutubeNoticeDismissed(true);
+                }}
+                className="p-0.5 hover:bg-white/20 rounded-full text-white/70 hover:text-white transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+
+          {/* Tooltip for current hover/touch position */}
+          {hoverTime !== null && (
+            <div
+              className={`absolute bg-gray-800/90 text-white ${isMobile ? "text-sm px-3 py-1.5" : "text-xs px-2 py-1"
+                } rounded pointer-events-none z-10`}
+              style={{
+                left: `${timeToPosition(hoverTime)}%`,
+                top: isMobile ? "10px" : "0px",
+                transform: "translateX(-50%)",
+              }}
+              onTouchStart={stopPropagation}
+            >
+              {formatTime(hoverTime)}
+            </div>
+          )}
+
+          {/* Playhead time code - Video editing app style, moved to bottom */}
+          <div
+            className={`absolute bottom-0 mb-1 bg-red-600 text-white font-mono font-bold px-2 py-0.5 rounded-sm shadow-[0_2px_8px_rgba(0,0,0,0.4)] pointer-events-none z-[25] ${isMobile ? "text-[11px]" : "text-[10px]"
+              } border border-red-500/20`}
+            style={{
+              left: `${timeToPosition(currentTime)}%`,
+              transform: "translateX(-50%)",
+            }}
+          >
+            {formatTime(currentTime)}
+            {/* Tip pointer at bottom pointing UP */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[4px] border-b-red-600"></div>
+          </div>
+
+          {/* Delete Recording Button - Grid layout: Top Right of bottom (shadowing) lane */}
+          {shadowingWaveforms.length > 0 && (
+            <div
+              className="absolute right-2 z-30 top-[calc(50%+8px)] transition-all duration-200"
+              onMouseDown={stopPropagation}
+              onClick={stopPropagation}
+            >
+              {!isConfirmingDelete ? (
+                <button
+                  className="bg-gray-900/30 text-white/40 border border-white/5 hover:bg-red-900/40 hover:text-red-200 hover:border-red-500/30 p-1.5 rounded-md backdrop-blur-md transition-all shadow-sm"
+                  onClick={() => setIsConfirmingDelete(true)}
+                  title="Delete All Recordings"
+                >
+                  <Trash2 size={14} />
+                </button>
+              ) : (
+                <div className="flex items-center bg-red-600 text-white rounded-md shadow-lg border border-red-500 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                  <button
+                    className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-700 transition-colors border-r border-red-500"
+                    onClick={async () => {
+                      if (mediaId) {
+                        await useShadowingStore.getState().deleteAllSegments(mediaId);
+                        toast.success("Recordings deleted");
+                      }
+                      setIsConfirmingDelete(false);
+                    }}
+                  >
+                    <Trash2 size={13} />
+                    <span className="text-xs font-bold leading-none">Delete</span>
+                  </button>
+                  <button
+                    className="p-1.5 hover:bg-red-700 transition-colors flex items-center justify-center"
+                    onClick={() => setIsConfirmingDelete(false)}
+                    title="Cancel"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
-    </div>
+
+        {/* Footer bar: Loop controls + Volume controls */}
+        <div
+          className={`flex ${isMobile ? "flex-col" : "items-center justify-between"
+            } p-1 bg-gray-900/50`}
+          onMouseDown={stopPropagation}
+          onClick={stopPropagation}
+          onTouchStart={stopPropagation}
+        >
+          {/* Left side: Loop info */}
+          <div
+            className={`flex items-center ${isMobile ? "mb-1 justify-between w-full" : "space-x-2"
+              }`}
+          >
+            <span
+              className={
+                isMobile ? "text-sm text-white font-medium" : "text-xs text-white"
+              }
+            >
+              {t("waveform.loopLabel")}{" "}
+            </span>
+            {loopStart !== null && loopEnd !== null ? (
+              <div
+                className={`flex items-center ${isMobile ? "space-x-2 flex-1 justify-end" : "space-x-1"
+                  }`}
+              >
+                <span
+                  className={
+                    isMobile ? "text-sm text-white" : "text-xs text-white"
+                  }
+                >
+                  {formatTime(loopStart)} - {formatTime(loopEnd)}
+                </span>
+                <button
+                  className={`bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded ${isMobile ? "text-sm px-3 py-1 ml-2" : "text-xs px-2 py-0.5"
+                    }`}
+                  onClick={handleLoopSelection}
+                  title={
+                    activeBookmark
+                      ? activeBookmark.name
+                      : t("waveform.loopSelection")
+                  }
+                >
+                  <span className="inline-block max-w-[50vw] sm:max-w-[220px] truncate align-middle">
+                    {activeBookmark
+                      ? activeBookmark.name
+                      : t("waveform.loopSelection")}
+                  </span>
+                </button>
+                <button
+                  className={`bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded ${isMobile ? "text-sm px-2 py-1 ml-1" : "text-xs px-1.5 py-0.5 ml-1"
+                    }`}
+                  onClick={() => {
+                    setLoopPoints(null, null);
+                    setIsLooping(false);
+                  }}
+                  title={t("loop.clearLoopPoints")}
+                  aria-label={t("loop.clearLoopPoints")}
+                >
+                  <X size={isMobile ? 16 : 12} />
+                </button>
+              </div>
+            ) : (
+              <span
+                className={
+                  isMobile
+                    ? "text-sm text-gray-400 flex-1 text-right"
+                    : "text-xs text-gray-400"
+                }
+              >
+                {isMobile
+                  ? t("waveform.touchSelectHint")
+                  : t("waveform.desktopSelectHint")}
+              </span>
+            )}
+          </div>
+
+        </div>
+
+
+      </div>
+
+      {/* Toolbar Float - moved outside and below the waveform box */}
+      <div className="flex justify-center mt-2 px-1 relative z-10">
+        <div
+          className={`flex items-center gap-1 bg-gray-900/60 backdrop-blur rounded-full ring-1 ring-white/10 shadow-md px-1.5 py-1`}
+          onMouseDown={stopPropagation}
+          onClick={stopPropagation}
+          onTouchStart={stopPropagation}
+          onWheel={
+            stopPropagation as unknown as React.WheelEventHandler<HTMLDivElement>
+          }
+          onPointerDown={stopPropagation}
+        >
+          <button
+            className={`${isLooping
+              ? "bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white"
+              : "text-white hover:bg-white/10 active:bg-white/20"
+              } inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+              }`}
+            onClick={() => setIsLooping(!isLooping)}
+            title={isLooping ? t("loop.disableLoop") : t("loop.enableLoop")}
+            aria-label={t("player.toggleLooping")}
+          >
+            <Repeat size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`${autoAdvanceBookmarks
+              ? "bg-purple-600 text-white"
+              : "text-white hover:bg-white/10 active:bg-white/20"
+              } inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+              }`}
+            onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}
+            title={
+              autoAdvanceBookmarks
+                ? t("player.autoAdvanceOn")
+                : t("player.autoAdvanceOff")
+            }
+            aria-label={t("player.toggleAutoAdvance")}
+          >
+            <ChevronsRight size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+              }`}
+            onClick={() => {
+              if (duration === 0) return;
+              if (loopEnd !== null && currentTime >= loopEnd) {
+                setLoopPoints(currentTime, null);
+                setIsLooping(false);
+              } else {
+                setLoopPoints(currentTime, loopEnd);
+                if (loopEnd !== null) setIsLooping(true);
+              }
+            }}
+            title={t("loop.setStart")}
+            aria-label={t("loop.setStart")}
+          >
+            <AlignStartHorizontal size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+              }`}
+            onClick={() => {
+              if (duration === 0) return;
+              const start = loopStart !== null ? loopStart : 0;
+              if (currentTime > start) {
+                setLoopPoints(start, currentTime);
+                setIsLooping(true);
+              }
+            }}
+            title={t("loop.setEnd")}
+            aria-label={t("loop.setEnd")}
+          >
+            <AlignEndHorizontal size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+              }`}
+            onClick={() => {
+              setLoopPoints(null, null);
+              setIsLooping(false);
+            }}
+            title={t("loop.clearLoopPoints")}
+            aria-label={t("loop.clearLoopPoints")}
+          >
+            <X size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+              }`}
+            onClick={() => goToBookmark("prev")}
+            title={t("player.previousBookmark")}
+            aria-label={t("player.previousBookmark")}
+            disabled={(bookmarks?.length || 0) === 0}
+          >
+            <ChevronLeft size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+              }`}
+            onClick={() => goToBookmark("next")}
+            title={t("player.nextBookmark")}
+            aria-label={t("player.nextBookmark")}
+            disabled={(bookmarks?.length || 0) === 0}
+          >
+            <ChevronRight size={isMobile ? 16 : 14} />
+          </button>
+          <button
+            className={`inline-flex items-center justify-center rounded-full text-white focus:outline-none focus:ring-2 focus:ring-purple-400 ${isMobile ? "h-9 w-9" : "h-8 w-8"
+              } ${selectedBookmarkId
+                ? "bg-purple-700 hover:bg-red-500/80 active:bg-red-500/90" // Active/Delete mode
+                : loopStart !== null && loopEnd !== null
+                  ? "bg-purple-600/50 hover:bg-purple-700 active:bg-purple-800" // Add mode
+                  : "bg-purple-600/40 cursor-not-allowed" // Disabled
+              }`}
+            onClick={() => {
+              if (selectedBookmarkId) {
+                // Delete mode
+                deleteBookmark(selectedBookmarkId);
+                toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
+              } else if (loopStart !== null && loopEnd !== null) {
+                // Check if a bookmark already exists for this range
+                const TOL = 0.05; // 50ms tolerance (same as in playerStore)
+                const existingBookmarks = usePlayerStore.getState().getCurrentMediaBookmarks();
+                const existingBookmark = existingBookmarks.find(
+                  (b) => Math.abs(b.start - loopStart) < TOL && Math.abs(b.end - loopEnd) < TOL
+                );
+
+                if (existingBookmark) {
+                  // If a bookmark already exists for this exact range, remove it (toggle behavior)
+                  deleteBookmark(existingBookmark.id);
+                  toast.success(t("bookmarks.bookmarkRemoved"), { id: BOOKMARK_TOAST_ID });
+                } else {
+                  // Add mode - create new bookmark
+                  const added = storeAddBookmark({
+                    name: `Clip ${usePlayerStore.getState().getCurrentMediaBookmarks()
+                      .length + 1
+                      }`,
+                    start: loopStart,
+                    end: loopEnd,
+                    playbackRate,
+                    mediaName: currentFile?.name,
+                    mediaType: currentFile?.type,
+                    youtubeId: undefined,
+                    annotation: "",
+                  });
+                  if (added) toast.success(t("bookmarks.bookmarkAdded"), { id: BOOKMARK_TOAST_ID });
+                }
+              }
+            }}
+            disabled={!selectedBookmarkId && !(loopStart !== null && loopEnd !== null)}
+            title={selectedBookmarkId ? t("bookmarks.removeBookmarkTooltip") : t("bookmarks.addBookmarkTooltip")}
+            aria-label={selectedBookmarkId ? t("bookmarks.removeBookmarkTooltip") : t("bookmarks.addBookmarkTooltip")}
+          >
+            <Bookmark size={isMobile ? 16 : 14} />
+          </button>
+        </div>
+      </div>
+    </>
   );
 };
