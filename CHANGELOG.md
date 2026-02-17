@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-02-17
+
+### Added
+- **AI Service Updates**:
+  - Updated AI models (GPT-5 family, Gemini 3 family, Grok 4) in `aiService.ts`
+  - Improved transcription timestamp accuracy and audio resampling logic
+- **Player Enhancements**:
+  - Added media title display to the player UI
+  - Robust shadowing segment deletion with automatic file cleanup
+
+### Fixed
+- **Bug Fixes**:
+  - Fixed loop playback issue when no A/B area is focused
+  - Resolved infinite re-render loop in `WaveformVisualizer`
+  - Fixed volume control visibility and aesthetics
+- **Maintenance**:
+  - Resolved multiple TypeScript linting errors and removed unsafe `any` casts
+  - Cleaned up unused variables in `shadowingStore.ts`
+
 ## [0.8.0] - 2025-12-13
 
 ### Added
@@ -195,7 +214,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Layout optimizations for desktop view
   - TypeScript and React component structure
 
-[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/USERNAME/loopmate/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/USERNAME/loopmate/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/USERNAME/loopmate/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/USERNAME/loopmate/compare/v0.6.0...v0.6.1
