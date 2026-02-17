@@ -161,7 +161,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
           const {
             autoAdvanceBookmarks, selectedBookmarkId, getCurrentMediaBookmarks, loadBookmark,
             maxLoops, loopCount, setLoopCount, setIsLooping, loopDelay
-          } = state as any;
+          } = state;
 
           // Increment loop counter
           const nextCount = (loopCount || 0) + 1;
@@ -173,8 +173,8 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
           if (isDone) {
             // If auto-advance enabled, move to next bookmark
             if (autoAdvanceBookmarks && selectedBookmarkId) {
-              const list = (getCurrentMediaBookmarks?.() || []).slice().sort((a: any, b: any) => a.start - b.start);
-              const idx = list.findIndex((b: any) => b.id === selectedBookmarkId);
+              const list = (getCurrentMediaBookmarks?.() || []).slice().sort((a, b) => a.start - b.start);
+              const idx = list.findIndex((b) => b.id === selectedBookmarkId);
               if (list.length > 0) {
                 const next = list[(idx + 1 + list.length) % list.length];
                 if (next) {
@@ -293,7 +293,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   // Handle media ended
   const handleEnded = () => {
     console.log("Media playback ended");
-    const state = usePlayerStore.getState() as any;
+    const state = usePlayerStore.getState();
     if (state.isQueueActive) {
       state.playNextInQueue?.();
       return;

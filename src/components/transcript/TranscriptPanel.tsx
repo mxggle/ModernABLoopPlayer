@@ -26,7 +26,7 @@ import { ExplanationDrawer } from "./ExplanationDrawer";
 import { useNavigate } from "react-router-dom";
 import { breakIntoSentences as utilBreakIntoSentences } from "../../utils/sentenceBreaker";
 
-import { TranscriptSegment as TranscriptSegmentType } from "../../stores/playerStore";
+import { TranscriptSegment as TranscriptSegmentType, LoopBookmark } from "../../stores/playerStore";
 import { encodeWAV } from "../../utils/wavEncoder";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -452,7 +452,7 @@ export const TranscriptPanel = () => {
     }
   };
 
-  const handleEditBookmark = (e: React.MouseEvent, bookmark: any) => {
+  const handleEditBookmark = (e: React.MouseEvent, bookmark: LoopBookmark) => {
     e.stopPropagation();
     setEditingBookmarkId(bookmark.id);
     setEditName(bookmark.name);
