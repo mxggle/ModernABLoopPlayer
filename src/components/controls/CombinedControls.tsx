@@ -21,6 +21,7 @@ import {
   ListMusic,
   X,
   Mic,
+  RotateCcw,
 } from "lucide-react";
 import { useShadowingStore } from "../../stores/shadowingStore";
 import { useShadowingRecorder } from "../../hooks/useShadowingRecorder";
@@ -379,6 +380,18 @@ export const CombinedControls = () => {
 
           <div className="flex items-center space-x-2 sm:space-x-4">
             <button
+              onClick={() => {
+                setCurrentTime(0);
+                if (!isPlaying) setIsPlaying(true);
+              }}
+              className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+              aria-label={t("player.playFromStart", { defaultValue: "Play from start" })}
+              title={t("player.playFromStart", { defaultValue: "Play from start" })}
+            >
+              <RotateCcw size={16} className="sm:w-[18px] sm:h-[18px]" />
+            </button>
+
+            <button
               onClick={seekBackward}
               className="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
               aria-label={t("player.seekBackwardSeconds", { seconds: seekStepSeconds })}
@@ -405,12 +418,12 @@ export const CombinedControls = () => {
             <button
               onClick={handleShadowingToggle}
               className={`p-2.5 rounded-full transition-all duration-150 ${isRecording
-                  ? "bg-red-600 text-white animate-pulse"
-                  : isShadowingMode
-                    ? "bg-orange-600 text-white hover:bg-orange-700"
-                    : canRecord
-                      ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50"
+                ? "bg-red-600 text-white animate-pulse"
+                : isShadowingMode
+                  ? "bg-orange-600 text-white hover:bg-orange-700"
+                  : canRecord
+                    ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                    : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50"
                 }`}
               aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
               title={!canRecord ? "Audio recording is not supported on this device/browser" : (isShadowingMode ? t("shadowing.disable") : t("shadowing.enable"))}

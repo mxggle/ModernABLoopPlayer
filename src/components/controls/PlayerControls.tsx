@@ -11,6 +11,7 @@ import {
   Minus,
   Plus,
   ListMusic,
+  RotateCcw,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -149,6 +150,19 @@ export const PlayerControls = () => {
 
         {/* Play/pause and skip controls */}
         <div className="flex items-center justify-center space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setCurrentTime(0);
+              if (!isPlaying) togglePlay();
+            }}
+            aria-label={t("player.playFromStart", { defaultValue: "Play from start" })}
+            title={t("player.playFromStart", { defaultValue: "Play from start" })}
+          >
+            <RotateCcw size={16} />
+          </Button>
+
           <Button
             variant="ghost"
             size="icon"

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { toast } from "react-hot-toast";
 import { Play, Pause } from "lucide-react";
@@ -13,8 +13,9 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [localPlayState, setLocalPlayState] = useState(false);
 
-
   const isDelayingRef = useRef(false);
+  // Track pending play intent so we can start playback once the element is ready
+  const pendingPlayRef = useRef(false);
 
   const {
     currentFile,
@@ -38,6 +39,69 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
     setLocalPlayState(isPlaying);
   }, [isPlaying]);
 
+  // Helper to safely play a media element
+  const safePlay = useCallback(
+    (mediaElement: HTMLMediaElement) => {
+      // readyState >= 2 (HAVE_CURRENT_DATA) means enough data to play
+      if (mediaElement.readyState >= 2) {
+        mediaElement.play().catch((err) => {
+          console.error("Error playing media:", err);
+          toast.error(
+            "Error playing media. The file may be corrupted or not supported."
+          );
+          setIsPlaying(false);
+        });
+      } else {
+        // Not ready yet – mark as pending and wait for canplay
+        pendingPlayRef.current = true;
+      }
+    },
+    [setIsPlaying]
+  );
+
+  // Reset pending play when the media source changes
+  useEffect(() => {
+    pendingPlayRef.current = false;
+  }, [currentFile?.url]);
+
+  // Listen for canplay to know when the element is ready
+  useEffect(() => {
+    const mediaElement = currentFile?.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+
+    const handleCanPlay = () => {
+      // If a play was requested while we were loading, start now
+      if (pendingPlayRef.current) {
+        pendingPlayRef.current = false;
+        mediaElement.play().catch((err) => {
+          console.error("Error playing media after canplay:", err);
+          setIsPlaying(false);
+        });
+      }
+    };
+
+    mediaElement.addEventListener("canplay", handleCanPlay);
+    // If it's already ready (cached / fast load), handle pending play immediately
+    if (mediaElement.readyState >= 2) {
+      handleCanPlay();
+    }
+    return () => {
+      mediaElement.removeEventListener("canplay", handleCanPlay);
+    };
+  }, [currentFile, setIsPlaying]);
+
+  // Pause playback when the component unmounts so the store stays in sync
+  useEffect(() => {
+    return () => {
+      const { isPlaying: stillPlaying } = usePlayerStore.getState();
+      if (stillPlaying) {
+        usePlayerStore.getState().setIsPlaying(false);
+      }
+    };
+  }, []);
+
   // Handle play/pause
   useEffect(() => {
     const mediaElement = currentFile?.type.includes("video")
@@ -47,18 +111,12 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
 
     if (isPlaying) {
       if (isDelayingRef.current) return; // Don't interfere if delaying
-      console.log("Attempting to play media:", currentFile?.url);
-      mediaElement.play().catch((err) => {
-        console.error("Error playing media:", err);
-        toast.error(
-          "Error playing media. The file may be corrupted or not supported."
-        );
-        setIsPlaying(false);
-      });
+      safePlay(mediaElement);
     } else {
+      pendingPlayRef.current = false;
       mediaElement.pause();
     }
-  }, [isPlaying, currentFile, setIsPlaying]);
+  }, [isPlaying, currentFile, setIsPlaying, safePlay]);
 
   // Handle volume changes
   useEffect(() => {
