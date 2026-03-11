@@ -9,7 +9,6 @@ export const useShadowingRecorder = () => {
     const { isPlaying, currentFile, currentYouTube } = usePlayerStore();
     const {
         isShadowingMode,
-        delay,
         setIsRecording,
         addSegment,
         muted: shadowingMuted,
@@ -18,16 +17,15 @@ export const useShadowingRecorder = () => {
 
     const audioRecorderRef = useRef<UniversalAudioRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
-    const stopTimerRef = useRef<NodeJS.Timeout | null>(null);
     const startTimeRef = useRef<number>(0);
     const endTimeRef = useRef<number>(0); // Track when recording actually ends
+    const recordingClockStartRef = useRef<number>(0);
     const streamRef = useRef<MediaStream | null>(null);
     const previousMuteStateRef = useRef<boolean>(false); // Store mute state before recording
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
-            if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach((track) => track.stop());
             }
@@ -120,11 +118,12 @@ export const useShadowingRecorder = () => {
             try {
                 const { currentTime } = usePlayerStore.getState();
                 startTimeRef.current = currentTime;
+                recordingClockStartRef.current = performance.now();
                 chunksRef.current = [];
 
                 // Initialize active recording state
                 const { updateCurrentRecording } = useShadowingStore.getState();
-                updateCurrentRecording({ startTime: currentTime, peaks: [] });
+                updateCurrentRecording({ startTime: currentTime, peaks: [], peakTimes: [] });
 
                 // Create universal audio recorder
                 const recorder = new UniversalAudioRecorder(streamRef.current, {
@@ -132,15 +131,18 @@ export const useShadowingRecorder = () => {
                         // Update store with new peak
                         const current = useShadowingStore.getState().currentRecording;
                         if (current) {
+                            const elapsedSeconds = Math.max(
+                                0,
+                                (performance.now() - recordingClockStartRef.current) / 1000
+                            );
                             updateCurrentRecording({
                                 ...current,
-                                peaks: [...current.peaks, peak]
+                                peaks: [...current.peaks, peak],
+                                peakTimes: [...current.peakTimes, elapsedSeconds]
                             });
                         }
                     },
                     onStop: async (blob) => {
-                        updateCurrentRecording(null); // Clear visualization on stop
-
                         console.log("🎙️ [ShadowingRecorder] Recording stopped, processing...");
                         console.log("🎙️ [ShadowingRecorder] Created blob:", { size: blob.size, type: blob.type });
 
@@ -180,6 +182,7 @@ export const useShadowingRecorder = () => {
                             if (mediaId) {
                                 const recordingStartTime = startTimeRef.current;
                                 const recordingEndTime = endTimeRef.current;
+                                const finalCurrentRecording = useShadowingStore.getState().currentRecording;
 
                                 console.log(`🎙️ [ShadowingRecorder] Recording time range: ${recordingStartTime.toFixed(2)}s - ${recordingEndTime.toFixed(2)}s (played duration: ${(recordingEndTime - recordingStartTime).toFixed(2)}s, audio duration: ${actualDuration.toFixed(2)}s)`);
 
@@ -192,6 +195,8 @@ export const useShadowingRecorder = () => {
                                     startTime: recordingStartTime,
                                     duration: actualDuration,
                                     storageId: storageId,
+                                    peaks: finalCurrentRecording?.peaks || [],
+                                    peakTimes: finalCurrentRecording?.peakTimes || [],
                                 };
 
                                 console.log("🎙️ [ShadowingRecorder] Adding segment to store:", segment);
@@ -207,6 +212,7 @@ export const useShadowingRecorder = () => {
                             toast.error("Failed to save recording");
                         }
 
+                        updateCurrentRecording(null);
                         setIsRecording(false);
                         audioRecorderRef.current = null;
                     },
@@ -247,6 +253,9 @@ export const useShadowingRecorder = () => {
                 const { currentTime } = usePlayerStore.getState();
                 endTimeRef.current = currentTime;
 
+                const { updateCurrentRecording } = useShadowingStore.getState();
+                updateCurrentRecording(null);
+
                 audioRecorderRef.current.stop();
 
                 // Restore previous mute state
@@ -258,23 +267,11 @@ export const useShadowingRecorder = () => {
         };
 
         if (isPlaying) {
-            // If playing, ensure we are recording
-            if (stopTimerRef.current) {
-                clearTimeout(stopTimerRef.current);
-                stopTimerRef.current = null;
-            }
-
             startRecording();
         } else {
-            // If paused, schedule stop
             if (audioRecorderRef.current && audioRecorderRef.current.getState() === "recording") {
-                if (!stopTimerRef.current) {
-                    stopTimerRef.current = setTimeout(() => {
-                        stopRecording();
-                        stopTimerRef.current = null;
-                    }, delay * 1000);
-                }
+                stopRecording();
             }
         }
-    }, [isPlaying, isShadowingMode, delay, currentFile, currentYouTube, setIsRecording, addSegment]);
+    }, [isPlaying, isShadowingMode, currentFile, currentYouTube, setIsRecording, addSegment]);
 };

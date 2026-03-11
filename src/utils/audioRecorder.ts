@@ -178,15 +178,15 @@ export class UniversalAudioRecorder {
 
             this.analyser.getByteTimeDomainData(dataArray);
 
-            // Calculate RMS
+            // Match the saved waveform renderer, which uses average absolute amplitude.
             let sum = 0;
             for (let i = 0; i < dataArray.length; i++) {
                 const amplitude = (dataArray[i] - 128) / 128;
-                sum += amplitude * amplitude;
+                sum += Math.abs(amplitude);
             }
-            const rms = Math.sqrt(sum / dataArray.length);
+            const averageAmplitude = sum / dataArray.length;
 
-            this.config.onPeakUpdate?.(rms);
+            this.config.onPeakUpdate?.(averageAmplitude);
         };
 
         this.peakUpdateInterval = window.setInterval(updatePeak, 50);

@@ -4,25 +4,26 @@ import { deleteMediaFile } from "../utils/mediaStorage";
 
 interface ShadowingSegment {
     id: string;
-    startTime: number; // offset in seconds relative to media start
-    duration: number; // in seconds
-    storageId: string; // ID in IndexedDB
-    fileOffset?: number; // Start offset within the audio file (for trimmed/split segments)
+    startTime: number;
+    duration: number;
+    storageId: string;
+    fileOffset?: number;
+    peaks?: number[];
+    peakTimes?: number[];
+}
+
+interface ShadowingSession {
+    segments: ShadowingSegment[];
 }
 
 interface ShadowingState {
     isShadowingMode: boolean;
-    delay: number; // Seconds to record after playback stops
+    delay: number;
     isRecording: boolean;
     volume: number;
-    previousShadowVolume?: number; // Store volume before muting
+    previousShadowVolume?: number;
     muted: boolean;
-
-    // Per-media shadowing data
-    // Key is media ID (or unique identifier for the file/youtube video)
-    sessions: Record<string, {
-        segments: ShadowingSegment[];
-    }>;
+    sessions: Record<string, ShadowingSession>;
 }
 
 interface ShadowingActions {
@@ -32,14 +33,12 @@ interface ShadowingActions {
     setVolume: (volume: number) => void;
     setPreviousShadowVolume: (volume: number) => void;
     setMuted: (muted: boolean) => void;
-
-    // Real-time recording visualization state
     currentRecording: {
         startTime: number;
         peaks: number[];
+        peakTimes: number[];
     } | null;
-    updateCurrentRecording: (data: { startTime: number; peaks: number[] } | null) => void;
-
+    updateCurrentRecording: (data: { startTime: number; peaks: number[]; peakTimes: number[] } | null) => void;
     addSegment: (mediaId: string, segment: ShadowingSegment) => void;
     getSegments: (mediaId: string) => ShadowingSegment[];
     clearSegments: (mediaId: string) => void;
@@ -47,11 +46,37 @@ interface ShadowingActions {
     removeOverlappingSegments: (mediaId: string, startTime: number, endTime: number) => Promise<void>;
 }
 
+const EMPTY_SESSION: ShadowingSession = { segments: [] };
+
+const sliceSegmentPeakData = (
+    segment: ShadowingSegment,
+    sliceStart: number,
+    sliceEnd: number
+): Pick<ShadowingSegment, "peaks" | "peakTimes"> => {
+    if (!segment.peaks?.length || !segment.peakTimes?.length) {
+        return {};
+    }
+
+    const slicedPeaks: number[] = [];
+    const slicedPeakTimes: number[] = [];
+
+    segment.peakTimes.forEach((time, index) => {
+        if (time >= sliceStart && time <= sliceEnd) {
+            slicedPeaks.push(segment.peaks![index]);
+            slicedPeakTimes.push(time - sliceStart);
+        }
+    });
+
+    return slicedPeaks.length > 0
+        ? { peaks: slicedPeaks, peakTimes: slicedPeakTimes }
+        : {};
+};
+
 export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
     persist(
         (set, get) => ({
             isShadowingMode: false,
-            delay: 2, // Default 2 seconds delay
+            delay: 2,
             isRecording: false,
             volume: 1,
             muted: false,
@@ -70,20 +95,18 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
                 console.log("🔇 [ShadowingStore] Setting muted:", muted);
                 set({ muted });
             },
-
             updateCurrentRecording: (data) => set({ currentRecording: data }),
 
             addSegment: (mediaId, segment) => set((state) => {
-                const currentSession = state.sessions[mediaId] || { segments: [] };
+                const session = state.sessions[mediaId] || EMPTY_SESSION;
+
                 return {
-                    // Ensure new recordings are audible
                     muted: false,
                     volume: state.volume === 0 ? 1 : state.volume,
                     sessions: {
                         ...state.sessions,
                         [mediaId]: {
-                            ...currentSession,
-                            segments: [...currentSession.segments, segment],
+                            segments: [...session.segments, segment],
                         },
                     },
                 };
@@ -102,20 +125,17 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
                 const session = get().sessions[mediaId];
                 if (!session) return;
 
-                // Collect unique storage IDs to delete
-                const storageIds = new Set(session.segments.map(s => s.storageId));
+                const storageIds = new Set(session.segments.map((segment) => segment.storageId));
 
-                // Clear the session state first
                 set((state) => {
                     const { [mediaId]: _removed, ...rest } = state.sessions;
                     return { sessions: rest };
                 });
 
-                // Delete all audio files from IndexedDB
                 for (const storageId of storageIds) {
                     try {
                         await deleteMediaFile(storageId);
-                        console.log(`🗑️ [ShadowingStore] Deleted recording file:`, storageId);
+                        console.log("🗑️ [ShadowingStore] Deleted recording file:", storageId);
                     } catch (error) {
                         console.error(`🗑️ [ShadowingStore] Failed to delete file ${storageId}:`, error);
                     }
@@ -123,85 +143,64 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
             },
 
             removeOverlappingSegments: async (mediaId, startTime, endTime) => {
-                const currentSession = get().sessions[mediaId];
-                if (!currentSession) return;
+                const session = get().sessions[mediaId];
+                if (!session) return;
 
-                console.log(`🗑️ [ShadowingStore] Checking for overlaps: new recording [${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s]`);
+                console.log(`🗑️ [ShadowingStore] Checking for overlaps in track: new recording [${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s]`);
 
-                const session = currentSession;
                 const newSegments: ShadowingSegment[] = [];
                 const idsToRemove = new Set<string>();
                 const storageIdsToCheckForDeletion = new Set<string>();
 
-                session.segments.forEach(seg => {
+                session.segments.forEach((seg) => {
                     const segDuration = seg.duration > 0.1 ? seg.duration : 5.0;
                     const segStart = seg.startTime;
                     const segEnd = segStart + segDuration;
                     const fileOffset = seg.fileOffset || 0;
 
-                    // Check overlap
-                    // Overlap exists if start < segEnd AND end > segStart
                     if (startTime < segEnd && endTime > segStart) {
                         console.log(`🗑️ [ShadowingStore] Processing overlap for segment ${seg.id} [${segStart.toFixed(2)}-${segEnd.toFixed(2)}]`);
 
                         idsToRemove.add(seg.id);
                         storageIdsToCheckForDeletion.add(seg.storageId);
 
-                        // Case 1: Fully contained (New recording covers entire segment)
-                        // startTime <= segStart AND endTime >= segEnd
                         if (startTime <= segStart && endTime >= segEnd) {
-                            console.log(`   -> Fully overwritten`);
-                            // Just remove, done.
-                        }
-                        // Case 2: Split in middle (New recording in middle of segment)
-                        // startTime > segStart AND endTime < segEnd
-                        else if (startTime > segStart && endTime < segEnd) {
-                            console.log(`   -> Split in middle`);
-                            // Create first half
-                            // [segStart, startTime]
+                            console.log("   -> Fully overwritten");
+                        } else if (startTime > segStart && endTime < segEnd) {
+                            console.log("   -> Split in middle");
                             const firstDuration = startTime - segStart;
                             newSegments.push({
                                 id: Math.random().toString(36).substring(7),
                                 startTime: segStart,
                                 duration: firstDuration,
                                 storageId: seg.storageId,
-                                fileOffset: fileOffset // Starts at same point in file
+                                fileOffset,
+                                ...sliceSegmentPeakData(seg, 0, firstDuration),
                             });
 
-                            // Create second half
-                            // [endTime, segEnd]
                             const secondDuration = segEnd - endTime;
-                            // Offset in file increases by (endTime - segStart)
-                            // Wait: fileOffset corresponds to segStart.
-                            // New start is endTime. Diff is endTime - segStart.
                             const secondOffset = fileOffset + (endTime - segStart);
                             newSegments.push({
                                 id: Math.random().toString(36).substring(7),
                                 startTime: endTime,
                                 duration: secondDuration,
                                 storageId: seg.storageId,
-                                fileOffset: secondOffset
+                                fileOffset: secondOffset,
+                                ...sliceSegmentPeakData(seg, endTime - segStart, segEnd - segStart),
                             });
-                        }
-                        // Case 3: Trim end (New recording starts during segment)
-                        // startTime > segStart
-                        else if (startTime > segStart) {
-                            console.log(`   -> Trim end`);
-                            // Keep start part: [segStart, startTime]
+                        } else if (startTime > segStart) {
+                            console.log("   -> Trim end");
                             const newDuration = startTime - segStart;
                             newSegments.push({
                                 id: Math.random().toString(36).substring(7),
                                 startTime: segStart,
                                 duration: newDuration,
                                 storageId: seg.storageId,
-                                fileOffset: fileOffset
+                                fileOffset,
+                                ...sliceSegmentPeakData(seg, 0, newDuration),
                             });
-                        }
-                        // Case 4: Trim start (New recording ends during segment)
-                        // endTime < segEnd
-                        else if (endTime < segEnd) {
-                            console.log(`   -> Trim start`);
-                            // Keep end part: [endTime, segEnd]
+                        } else if (endTime < segEnd) {
+                            console.log("   -> Trim start");
                             const newDuration = segEnd - endTime;
                             const newOffset = fileOffset + (endTime - segStart);
                             newSegments.push({
@@ -209,41 +208,36 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
                                 startTime: endTime,
                                 duration: newDuration,
                                 storageId: seg.storageId,
-                                fileOffset: newOffset
+                                fileOffset: newOffset,
+                                ...sliceSegmentPeakData(seg, endTime - segStart, segEnd - segStart),
                             });
                         }
                     }
                 });
 
-                // Update state
                 set((state) => {
-                    const session = state.sessions[mediaId];
-                    if (!session) return state;
+                    const currentSession = state.sessions[mediaId];
+                    if (!currentSession) return state;
 
-                    // Filter out removed IDs and add new splits
-                    const keptSegments = session.segments.filter(s => !idsToRemove.has(s.id));
-                    const finalSegments = [...keptSegments, ...newSegments];
-
+                    const keptSegments = currentSession.segments.filter((segment) => !idsToRemove.has(segment.id));
                     return {
                         sessions: {
                             ...state.sessions,
                             [mediaId]: {
-                                ...session,
-                                segments: finalSegments,
+                                segments: [...keptSegments, ...newSegments],
                             },
                         },
                     };
                 });
 
-                // File Deletion Logic: Reference Counting
-                // We only delete a file if NO segments (including new ones) refer to it anymore.
-                const allSegmentsNow = get().sessions[mediaId]?.segments || [];
-                const activeStorageIds = new Set(allSegmentsNow.map(s => s.storageId));
+                const activeStorageIds = new Set(
+                    (get().sessions[mediaId]?.segments || []).map((segment) => segment.storageId)
+                );
 
                 for (const storageId of storageIdsToCheckForDeletion) {
                     if (!activeStorageIds.has(storageId)) {
                         try {
-                            console.log(`🗑️ [ShadowingStore] Deleting orphaned file:`, storageId);
+                            console.log("🗑️ [ShadowingStore] Deleting orphaned file:", storageId);
                             await deleteMediaFile(storageId);
                         } catch (error) {
                             console.error(`🗑️ [ShadowingStore] Failed to delete file ${storageId}:`, error);
@@ -256,6 +250,7 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
         }),
         {
             name: "shadowing-store",
+            version: 3,
             partialize: (state) => ({
                 isShadowingMode: state.isShadowingMode,
                 delay: state.delay,
@@ -263,6 +258,29 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
                 volume: state.volume,
                 muted: state.muted,
             }),
+            migrate: (persistedState: unknown) => {
+                const state = (persistedState as Record<string, unknown>) || {};
+                const rawSessions = (state.sessions as Record<string, { segments?: ShadowingSegment[]; recordings?: Array<{ segments: ShadowingSegment[] }> }> | undefined) || {};
+                const sessions: Record<string, ShadowingSession> = {};
+
+                for (const [mediaId, session] of Object.entries(rawSessions)) {
+                    if (session?.segments) {
+                        sessions[mediaId] = { segments: session.segments };
+                        continue;
+                    }
+
+                    if (session?.recordings) {
+                        sessions[mediaId] = {
+                            segments: session.recordings.flatMap((recording) => recording.segments || []),
+                        };
+                    }
+                }
+
+                return {
+                    ...state,
+                    sessions,
+                };
+            },
         }
     )
 );

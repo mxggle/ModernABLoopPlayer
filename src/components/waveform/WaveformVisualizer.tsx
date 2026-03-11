@@ -30,6 +30,18 @@ const BOOKMARK_TOAST_ID = "bookmark-action-toast";
 const EMPTY_BOOKMARKS: readonly any[] = Object.freeze([]);
 const EMPTY_SEGMENTS: readonly any[] = Object.freeze([]);
 
+type ShadowWaveform = {
+  start: number;
+  data: Float32Array;
+  duration: number;
+};
+
+type RecordingOverlay = {
+  startTime: number;
+  peaks: number[];
+  peakTimes: number[];
+  startedAt: number;
+};
 // Utility function to format time in mm:ss.ms format
 const formatTime = (time: number): string => {
   if (isNaN(time)) return "00:00.0";
@@ -113,21 +125,23 @@ export const WaveformVisualizer = () => {
     toggleMute,
   } = usePlayerStore();
 
-  const { volume: shadowVolume, setVolume: setShadowVolume, muted: shadowMuted, setMuted: setShadowMuted, currentRecording } = useShadowingStore();
+  const {
+    volume: shadowVolume, setVolume: setShadowVolume,
+    muted: shadowMuted, setMuted: setShadowMuted,
+    currentRecording,
+    isShadowingMode, setShadowingMode,
+  } = useShadowingStore();
 
-  // Use getCurrentMediaId to ensure consistency with how segments are saved
   const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
-
-  // Use a Zustand selector for shadowingSegments to ensure referential stability.
-  // Without this, getSegments() returns a new [] on every render when there are
-  // no segments, which triggers the useEffect -> setShadowingWaveforms -> re-render
-  // loop infinitely.
   const shadowingSegments = useShadowingStore((state) => {
     if (!mediaId) return EMPTY_SEGMENTS as any[];
     return state.sessions[mediaId]?.segments || (EMPTY_SEGMENTS as any[]);
   });
-  const [shadowingWaveforms, setShadowingWaveforms] = useState<{ start: number; data: Float32Array; duration: number }[]>([]);
+  const [shadowingWaveforms, setShadowingWaveforms] = useState<ShadowWaveform[]>([]);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [fadingRecording, setFadingRecording] = useState<RecordingOverlay | null>(null);
+  const previousCurrentRecordingRef = useRef<typeof currentRecording>(null);
+  const [fadeFrame, setFadeFrame] = useState(0);
 
   // Initialize Shadowing Player
   useShadowingPlayer();
@@ -144,6 +158,14 @@ export const WaveformVisualizer = () => {
       const loaded = await Promise.all(
         shadowingSegments.map(async (seg, index) => {
           try {
+            if (seg.peaks?.length) {
+              return {
+                start: seg.startTime,
+                data: Float32Array.from(seg.peaks),
+                duration: seg.duration,
+              };
+            }
+
             const file = await retrieveMediaFile(seg.storageId);
             if (!file) {
               console.warn(`[WaveformVisualizer] No file found for segment ${index}`);
@@ -193,6 +215,47 @@ export const WaveformVisualizer = () => {
     loadShadowing();
     return () => { active = false; };
   }, [shadowingSegments]);
+
+  useEffect(() => {
+    if (currentRecording) {
+      previousCurrentRecordingRef.current = currentRecording;
+      setFadingRecording(null);
+      return;
+    }
+
+    const previousRecording = previousCurrentRecordingRef.current;
+    if (!previousRecording || previousRecording.peaks.length === 0) {
+      return;
+    }
+
+    const overlay: RecordingOverlay = {
+      ...previousRecording,
+      startedAt: performance.now(),
+    };
+    setFadingRecording(overlay);
+    previousCurrentRecordingRef.current = null;
+
+    const timeoutId = window.setTimeout(() => {
+      setFadingRecording((current) =>
+        current === overlay ? null : current
+      );
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [currentRecording]);
+
+  useEffect(() => {
+    if (!fadingRecording) return;
+
+    let frameId = 0;
+    const tick = () => {
+      setFadeFrame((value) => value + 1);
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [fadingRecording]);
 
   // Subscribe to bookmarks for current media so changes re-render this component
   const bookmarks = usePlayerStore((state) => {
@@ -666,9 +729,8 @@ export const WaveformVisualizer = () => {
       }
     }
 
-    // Draw waveform as bars
-    const hasShadowing = shadowingWaveforms.length > 0;
-    const mainWaveformHeight = hasShadowing ? canvas.height / 2 : canvas.height;
+    // Draw waveform as bars — always split canvas in half (media top, shadowing bottom)
+    const mainWaveformHeight = canvas.height / 2;
 
     ctx.fillStyle = "#8B5CF6"; // Purple
 
@@ -699,9 +761,9 @@ export const WaveformVisualizer = () => {
       ctx.fillRect(x, y, barWidth, height);
     }
 
-    // Draw Shadowing Waveforms
+    // Draw Shadowing Waveforms — always draw separator and bottom lane
 
-    if (hasShadowing || currentRecording) {
+    {
       const shadowTop = mainWaveformHeight;
       const shadowHeight = canvas.height - mainWaveformHeight;
       const shadowCenterY = shadowTop + shadowHeight / 2;
@@ -713,6 +775,16 @@ export const WaveformVisualizer = () => {
       ctx.moveTo(0, shadowTop);
       ctx.lineTo(canvas.width, shadowTop);
       ctx.stroke();
+
+      // Draw a subtle center line when empty to hint the lane exists
+      if (shadowingWaveforms.length === 0 && !currentRecording) {
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.lineWidth = 1 * dpr;
+        ctx.moveTo(0, shadowCenterY);
+        ctx.lineTo(canvas.width, shadowCenterY);
+        ctx.stroke();
+      }
 
       shadowingWaveforms.forEach(seg => {
         // Calculate overlap with visible range
@@ -733,35 +805,57 @@ export const WaveformVisualizer = () => {
           // Ensure min width
           const finalBarW = Math.max(1 * dpr, barW);
 
-          const h = Math.max(1 * dpr, val * shadowHeight * 1.5); // increased gain
+          const h = Math.max(2 * dpr, val * shadowHeight * 3.0);
           const y = shadowCenterY - h / 2;
 
-          ctx.fillRect(x, y, finalBarW, h);
+          ctx.fillRect(x, Math.max(shadowTop, y), finalBarW, Math.min(shadowHeight, h));
         }
       });
 
-      // Draw Active Recording
-      if (currentRecording && currentRecording.peaks && shadowHeight > 0) {
-        ctx.fillStyle = "#EF4444"; // Red for recording
-        const startTime = currentRecording.startTime;
-        const peaks = currentRecording.peaks;
+      const drawRecordingOverlay = (
+        recording: { startTime: number; peaks: number[]; peakTimes: number[] },
+        color: string,
+        alpha = 1
+      ) => {
+        if (!recording.peaks?.length || shadowHeight <= 0) return;
 
-        // Each peak represents 50ms (0.05s)
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = color;
+
         const peakDuration = 0.05;
 
-        peaks.forEach((peak, i) => {
-          const time = startTime + i * peakDuration;
+        recording.peaks.forEach((peak, i) => {
+          const elapsedTime =
+            Array.isArray(recording.peakTimes) && typeof recording.peakTimes[i] === "number"
+              ? recording.peakTimes[i]
+              : i * peakDuration;
+          const time = recording.startTime + elapsedTime;
           if (time < startOffset || time > endOffset) return;
 
           const x = ((time - startOffset) / visibleDuration) * canvas.width;
-          // Width should cover 50ms gap
-          const w = (peakDuration / visibleDuration) * canvas.width;
-
-          const h = Math.max(2 * dpr, peak * shadowHeight * 3.0); // Higher gain for RMS
+          const w = ((i < recording.peakTimes.length - 1
+            ? Math.max(peakDuration, recording.peakTimes[i + 1] - elapsedTime)
+            : peakDuration) / visibleDuration) * canvas.width;
+          const h = Math.max(2 * dpr, peak * shadowHeight * 3.0);
           const y = shadowCenterY - h / 2;
 
           ctx.fillRect(x, Math.max(shadowTop, y), Math.max(1 * dpr, w), Math.min(shadowHeight, h));
         });
+
+        ctx.restore();
+      };
+
+      if (fadingRecording) {
+        const elapsed = performance.now() - fadingRecording.startedAt;
+        const alpha = Math.max(0, 1 - elapsed / 350);
+        if (alpha > 0) {
+          drawRecordingOverlay(fadingRecording, "#EF4444", alpha);
+        }
+      }
+
+      if (currentRecording) {
+        drawRecordingOverlay(currentRecording, "#EF4444");
       }
     }
 
@@ -829,6 +923,8 @@ export const WaveformVisualizer = () => {
     selectedBookmarkId,
     shadowingWaveforms,
     currentRecording,
+    fadingRecording,
+    fadeFrame,
     isDragging,
     dragStart,
     dragEnd,
@@ -1580,7 +1676,7 @@ export const WaveformVisualizer = () => {
           {/* Media Volume Control - overlaid on top-left of media waveform lane */}
           {showWaveform && (
             <div
-              className={`absolute left-2 z-10 group/vol flex items-center bg-black/60 backdrop-blur-md border border-white/20 rounded-full h-8 pointer-events-auto transition-all duration-200 -translate-y-1/2 ${shadowingWaveforms.length > 0 ? "top-[25%]" : "top-1/2"} ${isMobile ? "opacity-100" : ""}`}
+              className={`absolute left-2 z-10 group/vol flex items-center bg-black/60 backdrop-blur-md border border-white/20 rounded-full h-8 pointer-events-auto transition-all duration-200 -translate-y-1/2 top-[25%] ${isMobile ? "opacity-100" : ""}`}
               onMouseDown={stopPropagation}
               onClick={stopPropagation}
               onTouchStart={stopPropagation}
@@ -1629,7 +1725,7 @@ export const WaveformVisualizer = () => {
           )}
 
           {/* REC Volume Control - overlaid on left of shadowing waveform lane (bottom half) */}
-          {showWaveform && shadowingWaveforms.length > 0 && (
+          {showWaveform && (
             <div
               className={`absolute left-2 top-[75%] -translate-y-1/2 z-10 group/svol flex items-center bg-black/60 backdrop-blur-md border border-white/20 rounded-full h-8 pointer-events-auto transition-all duration-200 ${isMobile ? "opacity-100" : ""}`}
               onMouseDown={stopPropagation}
@@ -1801,45 +1897,45 @@ export const WaveformVisualizer = () => {
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[4px] border-b-red-600"></div>
           </div>
 
-          {/* Delete Recording Button - Grid layout: Top Right of bottom (shadowing) lane */}
-          {shadowingWaveforms.length > 0 && (
+          {shadowingSegments.length > 0 && (
             <div
-              className="absolute right-2 z-30 top-[calc(50%+8px)] transition-all duration-200"
+              className={`absolute right-2 z-10 -translate-y-1/2 pointer-events-auto transition-all duration-200 top-[75%]`}
               onMouseDown={stopPropagation}
               onClick={stopPropagation}
+              onTouchStart={stopPropagation}
+              onPointerDown={stopPropagation}
             >
-              {!isConfirmingDelete ? (
-                <button
-                  className="bg-gray-900/30 text-white/40 border border-white/5 hover:bg-red-900/40 hover:text-red-200 hover:border-red-500/30 p-1.5 rounded-md backdrop-blur-md transition-all shadow-sm"
-                  onClick={() => setIsConfirmingDelete(true)}
-                  title="Delete All Recordings"
-                >
-                  <Trash2 size={14} />
-                </button>
-              ) : (
-                <div className="flex items-center bg-red-600 text-white rounded-md shadow-lg border border-red-500 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-full h-8 px-3 text-white/80">
+                <span className="text-xs font-medium">
+                  Shadow Track · {shadowingSegments.length} seg
+                </span>
+                {isShadowingMode && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                )}
+                {!isConfirmingDelete ? (
                   <button
-                    className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-700 transition-colors border-r border-red-500"
+                    className="p-1 rounded text-white/40 hover:text-red-400 transition-colors"
+                    onClick={() => setIsConfirmingDelete(true)}
+                    title="Delete shadow track"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                ) : (
+                  <button
+                    className="px-1.5 py-0.5 text-[10px] bg-red-600 text-white rounded hover:bg-red-700 transition-colors leading-none"
                     onClick={async () => {
                       if (mediaId) {
                         await useShadowingStore.getState().deleteAllSegments(mediaId);
-                        toast.success("Recordings deleted");
+                        setShadowingMode(false);
+                        toast.success("Shadow track deleted");
                       }
                       setIsConfirmingDelete(false);
                     }}
                   >
-                    <Trash2 size={13} />
-                    <span className="text-xs font-bold leading-none">Delete</span>
+                    Confirm
                   </button>
-                  <button
-                    className="p-1.5 hover:bg-red-700 transition-colors flex items-center justify-center"
-                    onClick={() => setIsConfirmingDelete(false)}
-                    title="Cancel"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>

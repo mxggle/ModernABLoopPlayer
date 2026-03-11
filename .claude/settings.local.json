@@ -3,7 +3,8 @@
     "allow": [
       "Bash(find:*)",
       "Bash(lsof:*)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(npx tsc --noEmit)"
     ]
   }
 }
