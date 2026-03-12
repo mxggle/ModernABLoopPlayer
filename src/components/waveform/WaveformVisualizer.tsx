@@ -3,6 +3,7 @@ import { usePlayerStore } from "../../stores/playerStore";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useShadowingStore } from "../../stores/shadowingStore";
 import {
+  CachedWaveformData,
   getCachedWaveform,
   retrieveMediaFile,
   setCachedWaveform,
@@ -34,6 +35,7 @@ import {
   createPlaceholderWaveform,
   shouldUseAdaptiveWaveform,
   shouldUseDetailedWaveform,
+  shouldUseProgressiveWaveform,
 } from "../../utils/waveformAnalysis";
 
 // Constant toast ID to ensure only one bookmark notification is shown at a time
@@ -43,6 +45,20 @@ const BOOKMARK_TOAST_ID = "bookmark-action-toast";
 // a new [] on every render (prevents infinite re-render loops)
 const EMPTY_BOOKMARKS: readonly any[] = Object.freeze([]);
 const EMPTY_SEGMENTS: readonly any[] = Object.freeze([]);
+
+const normalizeCachedWaveform = (
+  waveform: CachedWaveformData
+): CachedWaveformData => ({
+  ...waveform,
+  status:
+    waveform.status ?? (waveform.strategy === "placeholder" ? "placeholder" : "ready"),
+  progress:
+    typeof waveform.progress === "number"
+      ? Math.max(0, Math.min(100, waveform.progress))
+      : waveform.strategy === "placeholder"
+        ? 0
+        : 100,
+});
 
 type ShadowWaveform = {
   start: number;
@@ -79,6 +95,10 @@ export const WaveformVisualizer = () => {
     { id: string; x1: number; x2: number; y1: number; y2: number }[]
   >([]);
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
+  const [waveformLoadState, setWaveformLoadState] = useState<{
+    status: "idle" | "placeholder" | "analyzing" | "ready" | "error";
+    progress: number;
+  }>({ status: "idle", progress: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [dragEnd, setDragEnd] = useState<number | null>(null);
@@ -324,18 +344,43 @@ export const WaveformVisualizer = () => {
         !currentFile.type.includes("video"))
     ) {
       setWaveformData(null);
+      setWaveformLoadState({ status: "idle", progress: 0 });
       return;
     }
 
     let cancelled = false;
+    let idleId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const setWaveformPreview = (waveform: CachedWaveformData) => {
+      if (cancelled) return;
+
+      const normalized = normalizeCachedWaveform(waveform);
+      setWaveformData(Float32Array.from(normalized.peaks));
+      setWaveformLoadState({
+        status: normalized.status ?? "ready",
+        progress: normalized.progress ?? 0,
+      });
+    };
+
+    const scheduleBackgroundAnalysis = (task: () => void) => {
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        idleId = (
+          window as Window & {
+            requestIdleCallback: (callback: IdleRequestCallback) => number;
+          }
+        ).requestIdleCallback(() => task());
+        return;
+      }
+
+      timeoutId = globalThis.setTimeout(task, 0);
+    };
 
     const loadAudio = async () => {
       try {
         if (currentYouTube) {
           if (!cancelled) {
-            setWaveformData(
-              Float32Array.from(createPlaceholderWaveform(duration || 0, 1200).peaks)
-            );
+            setWaveformPreview(createPlaceholderWaveform(duration || 0, 1200));
           }
           return;
         }
@@ -346,17 +391,15 @@ export const WaveformVisualizer = () => {
 
         const mediaKey = buildWaveformMediaKey(currentFile);
         const cached = await getCachedWaveform(mediaKey);
-        if (cached && !cancelled) {
-          setWaveformData(Float32Array.from(cached.peaks));
-          return;
-        }
 
         if (currentFile.type.includes("video")) {
-          const placeholder = createPlaceholderWaveform(duration || 0, 1200);
+          const placeholder: CachedWaveformData = {
+            ...createPlaceholderWaveform(duration || 0, 1200),
+            status: "ready",
+            progress: 100,
+          };
           await setCachedWaveform(mediaKey, placeholder);
-          if (!cancelled) {
-            setWaveformData(Float32Array.from(placeholder.peaks));
-          }
+          setWaveformPreview(placeholder);
           return;
         }
 
@@ -371,22 +414,105 @@ export const WaveformVisualizer = () => {
           throw new Error("Unable to load file for waveform analysis");
         }
 
-        const analysis =
-          shouldUseDetailedWaveform(file) || shouldUseAdaptiveWaveform(file)
-            ? await analyzeAudioFileWaveform(file)
-            : createPlaceholderWaveform(duration || 0, 800);
+        const normalizedCached = cached ? normalizeCachedWaveform(cached) : null;
+        const isDetailed = shouldUseDetailedWaveform(file);
+        const isAdaptive = shouldUseAdaptiveWaveform(file);
+        const isProgressive = shouldUseProgressiveWaveform(file);
+        const canAnalyze = isDetailed || isAdaptive;
+
+        if (normalizedCached) {
+          setWaveformPreview(normalizedCached);
+          if (normalizedCached.status === "ready" || !canAnalyze) {
+            return;
+          }
+        }
+
+        if (!canAnalyze) {
+          const placeholder: CachedWaveformData = {
+            ...(normalizedCached ?? createPlaceholderWaveform(duration || 0, 800)),
+            status: "placeholder",
+            progress: 0,
+            updatedAt: Date.now(),
+          };
+          await setCachedWaveform(mediaKey, placeholder);
+          setWaveformPreview(placeholder);
+          return;
+        }
+
+        if (isProgressive) {
+          const placeholder: CachedWaveformData = {
+            ...(normalizedCached ?? createPlaceholderWaveform(duration || 0, 1000)),
+            status: "analyzing",
+            progress: Math.max(5, normalizedCached?.progress ?? 0),
+            updatedAt: Date.now(),
+          };
+
+          await setCachedWaveform(mediaKey, placeholder);
+          setWaveformPreview(placeholder);
+
+          scheduleBackgroundAnalysis(() => {
+            void (async () => {
+              try {
+                const analysis = await analyzeAudioFileWaveform(file, (update) => {
+                  if (cancelled) return;
+
+                  const previewWaveform: CachedWaveformData = {
+                    peaks: placeholder.peaks,
+                    resolution: placeholder.resolution,
+                    duration: duration || placeholder.duration,
+                    strategy: placeholder.strategy,
+                    status: update.status,
+                    progress: update.progress,
+                    updatedAt: Date.now(),
+                  };
+
+                  setWaveformLoadState({
+                    status: update.status,
+                    progress: update.progress,
+                  });
+                  void setCachedWaveform(mediaKey, previewWaveform);
+                });
+
+                await setCachedWaveform(mediaKey, analysis);
+                setWaveformPreview(analysis);
+              } catch (error) {
+                console.error("Error analyzing waveform in background:", error);
+                const failedWaveform: CachedWaveformData = {
+                  peaks: placeholder.peaks,
+                  resolution: placeholder.resolution,
+                  duration: duration || placeholder.duration,
+                  strategy: placeholder.strategy,
+                  status: "error",
+                  progress: 0,
+                  updatedAt: Date.now(),
+                };
+                await setCachedWaveform(mediaKey, failedWaveform);
+                setWaveformPreview(failedWaveform);
+              }
+            })();
+          });
+
+          return;
+        }
+
+        const analysis = await analyzeAudioFileWaveform(file, (update) => {
+          if (cancelled) return;
+          setWaveformLoadState({
+            status: update.status,
+            progress: update.progress,
+          });
+        });
 
         await setCachedWaveform(mediaKey, analysis);
-
-        if (!cancelled) {
-          setWaveformData(Float32Array.from(analysis.peaks));
-        }
+        setWaveformPreview(analysis);
       } catch (error) {
         console.error("Error loading audio for waveform:", error);
         if (!cancelled) {
-          setWaveformData(
-            Float32Array.from(createPlaceholderWaveform(duration || 0, 800).peaks)
-          );
+          setWaveformPreview({
+            ...createPlaceholderWaveform(duration || 0, 800),
+            status: "error",
+            progress: 0,
+          });
         }
       }
     };
@@ -395,6 +521,16 @@ export const WaveformVisualizer = () => {
 
     return () => {
       cancelled = true;
+      if (idleId !== null && typeof window !== "undefined" && "cancelIdleCallback" in window) {
+        (
+          window as Window & {
+            cancelIdleCallback: (id: number) => void;
+          }
+        ).cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== null) {
+        globalThis.clearTimeout(timeoutId);
+      }
     };
   }, [currentFile, currentYouTube, duration]);
 
@@ -1765,6 +1901,18 @@ export const WaveformVisualizer = () => {
               </button>
             </div>
           )}
+
+          {!currentYouTube &&
+            (waveformLoadState.status === "analyzing" ||
+              waveformLoadState.status === "error") && (
+              <div className="absolute top-2 right-2 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/55 backdrop-blur-sm rounded border border-white/10 shadow-sm">
+                <span className="text-white/80 text-xs font-medium">
+                  {waveformLoadState.status === "error"
+                    ? t("waveform.analysisError")
+                    : `${t("waveform.analyzing")} ${waveformLoadState.progress}%`}
+                </span>
+              </div>
+            )}
 
           {/* Tooltip for current hover/touch position */}
           {hoverTime !== null && (

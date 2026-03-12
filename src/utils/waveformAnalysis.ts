@@ -3,6 +3,11 @@ import { CachedWaveformData } from "./mediaStorage";
 const DETAILED_FILE_LIMIT = 20 * 1024 * 1024;
 const ADAPTIVE_FILE_LIMIT = 80 * 1024 * 1024;
 
+type WaveformAnalysisProgress = {
+  progress: number;
+  status: NonNullable<CachedWaveformData["status"]>;
+};
+
 export const buildWaveformMediaKey = (media: {
   storageId?: string;
   id?: string;
@@ -24,6 +29,14 @@ export const shouldUseAdaptiveWaveform = (file: {
   size: number;
 }) => file.type.includes("audio") && file.size <= ADAPTIVE_FILE_LIMIT;
 
+export const shouldUseProgressiveWaveform = (file: {
+  type: string;
+  size: number;
+}) =>
+  file.type.includes("audio") &&
+  file.size > DETAILED_FILE_LIMIT &&
+  file.size <= ADAPTIVE_FILE_LIMIT;
+
 export const createPlaceholderWaveform = (
   duration = 0,
   resolution = 512
@@ -39,6 +52,8 @@ export const createPlaceholderWaveform = (
     resolution,
     duration,
     strategy: "placeholder",
+    status: "placeholder",
+    progress: 0,
     updatedAt: Date.now(),
   };
 };
@@ -70,7 +85,8 @@ const downsampleChannelData = (
 };
 
 export const analyzeAudioFileWaveform = async (
-  file: File
+  file: File,
+  onProgress?: (update: WaveformAnalysisProgress) => void
 ): Promise<CachedWaveformData> => {
   const AudioContextClass =
     window.AudioContext || (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -80,18 +96,33 @@ export const analyzeAudioFileWaveform = async (
   }
 
   const audioContext = new AudioContextClass();
+  const reportProgress = (
+    progress: number,
+    status: WaveformAnalysisProgress["status"]
+  ) => {
+    onProgress?.({
+      progress: Math.max(0, Math.min(100, Math.round(progress))),
+      status,
+    });
+  };
 
   try {
+    reportProgress(10, "analyzing");
     const buffer = await file.arrayBuffer();
+    reportProgress(55, "analyzing");
     const decoded = await audioContext.decodeAudioData(buffer.slice(0));
     const resolution = shouldUseDetailedWaveform(file) ? 2000 : 1000;
+    reportProgress(85, "analyzing");
     const peaks = downsampleChannelData(decoded.getChannelData(0), resolution);
+    reportProgress(100, "ready");
 
     return {
       peaks: Array.from(peaks),
       resolution,
       duration: decoded.duration,
       strategy: shouldUseDetailedWaveform(file) ? "detailed" : "adaptive",
+      status: "ready",
+      progress: 100,
       updatedAt: Date.now(),
     };
   } finally {

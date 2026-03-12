@@ -32,6 +32,8 @@ export interface CachedWaveformData {
   resolution: number;
   duration?: number;
   strategy: "detailed" | "adaptive" | "placeholder";
+  status?: "placeholder" | "analyzing" | "ready" | "error";
+  progress?: number;
   updatedAt: number;
 }
 
