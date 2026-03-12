@@ -228,7 +228,7 @@
     "windowTitleWithMedia": "AB Loop Player - {{title}}",
     "shareSetupRequired": "Set loop points or load a video before sharing",
     "abLoopPlayer": "AB Loop Player",
-    "couldNotRetrieveMedia": "Could not retrieve media file",
+    "couldNotRetrieveMedia": "File not found in storage. Please re-upload the file.",
     "noMediaLoadedSimple": "No media loaded"
   },
   "upload": {

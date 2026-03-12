@@ -912,12 +912,22 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
                 }
               } catch (error) {
                 console.error("Failed to load file from storage:", error);
-                // Fall back to using the URL if available
               }
+
+              // storageId was present but file not found/failed — don't try the stale blob URL
+              toast.error(i18n.t("player.couldNotRetrieveMedia"));
+              set({ isLoadingMedia: false });
+              return;
             }
 
-            // If we don't have it in storage or retrieval failed, try using the URL
-            // (this will likely fail after page refresh for local files)
+            // No storageId — try the URL only if it's not a blob (blob URLs don't survive page refresh)
+            const savedUrl = historyItem.fileData.url;
+            if (!savedUrl || savedUrl.startsWith("blob:")) {
+              toast.error(i18n.t("player.couldNotRetrieveMedia"));
+              set({ isLoadingMedia: false });
+              return;
+            }
+
             const fileData: MediaFile = {
               ...historyItem.fileData,
               id: `file-${Date.now()}-${Math.random()
@@ -929,16 +939,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             // Restore playback time if available
             if (historyItem.playbackTime) {
               set({ currentTime: historyItem.playbackTime });
-            }
-
-            // If we couldn't retrieve from storage and the URL doesn't work, show an error
-            if (historyItem.storageId) {
-              setTimeout(() => {
-                const { currentFile } = get();
-                if (!currentFile || !currentFile.url) {
-                  toast.error(i18n.t("player.couldNotRetrieveMedia"));
-                }
-              }, 1000);
             }
           } else if (
             historyItem.type === "youtube" &&

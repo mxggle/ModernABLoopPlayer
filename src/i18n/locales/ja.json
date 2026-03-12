@@ -218,7 +218,7 @@
     "windowTitleWithMedia": "A-Bループプレーヤー - {{title}}",
     "shareSetupRequired": "共有する前にループポイントを設定するか動画を読み込んでください",
     "abLoopPlayer": "A-Bループプレーヤー",
-    "couldNotRetrieveMedia": "メディアファイルを取得できませんでした",
+    "couldNotRetrieveMedia": "ストレージにファイルが見つかりません。ファイルを再アップロードしてください。",
     "noMediaLoadedSimple": "メディアが読み込まれていません"
   },
   "upload": {
