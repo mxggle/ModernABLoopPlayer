@@ -8,6 +8,15 @@ import './i18n'
 
 const queryClient = new QueryClient()
 
+// Request persistent storage so the browser doesn't evict IndexedDB media files
+if (navigator.storage?.persist) {
+  navigator.storage.persist().then((granted) => {
+    if (!granted) {
+      console.warn('Persistent storage not granted — browser may evict media files under storage pressure.');
+    }
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
