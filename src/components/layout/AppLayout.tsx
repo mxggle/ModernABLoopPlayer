@@ -2,6 +2,7 @@ import { useState, Dispatch, SetStateAction } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
+import { useShallow } from "zustand/react/shallow";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { Moon, Sun, Info, Settings, Layout, Eye, EyeOff, Music, Video, Youtube } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -31,7 +32,23 @@ export const AppLayout = ({
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [isLayoutPopoverOpen, setIsLayoutPopoverOpen] = useState(false);
 
-  const { currentFile, currentYouTube, theme, setTheme, seekStepSeconds, seekSmallStepSeconds } = usePlayerStore();
+  const {
+    currentFile,
+    currentYouTube,
+    theme,
+    setTheme,
+    seekStepSeconds,
+    seekSmallStepSeconds,
+  } = usePlayerStore(
+    useShallow((state) => ({
+      currentFile: state.currentFile,
+      currentYouTube: state.currentYouTube,
+      theme: state.theme,
+      setTheme: state.setTheme,
+      seekStepSeconds: state.seekStepSeconds,
+      seekSmallStepSeconds: state.seekSmallStepSeconds,
+    }))
+  );
 
   // Toggle theme
   const toggleTheme = () => {

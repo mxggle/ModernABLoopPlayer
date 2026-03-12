@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../stores/playerStore";
+import { useShallow } from "zustand/react/shallow";
 import { MediaPlayer } from "../components/player/MediaPlayer";
 import { YouTubePlayer } from "../components/player/YouTubePlayer";
 import { CombinedControls } from "../components/controls/CombinedControls";
@@ -27,7 +28,14 @@ export const PlayerPage = () => {
   const { isMobile } = useWindowSize();
 
   const { currentFile, currentYouTube, showWaveform, isLoadingMedia } =
-    usePlayerStore();
+    usePlayerStore(
+      useShallow((state) => ({
+        currentFile: state.currentFile,
+        currentYouTube: state.currentYouTube,
+        showWaveform: state.showWaveform,
+        isLoadingMedia: state.isLoadingMedia,
+      }))
+    );
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();

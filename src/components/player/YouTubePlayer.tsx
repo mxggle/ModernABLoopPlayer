@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 
 // Define YouTube player interface
 interface YTPlayer {
@@ -83,7 +84,22 @@ export const YouTubePlayer = ({
     setCurrentTime,
     setDuration,
     setIsPlaying,
-  } = usePlayerStore();
+  } = usePlayerStore(
+    useShallow((state) => ({
+      isPlaying: state.isPlaying,
+      volume: state.volume,
+      mediaVolume: state.mediaVolume,
+      muted: state.muted,
+      playbackRate: state.playbackRate,
+      loopStart: state.loopStart,
+      loopEnd: state.loopEnd,
+      isLooping: state.isLooping,
+      currentTime: state.currentTime,
+      setCurrentTime: state.setCurrentTime,
+      setDuration: state.setDuration,
+      setIsPlaying: state.setIsPlaying,
+    }))
+  );
   const { t } = useTranslation();
 
   // Load YouTube API
@@ -273,13 +289,16 @@ export const YouTubePlayer = ({
       }
     };
 
-    // Use less frequent checking to rely more on native events
-    const checkInterval = setInterval(checkTime, 100);
+    if (!isPlaying && !isLooping) {
+      return;
+    }
+
+    const checkInterval = setInterval(checkTime, 250);
 
     return () => {
       clearInterval(checkInterval);
     };
-  }, [player, isLooping, isSeeking, loopStart, loopEnd, setCurrentTime]);
+  }, [player, isPlaying, isLooping, isSeeking, loopStart, loopEnd, setCurrentTime]);
 
   // For hidden mode, render a minimal container but still initialize the player
   if (hiddenMode) {

@@ -7,9 +7,10 @@ const DEFAULT_MAX_TOTAL_STORAGE = 10 * 1024 * 1024 * 1024; // 10GB total
 
 // IndexedDB setup
 const DB_NAME = "abloop-media-storage";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const MEDIA_STORE = "media-files";
 const META_STORE = "storage-meta";
+const WAVEFORM_META_PREFIX = "waveform:";
 
 interface StorageMetadata {
   id: string;
@@ -19,11 +20,19 @@ interface StorageMetadata {
 
 interface StoredMedia {
   id: string;
-  fileData: ArrayBuffer;
+  fileData: Blob | ArrayBuffer;
   fileType: string;
   fileName: string;
   fileSize: number;
   timestamp: number;
+}
+
+export interface CachedWaveformData {
+  peaks: number[];
+  resolution: number;
+  duration?: number;
+  strategy: "detailed" | "adaptive" | "placeholder";
+  updatedAt: number;
 }
 
 // Initialize the database
@@ -213,14 +222,6 @@ export const storeMediaFile = async (
       await cleanupOldFiles(maxTotalStorage);
     }
 
-    // Read file as ArrayBuffer
-    const fileData = await new Promise<ArrayBuffer>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as ArrayBuffer);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsArrayBuffer(file);
-    });
-
     // Generate unique ID
     const id = `file-${Date.now()}-${Math.random()
       .toString(36)
@@ -235,7 +236,7 @@ export const storeMediaFile = async (
 
       const storedMedia: StoredMedia = {
         id,
-        fileData,
+        fileData: file,
         fileType: file.type,
         fileName: file.name,
         fileSize: file.size,
@@ -299,7 +300,12 @@ export const retrieveMediaFile = async (id: string): Promise<File | null> => {
       fileName: storedMedia.fileName,
       fileType: storedMedia.fileType,
       fileSize: storedMedia.fileSize,
-      dataLength: storedMedia.fileData ? storedMedia.fileData.byteLength : 0
+      dataLength:
+        storedMedia.fileData instanceof Blob
+          ? storedMedia.fileData.size
+          : storedMedia.fileData instanceof ArrayBuffer
+            ? storedMedia.fileData.byteLength
+            : 0
     });
 
     // Update timestamp to mark as recently accessed
@@ -315,15 +321,18 @@ export const retrieveMediaFile = async (id: string): Promise<File | null> => {
       console.warn("Failed to update access timestamp:", updateError);
     }
 
-    // Verify that we have valid data
-    if (!storedMedia.fileData || !(storedMedia.fileData instanceof ArrayBuffer)) {
+    if (!storedMedia.fileData) {
       console.error("Invalid file data in stored media:", storedMedia.fileData);
       return null;
     }
 
     try {
-      // Convert ArrayBuffer back to File
-      const file = new File([storedMedia.fileData], storedMedia.fileName, {
+      const blob =
+        storedMedia.fileData instanceof Blob
+          ? storedMedia.fileData
+          : new Blob([storedMedia.fileData], { type: storedMedia.fileType });
+
+      const file = new File([blob], storedMedia.fileName, {
         type: storedMedia.fileType,
       });
       return file;
@@ -414,6 +423,24 @@ export const clearAllMediaFiles = async (): Promise<void> => {
       lastCleanup: Date.now(),
     });
 
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction([META_STORE], "readwrite");
+      const store = transaction.objectStore(META_STORE);
+      const request = store.getAllKeys();
+
+      request.onsuccess = () => {
+        const keys = (request.result || []).filter(
+          (key): key is string =>
+            typeof key === "string" && key.startsWith(WAVEFORM_META_PREFIX)
+        );
+
+        keys.forEach((key) => store.delete(key));
+        resolve();
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+
     toast.success(i18n.t("storage.clearStorageSuccess"));
   } catch (error) {
     console.error("Error clearing media storage", error);
@@ -442,5 +469,53 @@ export const getStorageUsage = async (): Promise<{
       total: DEFAULT_MAX_TOTAL_STORAGE,
       percentage: 0,
     };
+  }
+};
+
+export const getCachedWaveform = async (
+  mediaKey: string
+): Promise<CachedWaveformData | null> => {
+  try {
+    const db = await initDB();
+
+    return await new Promise((resolve, reject) => {
+      const transaction = db.transaction([META_STORE], "readonly");
+      const store = transaction.objectStore(META_STORE);
+      const request = store.get(`${WAVEFORM_META_PREFIX}${mediaKey}`);
+
+      request.onsuccess = () => {
+        resolve(request.result ?? null);
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error("Error getting cached waveform", error);
+    return null;
+  }
+};
+
+export const setCachedWaveform = async (
+  mediaKey: string,
+  waveform: CachedWaveformData
+): Promise<void> => {
+  try {
+    const db = await initDB();
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction([META_STORE], "readwrite");
+      const store = transaction.objectStore(META_STORE);
+      const request = store.put({
+        id: `${WAVEFORM_META_PREFIX}${mediaKey}`,
+        ...waveform,
+      });
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.error("Error caching waveform", error);
   }
 };

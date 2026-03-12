@@ -1,9 +1,12 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
-import * as Tone from "tone";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useShadowingStore } from "../../stores/shadowingStore";
-import { retrieveMediaFile } from "../../utils/mediaStorage";
+import {
+  getCachedWaveform,
+  retrieveMediaFile,
+  setCachedWaveform,
+} from "../../utils/mediaStorage";
 import { useShadowingPlayer } from "../../hooks/useShadowingPlayer";
 import {
   AlignStartHorizontal,
@@ -25,6 +28,13 @@ import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { checkAudioRecordingSupport, getRecordingUnsupportedMessage } from "../../utils/browserCheck";
 import { useShadowingRecorder } from "../../hooks/useShadowingRecorder";
+import {
+  analyzeAudioFileWaveform,
+  buildWaveformMediaKey,
+  createPlaceholderWaveform,
+  shouldUseAdaptiveWaveform,
+  shouldUseDetailedWaveform,
+} from "../../utils/waveformAnalysis";
 
 // Constant toast ID to ensure only one bookmark notification is shown at a time
 const BOOKMARK_TOAST_ID = "bookmark-action-toast";
@@ -306,13 +316,6 @@ export const WaveformVisualizer = () => {
 
   // Load audio/video file and analyze waveform
   useEffect(() => {
-    console.log("🔍 WaveformVisualizer useEffect triggered:", {
-      currentFile: currentFile?.name,
-      type: currentFile?.type,
-      url: currentFile?.url ? "present" : "missing",
-      showWaveform,
-    });
-
     const hasMedia = currentFile?.url || currentYouTube?.id;
     if (
       !hasMedia ||
@@ -320,229 +323,80 @@ export const WaveformVisualizer = () => {
         !currentFile.type.includes("audio") &&
         !currentFile.type.includes("video"))
     ) {
-      console.log("❌ WaveformVisualizer: File/Media validation failed");
       setWaveformData(null);
       return;
     }
 
-    let buffer: Tone.ToneAudioBuffer | null = null;
+    let cancelled = false;
 
     const loadAudio = async () => {
       try {
         if (currentYouTube) {
-          console.log("📺 Generating fake waveform for YouTube video");
-          generateFakeWaveform();
-        } else if (currentFile && currentFile.type.includes("video") && currentFile.url) {
-          // For video files, extract audio using multiple methods
-          console.log(
-            "🎬 Loading video file for waveform:",
-            currentFile.name,
-            "Type:",
-            currentFile.type
-          );
-          await loadVideoAudio(currentFile.url);
-        } else if (currentFile && currentFile.url) {
-          // For audio files, use Tone.js as before
-          buffer = new Tone.ToneAudioBuffer(currentFile.url, () => {
-            // Get audio data
-            const channelData = buffer?.getChannelData(0) || new Float32Array();
+          if (!cancelled) {
+            setWaveformData(
+              Float32Array.from(createPlaceholderWaveform(duration || 0, 1200).peaks)
+            );
+          }
+          return;
+        }
 
-            // Downsample for performance
-            const downsampledData = downsampleAudioData(channelData, 2000);
-            setWaveformData(downsampledData);
-          });
+        if (!currentFile?.url) {
+          return;
+        }
+
+        const mediaKey = buildWaveformMediaKey(currentFile);
+        const cached = await getCachedWaveform(mediaKey);
+        if (cached && !cancelled) {
+          setWaveformData(Float32Array.from(cached.peaks));
+          return;
+        }
+
+        if (currentFile.type.includes("video")) {
+          const placeholder = createPlaceholderWaveform(duration || 0, 1200);
+          await setCachedWaveform(mediaKey, placeholder);
+          if (!cancelled) {
+            setWaveformData(Float32Array.from(placeholder.peaks));
+          }
+          return;
+        }
+
+        const file =
+          currentFile.storageId
+            ? await retrieveMediaFile(currentFile.storageId)
+            : await fetch(currentFile.url).then((response) => response.blob()).then(
+              (blob) => new File([blob], currentFile.name, { type: currentFile.type })
+            );
+
+        if (!file) {
+          throw new Error("Unable to load file for waveform analysis");
+        }
+
+        const analysis =
+          shouldUseDetailedWaveform(file) || shouldUseAdaptiveWaveform(file)
+            ? await analyzeAudioFileWaveform(file)
+            : createPlaceholderWaveform(duration || 0, 800);
+
+        await setCachedWaveform(mediaKey, analysis);
+
+        if (!cancelled) {
+          setWaveformData(Float32Array.from(analysis.peaks));
         }
       } catch (error) {
         console.error("Error loading audio for waveform:", error);
-      }
-    };
-
-    const generateFakeWaveform = () => {
-      const samples = 2000;
-      const fakeData = new Float32Array(samples);
-
-      // Generate a stylized sine wave pattern
-      // Looks vaguely audio-like but clearly artificial (not "too real" to avoid misleading)
-      for (let i = 0; i < samples; i++) {
-        // Main wave with varying frequency to look interesting
-        const x = (i / samples) * 100;
-        // Combine two sine waves: one fast, one slow, to create a "beating" pattern
-        // Amplitude is kept relatively low (0.3) to be unobtrusive
-        fakeData[i] = Math.sin(x) * Math.sin(x * 0.1) * 0.3;
-      }
-      setWaveformData(fakeData);
-    };
-
-    const loadVideoAudio = async (videoUrl: string) => {
-      console.log("🎬 Starting video audio extraction for:", videoUrl);
-
-      try {
-        // Method 1: Try using fetch + decodeAudioData (works for some video formats)
-        console.log("🎵 Trying Method 1: Direct audio decoding...");
-        const response = await fetch(videoUrl);
-        const arrayBuffer = await response.arrayBuffer();
-
-        const audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
-        const audioBuffer = await audioContext.decodeAudioData(
-          arrayBuffer.slice(0)
-        );
-
-        console.log(
-          "✅ Method 1 succeeded! Audio buffer created:",
-          audioBuffer
-        );
-        const channelData = audioBuffer.getChannelData(0);
-        const downsampledData = downsampleAudioData(channelData, 2000);
-        setWaveformData(downsampledData);
-        audioContext.close();
-        return;
-      } catch (error) {
-        console.log("❌ Method 1 failed:", (error as Error).message);
-      }
-
-      try {
-        // Method 2: Use video element with Web Audio API
-        console.log("🎵 Trying Method 2: Video element extraction...");
-
-        const video = document.createElement("video");
-        video.src = videoUrl;
-        video.muted = true;
-        video.volume = 0;
-
-        // Wait for video to be ready
-        await new Promise((resolve, reject) => {
-          video.oncanplaythrough = () => {
-            console.log("📹 Video ready for playback");
-            resolve(true);
-          };
-          video.onerror = (e) => {
-            console.log("❌ Video loading error:", e);
-            reject(e);
-          };
-          video.load();
-        });
-
-        const audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
-
-        // Resume audio context if suspended
-        if (audioContext.state === "suspended") {
-          await audioContext.resume();
-        }
-
-        const source = audioContext.createMediaElementSource(video);
-        const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 2048;
-
-        source.connect(analyser);
-        // Don't connect to destination to avoid audio output
-
-        // Start video playback
-        video.currentTime = 0;
-        await video.play();
-
-        console.log("🎬 Video playing, extracting audio data...");
-
-        // Extract frequency data to create waveform
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        const waveformSamples: number[] = [];
-
-        // Collect samples for 3 seconds or until video ends
-        const maxSamples = 2000;
-        const sampleInterval = 50; // ms
-
-        for (
-          let i = 0;
-          i < maxSamples && video.currentTime < video.duration;
-          i++
-        ) {
-          analyser.getByteFrequencyData(dataArray);
-
-          // Convert frequency data to waveform-like data
-          let sum = 0;
-          for (let j = 0; j < bufferLength; j++) {
-            sum += dataArray[j];
-          }
-          const average = sum / bufferLength / 255; // Normalize to 0-1
-          waveformSamples.push((average - 0.5) * 2); // Convert to -1 to 1 range
-
-          await new Promise((resolve) => setTimeout(resolve, sampleInterval));
-        }
-
-        video.pause();
-        source.disconnect();
-        audioContext.close();
-
-        if (waveformSamples.length > 0) {
-          console.log(
-            "✅ Method 2 succeeded! Extracted",
-            waveformSamples.length,
-            "samples"
+        if (!cancelled) {
+          setWaveformData(
+            Float32Array.from(createPlaceholderWaveform(duration || 0, 800).peaks)
           );
-          const channelData = new Float32Array(waveformSamples);
-          const downsampledData = downsampleAudioData(channelData, 2000);
-          setWaveformData(downsampledData);
-          return;
         }
-      } catch (error) {
-        console.log("❌ Method 2 failed:", (error as Error).message);
       }
-
-      // Method 3: Use the new fake waveform generator
-      console.log("🎵 Using Method 3: Generating placeholder waveform");
-      generateFakeWaveform();
-      console.log("✅ Placeholder waveform generated for video file");
     };
 
     loadAudio();
 
     return () => {
-      if (buffer) {
-        buffer.dispose();
-      }
+      cancelled = true;
     };
-  }, [currentFile, currentYouTube]);
-
-  // Force update counter for smooth animation
-  const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
-
-  // Continuous animation loop when playing - ensures smooth waveform scrolling
-  const animationFrameRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!isPlaying || !showWaveform) {
-      // Cancel any pending animation frame when not playing
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-      return;
-    }
-
-    // Animation loop: continuously trigger canvas redraws while playing
-    const animate = () => {
-      // Force re-render by incrementing counter
-      setForceUpdateCounter((prev) => prev + 1);
-
-      // Request next frame
-      if (usePlayerStore.getState().isPlaying) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    // Start the animation loop
-    animationFrameRef.current = requestAnimationFrame(animate);
-
-    // Cleanup on unmount or when playing stops
-    return () => {
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-    };
-  }, [isPlaying, showWaveform]);
+  }, [currentFile, currentYouTube, duration]);
 
 
   // Draw waveform
@@ -739,6 +593,11 @@ export const WaveformVisualizer = () => {
 
     // Draw waveform as bars — always split canvas in half (media top, shadowing bottom)
     const mainWaveformHeight = canvas.height / 2;
+    const mainWaveformPadding = 2 * dpr;
+    const mainWaveformDrawHeight = Math.max(
+      0,
+      mainWaveformHeight - mainWaveformPadding * 2
+    );
 
     ctx.fillStyle = "#8B5CF6"; // Purple
 
@@ -750,11 +609,16 @@ export const WaveformVisualizer = () => {
 
     // Center point for bars
     const mainCenterY = mainWaveformHeight / 2;
-    const amplitudeScale = mainWaveformHeight * 2;
+    const amplitudeScale = mainWaveformDrawHeight;
 
     // Calculate bar dimensions
     const gap = sliceWidth > 4 * dpr ? 1 * dpr : 0;
     const barWidth = Math.max(1 * dpr, sliceWidth - gap);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, mainWaveformPadding, canvas.width, mainWaveformDrawHeight);
+    ctx.clip();
 
     for (let i = startIndex; i < endIndex; i++) {
       const timeAtSample = i * sampleDuration;
@@ -762,12 +626,16 @@ export const WaveformVisualizer = () => {
 
       const value = waveformData[i];
 
-      // Ensure even silence has a tiny presence (1px)
-      const height = Math.max(1 * dpr, value * amplitudeScale * 0.8);
-      const y = mainCenterY - height / 2;
+      const unclampedHeight = Math.max(1 * dpr, value * amplitudeScale * 0.8);
+      const height = Math.min(mainWaveformDrawHeight, unclampedHeight);
+      const y = Math.max(
+        mainWaveformPadding,
+        mainCenterY - height / 2
+      );
 
       ctx.fillRect(x, y, barWidth, height);
     }
+    ctx.restore();
 
     // Draw Shadowing Waveforms — always draw separator and bottom lane
 
@@ -775,6 +643,8 @@ export const WaveformVisualizer = () => {
       const shadowTop = mainWaveformHeight;
       const shadowHeight = canvas.height - mainWaveformHeight;
       const shadowCenterY = shadowTop + shadowHeight / 2;
+      const shadowPadding = 2 * dpr;
+      const shadowDrawHeight = Math.max(0, shadowHeight - shadowPadding * 2);
 
       // Draw separator
       ctx.beginPath();
@@ -793,6 +663,16 @@ export const WaveformVisualizer = () => {
         ctx.lineTo(canvas.width, shadowCenterY);
         ctx.stroke();
       }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(
+        0,
+        shadowTop + shadowPadding,
+        canvas.width,
+        shadowDrawHeight
+      );
+      ctx.clip();
 
       shadowingWaveforms.forEach(seg => {
         // Calculate overlap with visible range
@@ -813,10 +693,11 @@ export const WaveformVisualizer = () => {
           // Ensure min width
           const finalBarW = Math.max(1 * dpr, barW);
 
-          const h = Math.max(2 * dpr, val * shadowHeight * 3.0);
-          const y = shadowCenterY - h / 2;
+          const unclampedHeight = Math.max(2 * dpr, val * shadowDrawHeight * 1.6);
+          const h = Math.min(shadowDrawHeight, unclampedHeight);
+          const y = Math.max(shadowTop + shadowPadding, shadowCenterY - h / 2);
 
-          ctx.fillRect(x, Math.max(shadowTop, y), finalBarW, Math.min(shadowHeight, h));
+          ctx.fillRect(x, y, finalBarW, h);
         }
       });
 
@@ -845,10 +726,11 @@ export const WaveformVisualizer = () => {
           const w = ((i < recording.peakTimes.length - 1
             ? Math.max(peakDuration, recording.peakTimes[i + 1] - elapsedTime)
             : peakDuration) / visibleDuration) * canvas.width;
-          const h = Math.max(2 * dpr, peak * shadowHeight * 3.0);
-          const y = shadowCenterY - h / 2;
+          const unclampedHeight = Math.max(2 * dpr, peak * shadowDrawHeight * 1.6);
+          const h = Math.min(shadowDrawHeight, unclampedHeight);
+          const y = Math.max(shadowTop + shadowPadding, shadowCenterY - h / 2);
 
-          ctx.fillRect(x, Math.max(shadowTop, y), Math.max(1 * dpr, w), Math.min(shadowHeight, h));
+          ctx.fillRect(x, y, Math.max(1 * dpr, w), h);
         });
 
         ctx.restore();
@@ -865,6 +747,7 @@ export const WaveformVisualizer = () => {
       if (currentRecording) {
         drawRecordingOverlay(currentRecording, "#EF4444");
       }
+      ctx.restore();
     }
 
     // Draw playhead
@@ -937,7 +820,6 @@ export const WaveformVisualizer = () => {
     dragStart,
     dragEnd,
     isMobile,
-    forceUpdateCounter,
   ]);
 
   // Helper function to draw markers
