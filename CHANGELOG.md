@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-03-12
+
+### Added
+- **Playback controls**:
+  - Added a dedicated "play from start" control in the player UI
+  - Added safer pending-play handling so media can begin automatically once the element is ready
+- **Transcription workflow**:
+  - Added loop-range transcription so the active A-B selection can be sent directly for transcription
+  - Added an explicit full-range transcription action and cancel controls for long-running jobs
+- **Waveform processing**:
+  - Added cached waveform analysis utilities for background generation and progressive loading
+  - Added large-file waveform loading feedback with analysis progress states
+
+### Changed
+- **AI settings overhaul**:
+  - Rebuilt the AI settings page into clearer defaults, providers, and transcription sections
+  - Improved provider selection, model selection, API key handling, and connection testing flows
+  - Expanded translations for the new AI and transcription settings UI
+- **Shadowing workflow simplification**:
+  - Simplified shadowing playback and recording to a single-track model
+  - Refined recorder state handling, cleanup behavior, and waveform rendering for shadowing sessions
+- **Waveform experience**:
+  - Reworked waveform loading and rendering to better handle very large local audio files
+  - Improved waveform caching, zoom behavior, and loading transitions for stored media
+- **Player and media state management**:
+  - Improved playback state synchronization between the media element and the global store
+  - Reduced noisy current-time updates and tightened media cleanup during unmounts
+- **Transcript actions**:
+  - Refined transcript action buttons and range-aware transcription entry points
+
+### Fixed
+- **Playback reliability**:
+  - Fixed cases where play requests could be dropped before media was ready
+  - Fixed store playback state drifting out of sync with the actual media element
+- **Waveform stability**:
+  - Fixed large audio waveform loading regressions and reduced failures during background analysis
+  - Improved recovery and status handling when waveform analysis cannot complete normally
+- **Shadowing and storage cleanup**:
+  - Improved cleanup around shadowing recordings and related persisted media state
+  - Fixed several edge cases in local media storage and waveform cache updates
+
 ## [0.8.1] - 2026-02-17
 
 ### Added
@@ -214,7 +255,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Layout optimizations for desktop view
   - TypeScript and React component structure
 
-[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/USERNAME/loopmate/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/USERNAME/loopmate/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/USERNAME/loopmate/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/USERNAME/loopmate/compare/v0.6.1...v0.7.0
