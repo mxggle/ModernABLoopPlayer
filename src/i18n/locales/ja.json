@@ -17,7 +17,20 @@
     "upload": "アップロード",
     "create": "作成",
     "back": "戻る",
-    "remove": "削除"
+    "show": "表示",
+    "hide": "非表示",
+    "remove": "削除",
+    "shadowing": "シャドーイング"
+  },
+  "shadowing": {
+    "title": "シャドーイング",
+    "mode": "シャドーイングモード",
+    "on": "録音オン",
+    "off": "シャドーイング",
+    "delay": "停止遅延 (秒)",
+    "recording": "録音中...",
+    "enable": "シャドーイングを有効化",
+    "disable": "シャドーイングを無効化"
   },
   "app": {
     "logoLabel": "LoopMateロゴ"
@@ -47,16 +60,31 @@
   },
   "aiSettingsPage": {
     "title": "AI設定",
-    "subtitle": "AIプロバイダーとモデルを設定します",
+    "subtitle": "AIプロバイダー、既定値、文字起こしツールを設定します",
+    "overviewTitle": "概要",
+    "overviewDescription": "現在有効なサービスを確認して、最後にまとめて保存します。",
+    "sectionGuide": "セクション",
+    "sectionNav": {
+      "defaults": "既定値",
+      "providers": "プロバイダー",
+      "transcription": "文字起こし"
+    },
     "generalSettings": "全般設定",
+    "defaultsDescription": "応答に使う既定のサービスを選び、出力の振る舞いを調整します。",
     "preferredProvider": "優先するAIプロバイダー",
     "targetLanguage": "ターゲット言語",
+    "targetLanguageHelp": "翻訳、解説、生成される出力の言語として使われます。",
     "temperature": "温度 ({{value}})",
     "temperatureFocused": "集中",
     "temperatureBalanced": "バランス",
     "temperatureCreative": "クリエイティブ",
+    "temperatureHelp": "低い値ほど正確で、高い値ほど表現に幅が出ます。",
+    "generationBehavior": "応答の挙動",
     "maxTokens": "最大トークン数",
+    "maxTokensHelp": "AI応答の最大長を制限します。",
     "providersSection": "AIプロバイダー",
+    "providerSetupDescription": "各プロバイダーの認証情報を保存し、既定モデルを選択します。",
+    "storedLocally": "APIキーはこのブラウザー内にのみ保存されます。実際にリクエストするまで送信されません。",
     "providers": {
       "openai": "OpenAI",
       "gemini": "Google Gemini",
@@ -73,6 +101,8 @@
     "apiKeyPlaceholderLabel": "{{provider}}のAPIキーを入力してください",
     "invalidApiKeyFormat": "APIキーの形式が正しくありません",
     "defaultModel": "デフォルトモデル",
+    "summaryDefaultModel": "既定モデル",
+    "summaryTranscriptionModel": "文字起こしモデル",
     "selectModelPlaceholder": "{{provider}}のモデルを選択...",
     "enterApiKeyFirst": "まず{{provider}}のAPIキーを入力してください",
     "connectionSuccess": "{{provider}}との接続に成功しました",
@@ -80,9 +110,24 @@
     "connectionFailedWithError": "{{provider}}との接続に失敗しました: {{message}}",
     "saveSuccess": "AI設定を保存しました",
     "saveSettings": "設定を保存",
+    "testConnection": "接続テスト",
+    "status": {
+      "ready": "準備完了",
+      "missing": "APIキーが必要です",
+      "invalid": "APIキーを確認してください",
+      "default": "既定",
+      "active": "使用中",
+      "testPassed": "最後の接続テストに成功しました。",
+      "testFailed": "最後の接続テストに失敗しました。",
+      "configuredProviders": "{{total}}件中{{count}}件のプロバイダーが設定済みです"
+    },
     "transcriptionSection": "文字起こしサービス",
+    "transcriptionDescription": "音声文字起こしに使うサービスを選び、依存するキーを確認します。",
     "transcriptionProvider": "文字起こしプロバイダー",
     "transcriptionProviderDesc": "音声文字起こしに使用するサービスを選択",
+    "transcriptionDetails": "選択中のプロバイダー詳細",
+    "transcriptionSharedKey": "共有APIキーを使用",
+    "transcriptionSharedKeyDescription": "このサービスはプロバイダー設定セクションの{{provider}} APIキーを使用します。",
     "transcriptionProviders": {
       "openai": "OpenAI Whisper",
       "groq": "Groq Whisper（超高速）",
@@ -298,6 +343,10 @@
     "setOpenAiApiKey": "OpenAI APIキーを設定",
     "openAiSettings": "AI設定を開く",
     "transcribeWithWhisper": "メディアを文字起こし",
+    "transcribeLoopRange": "現在のループ範囲を文字起こし",
+    "transcribeLoopRangeButton": "ループ範囲を文字起こし",
+    "transcribeFullRange": "メディア全体を文字起こし",
+    "largeFileRangeRecommended": "大きなファイルが検出されました。パフォーマンスのため、ループ範囲の文字起こしを推奨します。",
     "exportAsTxt": "TXTとしてエクスポート",
     "clearTranscript": "トランスクリプトをクリア",
     "apiKeyRequired": "APIキーが必要です",
@@ -388,6 +437,8 @@
     "moveToFolder": "フォルダに移動",
     "unfiled": "未分類",
     "removeFromHistory": "履歴から削除",
+    "deleteItemTitle": "メディアを削除",
+    "deleteItemDescription": "「{{name}}」をメディアライブラリから削除しますか？ 保存済みのメディアデータも削除されます。",
     "closeRecentMedia": "最近のメディアを閉じる",
     "openRecentMedia": "最近のメディアを開く",
     "sort": "ソート",
@@ -505,6 +556,8 @@
     "loopSelection": "ループ選択",
     "touchSelectHint": "タップしてドラッグするとループを選択できます",
     "desktopSelectHint": "波形をドラッグしてループ範囲を選択します",
-    "youtubePlaceholder": "プレースホルダー波形を表示中。リアル波形機能は近日公開予定"
+    "youtubePlaceholder": "プレースホルダー波形を表示中。リアル波形機能は近日公開予定",
+    "analyzing": "波形を解析中...",
+    "analysisError": "波形の解析に失敗しました。プレビューを表示しています。"
   }
 }

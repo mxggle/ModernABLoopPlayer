@@ -3,7 +3,14 @@
     "allow": [
       "Bash(find:*)",
       "Bash(lsof:*)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(grep -rn \"SharedArrayBuffer\\\\|crossOriginIsolated\\\\|COOP\\\\|COEP\" /Users/szy/CascadeProjects/modern-ab-loop/ --include=\"*.ts\" --include=\"*.tsx\" --include=\"*.json\" 2>/dev/null | head -10)",
+      "Bash(grep -rn \"audio/wav\\\\|audio/mp3\\\\|audio/mp4\\\\|audio/webm\\\\|audio/ogg\\\\|audio/flac\\\\|type.*audio\" /Users/szy/CascadeProjects/modern-ab-loop/src/ --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | head -20)",
+      "Bash(grep -rn \"file.*size\\\\|maxFileSize\\\\|25MB\\\\|25 MB\\\\|fileSize\\\\|MAX_SIZE\" /Users/szy/CascadeProjects/modern-ab-loop/src/ --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | head -10)",
+      "Bash(grep -rn \"local.*server\\\\|localhost\\\\|127\\\\.0\\\\.0\\\\.1\\\\|http://\\\\|proxy\\\\|API_URL\\\\|BASE_URL\\\\|VITE_\" /Users/szy/CascadeProjects/modern-ab-loop/src/ --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | grep -v \"//.*http\\\\|node_modules\" | head -20)",
+      "Bash(grep -rn \"worker\\\\|Worker\" /Users/szy/CascadeProjects/modern-ab-loop/src/ --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | grep -v \"node_modules\\\\|WorkerController\\\\|service-worker\\\\|ServiceWorker\" | head -15)",
+      "Bash(grep -rn \"sampleRate\\\\|48000\\\\|16000\\\\|44100\" /Users/szy/CascadeProjects/modern-ab-loop/src/ --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | head -15)"
     ]
   }
 }

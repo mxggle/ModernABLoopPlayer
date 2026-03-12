@@ -1,15 +1,18 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePlayerStore } from "../stores/playerStore";
 import { useShadowingStore } from "../stores/shadowingStore";
 import { storeMediaFile } from "../utils/mediaStorage";
 import { toast } from "react-hot-toast";
 import { UniversalAudioRecorder } from "../utils/audioRecorder";
 
+type WindowWithWebkitAudioContext = Window & typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext;
+};
+
 export const useShadowingRecorder = () => {
     const { isPlaying, currentFile, currentYouTube } = usePlayerStore();
     const {
         isShadowingMode,
-        delay,
         setIsRecording,
         addSegment,
         muted: shadowingMuted,
@@ -18,16 +21,17 @@ export const useShadowingRecorder = () => {
 
     const audioRecorderRef = useRef<UniversalAudioRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
-    const stopTimerRef = useRef<NodeJS.Timeout | null>(null);
     const startTimeRef = useRef<number>(0);
     const endTimeRef = useRef<number>(0); // Track when recording actually ends
+    const recordingClockStartRef = useRef<number>(0);
     const streamRef = useRef<MediaStream | null>(null);
     const previousMuteStateRef = useRef<boolean>(false); // Store mute state before recording
+    const isStartingRef = useRef(false);
+    const [streamVersion, setStreamVersion] = useState(0);
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
-            if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach((track) => track.stop());
             }
@@ -36,6 +40,8 @@ export const useShadowingRecorder = () => {
 
     // Initialize stream when shadowing mode is enabled
     useEffect(() => {
+        let cancelled = false;
+
         if (isShadowingMode) {
             // Check if getUserMedia is available
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -62,9 +68,17 @@ export const useShadowingRecorder = () => {
 
                         console.log("🎤 [ShadowingRecorder] Requesting microphone access...");
                         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        if (cancelled || !useShadowingStore.getState().isShadowingMode) {
+                            stream.getTracks().forEach((track) => track.stop());
+                            return;
+                        }
                         streamRef.current = stream;
                         console.log("🎤 [ShadowingRecorder] Microphone stream initialized");
+                        setStreamVersion((version) => version + 1);
                     } catch (err) {
+                        if (cancelled) {
+                            return;
+                        }
                         console.error("🎤 [ShadowingRecorder] Microphone access denied or failed:", err);
 
                         // Provide more specific error messages
@@ -90,26 +104,47 @@ export const useShadowingRecorder = () => {
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach((track) => track.stop());
                 streamRef.current = null;
+                setStreamVersion((version) => version + 1);
             }
         }
+        return () => {
+            cancelled = true;
+        };
     }, [isShadowingMode]);
 
     useEffect(() => {
-        if (!isShadowingMode) return;
-        if (!streamRef.current && isPlaying) {
-            // Retry getting stream if missing (e.g. user enabled while playing?) 
-            // Or just let the failure handle it (toast above).
-            // Realistically, we should check stream availability before starting.
-            // For now, assume promise resolves fast enough or next update handles it.
-            // But better to be safe: without stream, we can't record.
+        const stopRecording = () => {
+            isStartingRef.current = false;
+
+            if (audioRecorderRef.current && audioRecorderRef.current.getState() === "recording") {
+                // Capture the end time when recording actually stops
+                const { currentTime } = usePlayerStore.getState();
+                endTimeRef.current = currentTime;
+
+                const { updateCurrentRecording } = useShadowingStore.getState();
+                updateCurrentRecording(null);
+
+                audioRecorderRef.current.stop();
+
+                // Restore previous mute state
+                const stateToRestore = previousMuteStateRef.current;
+                console.log("🔊 [ShadowingRecorder] RESTORING mute state:", stateToRestore, "(was saved at recording start)");
+                setShadowingMuted(stateToRestore);
+                console.log("🔊 [ShadowingRecorder] Mute state restoration called");
+            }
+        };
+
+        if (!isShadowingMode) {
+            stopRecording();
+            return;
         }
 
-
-        const startRecording = () => {
+        const startRecording = async () => {
             if (!streamRef.current) {
                 console.warn("🎤 [ShadowingRecorder] No stream available for recording");
                 return;
             }
+            if (isStartingRef.current) return;
             if (audioRecorderRef.current && audioRecorderRef.current.getState() === "recording") return;
 
             // FIRST: Save current mute state BEFORE any other operations
@@ -120,11 +155,12 @@ export const useShadowingRecorder = () => {
             try {
                 const { currentTime } = usePlayerStore.getState();
                 startTimeRef.current = currentTime;
+                recordingClockStartRef.current = performance.now();
                 chunksRef.current = [];
 
                 // Initialize active recording state
                 const { updateCurrentRecording } = useShadowingStore.getState();
-                updateCurrentRecording({ startTime: currentTime, peaks: [] });
+                updateCurrentRecording({ startTime: currentTime, peaks: [], peakTimes: [] });
 
                 // Create universal audio recorder
                 const recorder = new UniversalAudioRecorder(streamRef.current, {
@@ -132,15 +168,18 @@ export const useShadowingRecorder = () => {
                         // Update store with new peak
                         const current = useShadowingStore.getState().currentRecording;
                         if (current) {
+                            const elapsedSeconds = Math.max(
+                                0,
+                                (performance.now() - recordingClockStartRef.current) / 1000
+                            );
                             updateCurrentRecording({
                                 ...current,
-                                peaks: [...current.peaks, peak]
+                                peaks: [...current.peaks, peak],
+                                peakTimes: [...current.peakTimes, elapsedSeconds]
                             });
                         }
                     },
                     onStop: async (blob) => {
-                        updateCurrentRecording(null); // Clear visualization on stop
-
                         console.log("🎙️ [ShadowingRecorder] Recording stopped, processing...");
                         console.log("🎙️ [ShadowingRecorder] Created blob:", { size: blob.size, type: blob.type });
 
@@ -160,7 +199,9 @@ export const useShadowingRecorder = () => {
                         try {
                             // Decode audio to get actual duration
                             const arrayBuffer = await file.arrayBuffer();
-                            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                            const AudioContextClass =
+                                window.AudioContext ||
+                                (window as WindowWithWebkitAudioContext).webkitAudioContext;
                             const audioContext = new AudioContextClass();
                             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                             const actualDuration = audioBuffer.duration;
@@ -180,10 +221,10 @@ export const useShadowingRecorder = () => {
                             if (mediaId) {
                                 const recordingStartTime = startTimeRef.current;
                                 const recordingEndTime = endTimeRef.current;
-
+                                const finalCurrentRecording = useShadowingStore.getState().currentRecording;
                                 console.log(`🎙️ [ShadowingRecorder] Recording time range: ${recordingStartTime.toFixed(2)}s - ${recordingEndTime.toFixed(2)}s (played duration: ${(recordingEndTime - recordingStartTime).toFixed(2)}s, audio duration: ${actualDuration.toFixed(2)}s)`);
 
-                                // Remove any overlapping segments
+                                // Remove any overlapping segments before inserting the new take.
                                 const { removeOverlappingSegments } = useShadowingStore.getState();
                                 await removeOverlappingSegments(mediaId, recordingStartTime, recordingEndTime);
 
@@ -192,6 +233,8 @@ export const useShadowingRecorder = () => {
                                     startTime: recordingStartTime,
                                     duration: actualDuration,
                                     storageId: storageId,
+                                    peaks: finalCurrentRecording?.peaks || [],
+                                    peakTimes: finalCurrentRecording?.peakTimes || [],
                                 };
 
                                 console.log("🎙️ [ShadowingRecorder] Adding segment to store:", segment);
@@ -207,6 +250,7 @@ export const useShadowingRecorder = () => {
                             toast.error("Failed to save recording");
                         }
 
+                        updateCurrentRecording(null);
                         setIsRecording(false);
                         audioRecorderRef.current = null;
                     },
@@ -221,7 +265,15 @@ export const useShadowingRecorder = () => {
                 audioRecorderRef.current = recorder;
 
                 // Start recording
-                recorder.start();
+                isStartingRef.current = true;
+                await recorder.start();
+
+                if (!useShadowingStore.getState().isShadowingMode || !usePlayerStore.getState().isPlaying) {
+                    recorder.stop();
+                    audioRecorderRef.current = null;
+                    return;
+                }
+
                 setIsRecording(true);
 
                 // THEN: Mute shadowing playback if it wasn't already muted
@@ -231,6 +283,8 @@ export const useShadowingRecorder = () => {
                 }
             } catch (err) {
                 console.error("🎙️ [ShadowingRecorder] Failed to start recorder:", err);
+                audioRecorderRef.current = null;
+                setIsRecording(false);
 
                 // Auto-disable shadowing mode on error
                 const { setShadowingMode } = useShadowingStore.getState();
@@ -238,43 +292,17 @@ export const useShadowingRecorder = () => {
 
                 const error = err as Error;
                 toast.error(`Recording failed: ${error.message || "Unknown error"}`);
-            }
-        };
-
-        const stopRecording = () => {
-            if (audioRecorderRef.current && audioRecorderRef.current.getState() === "recording") {
-                // Capture the end time when recording actually stops
-                const { currentTime } = usePlayerStore.getState();
-                endTimeRef.current = currentTime;
-
-                audioRecorderRef.current.stop();
-
-                // Restore previous mute state
-                const stateToRestore = previousMuteStateRef.current;
-                console.log("🔊 [ShadowingRecorder] RESTORING mute state:", stateToRestore, "(was saved at recording start)");
-                setShadowingMuted(stateToRestore);
-                console.log("🔊 [ShadowingRecorder] Mute state restoration called");
+            } finally {
+                isStartingRef.current = false;
             }
         };
 
         if (isPlaying) {
-            // If playing, ensure we are recording
-            if (stopTimerRef.current) {
-                clearTimeout(stopTimerRef.current);
-                stopTimerRef.current = null;
-            }
-
-            startRecording();
+            void startRecording();
         } else {
-            // If paused, schedule stop
             if (audioRecorderRef.current && audioRecorderRef.current.getState() === "recording") {
-                if (!stopTimerRef.current) {
-                    stopTimerRef.current = setTimeout(() => {
-                        stopRecording();
-                        stopTimerRef.current = null;
-                    }, delay * 1000);
-                }
+                stopRecording();
             }
         }
-    }, [isPlaying, isShadowingMode, delay, currentFile, currentYouTube, setIsRecording, addSegment]);
+    }, [isPlaying, isShadowingMode, currentFile, currentYouTube, setIsRecording, addSegment, setShadowingMuted, shadowingMuted, streamVersion]);
 };

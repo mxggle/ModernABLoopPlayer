@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { toast } from "react-hot-toast";
 import { Play, Pause } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 
 interface MediaPlayerProps {
   hiddenMode?: boolean;
@@ -16,6 +17,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   const isDelayingRef = useRef(false);
   // Track pending play intent so we can start playback once the element is ready
   const pendingPlayRef = useRef(false);
+  const lastReportedTimeRef = useRef(0);
 
   const {
     currentFile,
@@ -32,7 +34,24 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
     setCurrentTime,
     setDuration,
     setIsPlaying,
-  } = usePlayerStore();
+  } = usePlayerStore(
+    useShallow((state) => ({
+      currentFile: state.currentFile,
+      isPlaying: state.isPlaying,
+      currentTime: state.currentTime,
+      volume: state.volume,
+      mediaVolume: state.mediaVolume,
+      muted: state.muted,
+      playbackRate: state.playbackRate,
+      loopStart: state.loopStart,
+      loopEnd: state.loopEnd,
+      isLooping: state.isLooping,
+      showWaveform: state.showWaveform,
+      setCurrentTime: state.setCurrentTime,
+      setDuration: state.setDuration,
+      setIsPlaying: state.setIsPlaying,
+    }))
+  );
 
   // Keep local state in sync with global state
   useEffect(() => {
@@ -117,6 +136,36 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
       mediaElement.pause();
     }
   }, [isPlaying, currentFile, setIsPlaying, safePlay]);
+
+  // Keep the global playback state aligned with actual media element state.
+  // This is required for features like shadowing recording that react to store playback.
+  useEffect(() => {
+    const mediaElement = currentFile?.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+
+    const handlePlay = () => {
+      if (!usePlayerStore.getState().isPlaying) {
+        setIsPlaying(true);
+      }
+    };
+
+    const handlePause = () => {
+      if (isDelayingRef.current || mediaElement.ended) return;
+      if (usePlayerStore.getState().isPlaying) {
+        setIsPlaying(false);
+      }
+    };
+
+    mediaElement.addEventListener("play", handlePlay);
+    mediaElement.addEventListener("pause", handlePause);
+
+    return () => {
+      mediaElement.removeEventListener("play", handlePlay);
+      mediaElement.removeEventListener("pause", handlePause);
+    };
+  }, [currentFile, setIsPlaying]);
 
   // Handle volume changes
   useEffect(() => {
@@ -204,7 +253,10 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
 
     const handleTimeUpdate = () => {
       const currentTimeValue = mediaElement.currentTime;
-      setCurrentTime(currentTimeValue);
+      if (Math.abs(currentTimeValue - lastReportedTimeRef.current) >= 0.05) {
+        lastReportedTimeRef.current = currentTimeValue;
+        setCurrentTime(currentTimeValue);
+      }
 
       // Handle A-B looping
       if (isLooping && loopStart !== null && loopEnd !== null) {
@@ -281,14 +333,10 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
       }
     };
 
-    // Use less frequent checking to rely more on native timeupdate
-    const checkInterval = setInterval(handleTimeUpdate, 100);
-
     // Also keep the timeupdate event for standard time tracking
     mediaElement.addEventListener("timeupdate", handleTimeUpdate);
 
     return () => {
-      clearInterval(checkInterval);
       mediaElement.removeEventListener("timeupdate", handleTimeUpdate);
     };
   }, [currentFile, isLooping, loopStart, loopEnd, setCurrentTime]);

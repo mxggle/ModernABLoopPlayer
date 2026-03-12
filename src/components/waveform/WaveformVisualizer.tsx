@@ -1,9 +1,13 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
-import * as Tone from "tone";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useShadowingStore } from "../../stores/shadowingStore";
-import { retrieveMediaFile } from "../../utils/mediaStorage";
+import {
+  CachedWaveformData,
+  getCachedWaveform,
+  retrieveMediaFile,
+  setCachedWaveform,
+} from "../../utils/mediaStorage";
 import { useShadowingPlayer } from "../../hooks/useShadowingPlayer";
 import {
   AlignStartHorizontal,
@@ -17,10 +21,22 @@ import {
   Volume2,
   VolumeX,
   Trash2,
+  Mic,
+  Radio,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { checkAudioRecordingSupport, getRecordingUnsupportedMessage } from "../../utils/browserCheck";
+import { useShadowingRecorder } from "../../hooks/useShadowingRecorder";
+import {
+  analyzeAudioFileWaveform,
+  buildWaveformMediaKey,
+  createPlaceholderWaveform,
+  shouldUseAdaptiveWaveform,
+  shouldUseDetailedWaveform,
+  shouldUseProgressiveWaveform,
+} from "../../utils/waveformAnalysis";
 
 // Constant toast ID to ensure only one bookmark notification is shown at a time
 const BOOKMARK_TOAST_ID = "bookmark-action-toast";
@@ -30,6 +46,32 @@ const BOOKMARK_TOAST_ID = "bookmark-action-toast";
 const EMPTY_BOOKMARKS: readonly any[] = Object.freeze([]);
 const EMPTY_SEGMENTS: readonly any[] = Object.freeze([]);
 
+const normalizeCachedWaveform = (
+  waveform: CachedWaveformData
+): CachedWaveformData => ({
+  ...waveform,
+  status:
+    waveform.status ?? (waveform.strategy === "placeholder" ? "placeholder" : "ready"),
+  progress:
+    typeof waveform.progress === "number"
+      ? Math.max(0, Math.min(100, waveform.progress))
+      : waveform.strategy === "placeholder"
+        ? 0
+        : 100,
+});
+
+type ShadowWaveform = {
+  start: number;
+  data: Float32Array;
+  duration: number;
+};
+
+type RecordingOverlay = {
+  startTime: number;
+  peaks: number[];
+  peakTimes: number[];
+  startedAt: number;
+};
 // Utility function to format time in mm:ss.ms format
 const formatTime = (time: number): string => {
   if (isNaN(time)) return "00:00.0";
@@ -53,6 +95,10 @@ export const WaveformVisualizer = () => {
     { id: string; x1: number; x2: number; y1: number; y2: number }[]
   >([]);
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
+  const [waveformLoadState, setWaveformLoadState] = useState<{
+    status: "idle" | "placeholder" | "analyzing" | "ready" | "error";
+    progress: number;
+  }>({ status: "idle", progress: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [dragEnd, setDragEnd] = useState<number | null>(null);
@@ -113,24 +159,30 @@ export const WaveformVisualizer = () => {
     toggleMute,
   } = usePlayerStore();
 
-  const { volume: shadowVolume, setVolume: setShadowVolume, muted: shadowMuted, setMuted: setShadowMuted, currentRecording } = useShadowingStore();
+  const {
+    volume: shadowVolume, setVolume: setShadowVolume,
+    muted: shadowMuted, setMuted: setShadowMuted,
+    currentRecording,
+    isShadowingMode, setShadowingMode,
+    isRecording,
+  } = useShadowingStore();
 
-  // Use getCurrentMediaId to ensure consistency with how segments are saved
   const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
-
-  // Use a Zustand selector for shadowingSegments to ensure referential stability.
-  // Without this, getSegments() returns a new [] on every render when there are
-  // no segments, which triggers the useEffect -> setShadowingWaveforms -> re-render
-  // loop infinitely.
   const shadowingSegments = useShadowingStore((state) => {
     if (!mediaId) return EMPTY_SEGMENTS as any[];
     return state.sessions[mediaId]?.segments || (EMPTY_SEGMENTS as any[]);
   });
-  const [shadowingWaveforms, setShadowingWaveforms] = useState<{ start: number; data: Float32Array; duration: number }[]>([]);
+  const [shadowingWaveforms, setShadowingWaveforms] = useState<ShadowWaveform[]>([]);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [fadingRecording, setFadingRecording] = useState<RecordingOverlay | null>(null);
+  const previousCurrentRecordingRef = useRef<typeof currentRecording>(null);
+  const [fadeFrame, setFadeFrame] = useState(0);
+  const recordingCapabilities = checkAudioRecordingSupport();
+  const canRecord = recordingCapabilities.supportsAudioRecording;
 
   // Initialize Shadowing Player
   useShadowingPlayer();
+  useShadowingRecorder();
 
   // Load shadowing waveforms
   useEffect(() => {
@@ -144,6 +196,14 @@ export const WaveformVisualizer = () => {
       const loaded = await Promise.all(
         shadowingSegments.map(async (seg, index) => {
           try {
+            if (seg.peaks?.length) {
+              return {
+                start: seg.startTime,
+                data: Float32Array.from(seg.peaks),
+                duration: seg.duration,
+              };
+            }
+
             const file = await retrieveMediaFile(seg.storageId);
             if (!file) {
               console.warn(`[WaveformVisualizer] No file found for segment ${index}`);
@@ -194,6 +254,47 @@ export const WaveformVisualizer = () => {
     return () => { active = false; };
   }, [shadowingSegments]);
 
+  useEffect(() => {
+    if (currentRecording) {
+      previousCurrentRecordingRef.current = currentRecording;
+      setFadingRecording(null);
+      return;
+    }
+
+    const previousRecording = previousCurrentRecordingRef.current;
+    if (!previousRecording || previousRecording.peaks.length === 0) {
+      return;
+    }
+
+    const overlay: RecordingOverlay = {
+      ...previousRecording,
+      startedAt: performance.now(),
+    };
+    setFadingRecording(overlay);
+    previousCurrentRecordingRef.current = null;
+
+    const timeoutId = window.setTimeout(() => {
+      setFadingRecording((current) =>
+        current === overlay ? null : current
+      );
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [currentRecording]);
+
+  useEffect(() => {
+    if (!fadingRecording) return;
+
+    let frameId = 0;
+    const tick = () => {
+      setFadeFrame((value) => value + 1);
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [fadingRecording]);
+
   // Subscribe to bookmarks for current media so changes re-render this component
   const bookmarks = usePlayerStore((state) => {
     const mediaId = state.getCurrentMediaId();
@@ -235,13 +336,6 @@ export const WaveformVisualizer = () => {
 
   // Load audio/video file and analyze waveform
   useEffect(() => {
-    console.log("🔍 WaveformVisualizer useEffect triggered:", {
-      currentFile: currentFile?.name,
-      type: currentFile?.type,
-      url: currentFile?.url ? "present" : "missing",
-      showWaveform,
-    });
-
     const hasMedia = currentFile?.url || currentYouTube?.id;
     if (
       !hasMedia ||
@@ -249,229 +343,196 @@ export const WaveformVisualizer = () => {
         !currentFile.type.includes("audio") &&
         !currentFile.type.includes("video"))
     ) {
-      console.log("❌ WaveformVisualizer: File/Media validation failed");
       setWaveformData(null);
+      setWaveformLoadState({ status: "idle", progress: 0 });
       return;
     }
 
-    let buffer: Tone.ToneAudioBuffer | null = null;
+    let cancelled = false;
+    let idleId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const setWaveformPreview = (waveform: CachedWaveformData) => {
+      if (cancelled) return;
+
+      const normalized = normalizeCachedWaveform(waveform);
+      setWaveformData(Float32Array.from(normalized.peaks));
+      setWaveformLoadState({
+        status: normalized.status ?? "ready",
+        progress: normalized.progress ?? 0,
+      });
+    };
+
+    const scheduleBackgroundAnalysis = (task: () => void) => {
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        idleId = (
+          window as Window & {
+            requestIdleCallback: (callback: IdleRequestCallback) => number;
+          }
+        ).requestIdleCallback(() => task());
+        return;
+      }
+
+      timeoutId = globalThis.setTimeout(task, 0);
+    };
 
     const loadAudio = async () => {
       try {
         if (currentYouTube) {
-          console.log("📺 Generating fake waveform for YouTube video");
-          generateFakeWaveform();
-        } else if (currentFile && currentFile.type.includes("video") && currentFile.url) {
-          // For video files, extract audio using multiple methods
-          console.log(
-            "🎬 Loading video file for waveform:",
-            currentFile.name,
-            "Type:",
-            currentFile.type
-          );
-          await loadVideoAudio(currentFile.url);
-        } else if (currentFile && currentFile.url) {
-          // For audio files, use Tone.js as before
-          buffer = new Tone.ToneAudioBuffer(currentFile.url, () => {
-            // Get audio data
-            const channelData = buffer?.getChannelData(0) || new Float32Array();
-
-            // Downsample for performance
-            const downsampledData = downsampleAudioData(channelData, 2000);
-            setWaveformData(downsampledData);
-          });
-        }
-      } catch (error) {
-        console.error("Error loading audio for waveform:", error);
-      }
-    };
-
-    const generateFakeWaveform = () => {
-      const samples = 2000;
-      const fakeData = new Float32Array(samples);
-
-      // Generate a stylized sine wave pattern
-      // Looks vaguely audio-like but clearly artificial (not "too real" to avoid misleading)
-      for (let i = 0; i < samples; i++) {
-        // Main wave with varying frequency to look interesting
-        const x = (i / samples) * 100;
-        // Combine two sine waves: one fast, one slow, to create a "beating" pattern
-        // Amplitude is kept relatively low (0.3) to be unobtrusive
-        fakeData[i] = Math.sin(x) * Math.sin(x * 0.1) * 0.3;
-      }
-      setWaveformData(fakeData);
-    };
-
-    const loadVideoAudio = async (videoUrl: string) => {
-      console.log("🎬 Starting video audio extraction for:", videoUrl);
-
-      try {
-        // Method 1: Try using fetch + decodeAudioData (works for some video formats)
-        console.log("🎵 Trying Method 1: Direct audio decoding...");
-        const response = await fetch(videoUrl);
-        const arrayBuffer = await response.arrayBuffer();
-
-        const audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
-        const audioBuffer = await audioContext.decodeAudioData(
-          arrayBuffer.slice(0)
-        );
-
-        console.log(
-          "✅ Method 1 succeeded! Audio buffer created:",
-          audioBuffer
-        );
-        const channelData = audioBuffer.getChannelData(0);
-        const downsampledData = downsampleAudioData(channelData, 2000);
-        setWaveformData(downsampledData);
-        audioContext.close();
-        return;
-      } catch (error) {
-        console.log("❌ Method 1 failed:", (error as Error).message);
-      }
-
-      try {
-        // Method 2: Use video element with Web Audio API
-        console.log("🎵 Trying Method 2: Video element extraction...");
-
-        const video = document.createElement("video");
-        video.src = videoUrl;
-        video.muted = true;
-        video.volume = 0;
-
-        // Wait for video to be ready
-        await new Promise((resolve, reject) => {
-          video.oncanplaythrough = () => {
-            console.log("📹 Video ready for playback");
-            resolve(true);
-          };
-          video.onerror = (e) => {
-            console.log("❌ Video loading error:", e);
-            reject(e);
-          };
-          video.load();
-        });
-
-        const audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
-
-        // Resume audio context if suspended
-        if (audioContext.state === "suspended") {
-          await audioContext.resume();
-        }
-
-        const source = audioContext.createMediaElementSource(video);
-        const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 2048;
-
-        source.connect(analyser);
-        // Don't connect to destination to avoid audio output
-
-        // Start video playback
-        video.currentTime = 0;
-        await video.play();
-
-        console.log("🎬 Video playing, extracting audio data...");
-
-        // Extract frequency data to create waveform
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        const waveformSamples: number[] = [];
-
-        // Collect samples for 3 seconds or until video ends
-        const maxSamples = 2000;
-        const sampleInterval = 50; // ms
-
-        for (
-          let i = 0;
-          i < maxSamples && video.currentTime < video.duration;
-          i++
-        ) {
-          analyser.getByteFrequencyData(dataArray);
-
-          // Convert frequency data to waveform-like data
-          let sum = 0;
-          for (let j = 0; j < bufferLength; j++) {
-            sum += dataArray[j];
+          if (!cancelled) {
+            setWaveformPreview(createPlaceholderWaveform(duration || 0, 1200));
           }
-          const average = sum / bufferLength / 255; // Normalize to 0-1
-          waveformSamples.push((average - 0.5) * 2); // Convert to -1 to 1 range
-
-          await new Promise((resolve) => setTimeout(resolve, sampleInterval));
-        }
-
-        video.pause();
-        source.disconnect();
-        audioContext.close();
-
-        if (waveformSamples.length > 0) {
-          console.log(
-            "✅ Method 2 succeeded! Extracted",
-            waveformSamples.length,
-            "samples"
-          );
-          const channelData = new Float32Array(waveformSamples);
-          const downsampledData = downsampleAudioData(channelData, 2000);
-          setWaveformData(downsampledData);
           return;
         }
-      } catch (error) {
-        console.log("❌ Method 2 failed:", (error as Error).message);
-      }
 
-      // Method 3: Use the new fake waveform generator
-      console.log("🎵 Using Method 3: Generating placeholder waveform");
-      generateFakeWaveform();
-      console.log("✅ Placeholder waveform generated for video file");
+        if (!currentFile?.url) {
+          return;
+        }
+
+        const mediaKey = buildWaveformMediaKey(currentFile);
+        const cached = await getCachedWaveform(mediaKey);
+
+        if (currentFile.type.includes("video")) {
+          const placeholder: CachedWaveformData = {
+            ...createPlaceholderWaveform(duration || 0, 1200),
+            status: "ready",
+            progress: 100,
+          };
+          await setCachedWaveform(mediaKey, placeholder);
+          setWaveformPreview(placeholder);
+          return;
+        }
+
+        const file =
+          currentFile.storageId
+            ? await retrieveMediaFile(currentFile.storageId)
+            : await fetch(currentFile.url).then((response) => response.blob()).then(
+              (blob) => new File([blob], currentFile.name, { type: currentFile.type })
+            );
+
+        if (!file) {
+          throw new Error("Unable to load file for waveform analysis");
+        }
+
+        const normalizedCached = cached ? normalizeCachedWaveform(cached) : null;
+        const isDetailed = shouldUseDetailedWaveform(file);
+        const isAdaptive = shouldUseAdaptiveWaveform(file);
+        const isProgressive = shouldUseProgressiveWaveform(file);
+        const canAnalyze = isDetailed || isAdaptive;
+
+        if (normalizedCached) {
+          setWaveformPreview(normalizedCached);
+          if (normalizedCached.status === "ready" || !canAnalyze) {
+            return;
+          }
+        }
+
+        if (!canAnalyze) {
+          const placeholder: CachedWaveformData = {
+            ...(normalizedCached ?? createPlaceholderWaveform(duration || 0, 800)),
+            status: "placeholder",
+            progress: 0,
+            updatedAt: Date.now(),
+          };
+          await setCachedWaveform(mediaKey, placeholder);
+          setWaveformPreview(placeholder);
+          return;
+        }
+
+        if (isProgressive) {
+          const placeholder: CachedWaveformData = {
+            ...(normalizedCached ?? createPlaceholderWaveform(duration || 0, 1000)),
+            status: "analyzing",
+            progress: Math.max(5, normalizedCached?.progress ?? 0),
+            updatedAt: Date.now(),
+          };
+
+          await setCachedWaveform(mediaKey, placeholder);
+          setWaveformPreview(placeholder);
+
+          scheduleBackgroundAnalysis(() => {
+            void (async () => {
+              try {
+                const analysis = await analyzeAudioFileWaveform(file, (update) => {
+                  if (cancelled) return;
+
+                  const previewWaveform: CachedWaveformData = {
+                    peaks: placeholder.peaks,
+                    resolution: placeholder.resolution,
+                    duration: duration || placeholder.duration,
+                    strategy: placeholder.strategy,
+                    status: update.status,
+                    progress: update.progress,
+                    updatedAt: Date.now(),
+                  };
+
+                  setWaveformLoadState({
+                    status: update.status,
+                    progress: update.progress,
+                  });
+                  void setCachedWaveform(mediaKey, previewWaveform);
+                });
+
+                await setCachedWaveform(mediaKey, analysis);
+                setWaveformPreview(analysis);
+              } catch (error) {
+                console.error("Error analyzing waveform in background:", error);
+                const failedWaveform: CachedWaveformData = {
+                  peaks: placeholder.peaks,
+                  resolution: placeholder.resolution,
+                  duration: duration || placeholder.duration,
+                  strategy: placeholder.strategy,
+                  status: "error",
+                  progress: 0,
+                  updatedAt: Date.now(),
+                };
+                await setCachedWaveform(mediaKey, failedWaveform);
+                setWaveformPreview(failedWaveform);
+              }
+            })();
+          });
+
+          return;
+        }
+
+        const analysis = await analyzeAudioFileWaveform(file, (update) => {
+          if (cancelled) return;
+          setWaveformLoadState({
+            status: update.status,
+            progress: update.progress,
+          });
+        });
+
+        await setCachedWaveform(mediaKey, analysis);
+        setWaveformPreview(analysis);
+      } catch (error) {
+        console.error("Error loading audio for waveform:", error);
+        if (!cancelled) {
+          setWaveformPreview({
+            ...createPlaceholderWaveform(duration || 0, 800),
+            status: "error",
+            progress: 0,
+          });
+        }
+      }
     };
 
     loadAudio();
 
     return () => {
-      if (buffer) {
-        buffer.dispose();
+      cancelled = true;
+      if (idleId !== null && typeof window !== "undefined" && "cancelIdleCallback" in window) {
+        (
+          window as Window & {
+            cancelIdleCallback: (id: number) => void;
+          }
+        ).cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== null) {
+        globalThis.clearTimeout(timeoutId);
       }
     };
-  }, [currentFile, currentYouTube]);
-
-  // Force update counter for smooth animation
-  const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
-
-  // Continuous animation loop when playing - ensures smooth waveform scrolling
-  const animationFrameRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!isPlaying || !showWaveform) {
-      // Cancel any pending animation frame when not playing
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-      return;
-    }
-
-    // Animation loop: continuously trigger canvas redraws while playing
-    const animate = () => {
-      // Force re-render by incrementing counter
-      setForceUpdateCounter((prev) => prev + 1);
-
-      // Request next frame
-      if (usePlayerStore.getState().isPlaying) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    // Start the animation loop
-    animationFrameRef.current = requestAnimationFrame(animate);
-
-    // Cleanup on unmount or when playing stops
-    return () => {
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-    };
-  }, [isPlaying, showWaveform]);
+  }, [currentFile, currentYouTube, duration]);
 
 
   // Draw waveform
@@ -666,9 +727,13 @@ export const WaveformVisualizer = () => {
       }
     }
 
-    // Draw waveform as bars
-    const hasShadowing = shadowingWaveforms.length > 0;
-    const mainWaveformHeight = hasShadowing ? canvas.height / 2 : canvas.height;
+    // Draw waveform as bars — always split canvas in half (media top, shadowing bottom)
+    const mainWaveformHeight = canvas.height / 2;
+    const mainWaveformPadding = 2 * dpr;
+    const mainWaveformDrawHeight = Math.max(
+      0,
+      mainWaveformHeight - mainWaveformPadding * 2
+    );
 
     ctx.fillStyle = "#8B5CF6"; // Purple
 
@@ -680,11 +745,16 @@ export const WaveformVisualizer = () => {
 
     // Center point for bars
     const mainCenterY = mainWaveformHeight / 2;
-    const amplitudeScale = mainWaveformHeight * 2;
+    const amplitudeScale = mainWaveformDrawHeight;
 
     // Calculate bar dimensions
     const gap = sliceWidth > 4 * dpr ? 1 * dpr : 0;
     const barWidth = Math.max(1 * dpr, sliceWidth - gap);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, mainWaveformPadding, canvas.width, mainWaveformDrawHeight);
+    ctx.clip();
 
     for (let i = startIndex; i < endIndex; i++) {
       const timeAtSample = i * sampleDuration;
@@ -692,19 +762,25 @@ export const WaveformVisualizer = () => {
 
       const value = waveformData[i];
 
-      // Ensure even silence has a tiny presence (1px)
-      const height = Math.max(1 * dpr, value * amplitudeScale * 0.8);
-      const y = mainCenterY - height / 2;
+      const unclampedHeight = Math.max(1 * dpr, value * amplitudeScale * 0.8);
+      const height = Math.min(mainWaveformDrawHeight, unclampedHeight);
+      const y = Math.max(
+        mainWaveformPadding,
+        mainCenterY - height / 2
+      );
 
       ctx.fillRect(x, y, barWidth, height);
     }
+    ctx.restore();
 
-    // Draw Shadowing Waveforms
+    // Draw Shadowing Waveforms — always draw separator and bottom lane
 
-    if (hasShadowing || currentRecording) {
+    {
       const shadowTop = mainWaveformHeight;
       const shadowHeight = canvas.height - mainWaveformHeight;
       const shadowCenterY = shadowTop + shadowHeight / 2;
+      const shadowPadding = 2 * dpr;
+      const shadowDrawHeight = Math.max(0, shadowHeight - shadowPadding * 2);
 
       // Draw separator
       ctx.beginPath();
@@ -713,6 +789,26 @@ export const WaveformVisualizer = () => {
       ctx.moveTo(0, shadowTop);
       ctx.lineTo(canvas.width, shadowTop);
       ctx.stroke();
+
+      // Draw a subtle center line when empty to hint the lane exists
+      if (shadowingWaveforms.length === 0 && !currentRecording) {
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.lineWidth = 1 * dpr;
+        ctx.moveTo(0, shadowCenterY);
+        ctx.lineTo(canvas.width, shadowCenterY);
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(
+        0,
+        shadowTop + shadowPadding,
+        canvas.width,
+        shadowDrawHeight
+      );
+      ctx.clip();
 
       shadowingWaveforms.forEach(seg => {
         // Calculate overlap with visible range
@@ -733,36 +829,61 @@ export const WaveformVisualizer = () => {
           // Ensure min width
           const finalBarW = Math.max(1 * dpr, barW);
 
-          const h = Math.max(1 * dpr, val * shadowHeight * 1.5); // increased gain
-          const y = shadowCenterY - h / 2;
+          const unclampedHeight = Math.max(2 * dpr, val * shadowDrawHeight * 1.6);
+          const h = Math.min(shadowDrawHeight, unclampedHeight);
+          const y = Math.max(shadowTop + shadowPadding, shadowCenterY - h / 2);
 
           ctx.fillRect(x, y, finalBarW, h);
         }
       });
 
-      // Draw Active Recording
-      if (currentRecording && currentRecording.peaks && shadowHeight > 0) {
-        ctx.fillStyle = "#EF4444"; // Red for recording
-        const startTime = currentRecording.startTime;
-        const peaks = currentRecording.peaks;
+      const drawRecordingOverlay = (
+        recording: { startTime: number; peaks: number[]; peakTimes: number[] },
+        color: string,
+        alpha = 1
+      ) => {
+        if (!recording.peaks?.length || shadowHeight <= 0) return;
 
-        // Each peak represents 50ms (0.05s)
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = color;
+
         const peakDuration = 0.05;
 
-        peaks.forEach((peak, i) => {
-          const time = startTime + i * peakDuration;
+        recording.peaks.forEach((peak, i) => {
+          const elapsedTime =
+            Array.isArray(recording.peakTimes) && typeof recording.peakTimes[i] === "number"
+              ? recording.peakTimes[i]
+              : i * peakDuration;
+          const time = recording.startTime + elapsedTime;
           if (time < startOffset || time > endOffset) return;
 
           const x = ((time - startOffset) / visibleDuration) * canvas.width;
-          // Width should cover 50ms gap
-          const w = (peakDuration / visibleDuration) * canvas.width;
+          const w = ((i < recording.peakTimes.length - 1
+            ? Math.max(peakDuration, recording.peakTimes[i + 1] - elapsedTime)
+            : peakDuration) / visibleDuration) * canvas.width;
+          const unclampedHeight = Math.max(2 * dpr, peak * shadowDrawHeight * 1.6);
+          const h = Math.min(shadowDrawHeight, unclampedHeight);
+          const y = Math.max(shadowTop + shadowPadding, shadowCenterY - h / 2);
 
-          const h = Math.max(2 * dpr, peak * shadowHeight * 3.0); // Higher gain for RMS
-          const y = shadowCenterY - h / 2;
-
-          ctx.fillRect(x, Math.max(shadowTop, y), Math.max(1 * dpr, w), Math.min(shadowHeight, h));
+          ctx.fillRect(x, y, Math.max(1 * dpr, w), h);
         });
+
+        ctx.restore();
+      };
+
+      if (fadingRecording) {
+        const elapsed = performance.now() - fadingRecording.startedAt;
+        const alpha = Math.max(0, 1 - elapsed / 350);
+        if (alpha > 0) {
+          drawRecordingOverlay(fadingRecording, "#EF4444", alpha);
+        }
       }
+
+      if (currentRecording) {
+        drawRecordingOverlay(currentRecording, "#EF4444");
+      }
+      ctx.restore();
     }
 
     // Draw playhead
@@ -829,11 +950,12 @@ export const WaveformVisualizer = () => {
     selectedBookmarkId,
     shadowingWaveforms,
     currentRecording,
+    fadingRecording,
+    fadeFrame,
     isDragging,
     dragStart,
     dragEnd,
     isMobile,
-    forceUpdateCounter,
   ]);
 
   // Helper function to draw markers
@@ -1131,11 +1253,6 @@ export const WaveformVisualizer = () => {
     ]
   );
 
-  const hasMedia = currentFile?.url || currentYouTube?.id;
-  if (!showWaveform || !hasMedia) {
-    return null;
-  }
-
   // Handle zoom controls - commented out unused function
   // const handleZoomIn = () => {
   //   // Increase zoom by 25% with a maximum of 20x
@@ -1237,6 +1354,11 @@ export const WaveformVisualizer = () => {
       el.removeEventListener("touchmove", onTouchMove as EventListener);
     };
   }, [setWaveformZoom, scrollOffset]);
+
+  const hasMedia = currentFile?.url || currentYouTube?.id;
+  if (!showWaveform || !hasMedia) {
+    return null;
+  }
 
 
   // Handle mouse down for range selection, bookmark resizing, or Alt+pan
@@ -1525,6 +1647,15 @@ export const WaveformVisualizer = () => {
     }, 100);
   };
 
+  const handleRecordingToggle = () => {
+    if (!isShadowingMode && !canRecord) {
+      toast.error(getRecordingUnsupportedMessage(recordingCapabilities), { duration: 5000 });
+      return;
+    }
+
+    setShadowingMode(!isShadowingMode);
+  };
+
   return (
     <>
       <div className="mt-2 backdrop-blur-sm rounded-lg overflow-hidden border border-purple-500/30 relative">
@@ -1580,7 +1711,7 @@ export const WaveformVisualizer = () => {
           {/* Media Volume Control - overlaid on top-left of media waveform lane */}
           {showWaveform && (
             <div
-              className={`absolute left-2 z-10 group/vol flex items-center bg-black/60 backdrop-blur-md border border-white/20 rounded-full h-8 pointer-events-auto transition-all duration-200 -translate-y-1/2 ${shadowingWaveforms.length > 0 ? "top-[25%]" : "top-1/2"} ${isMobile ? "opacity-100" : ""}`}
+              className={`absolute left-2 z-10 group/vol flex items-center bg-black/60 backdrop-blur-md border border-white/20 rounded-full h-8 pointer-events-auto transition-all duration-200 -translate-y-1/2 top-[25%] ${isMobile ? "opacity-100" : ""}`}
               onMouseDown={stopPropagation}
               onClick={stopPropagation}
               onTouchStart={stopPropagation}
@@ -1629,7 +1760,7 @@ export const WaveformVisualizer = () => {
           )}
 
           {/* REC Volume Control - overlaid on left of shadowing waveform lane (bottom half) */}
-          {showWaveform && shadowingWaveforms.length > 0 && (
+          {showWaveform && (
             <div
               className={`absolute left-2 top-[75%] -translate-y-1/2 z-10 group/svol flex items-center bg-black/60 backdrop-blur-md border border-white/20 rounded-full h-8 pointer-events-auto transition-all duration-200 ${isMobile ? "opacity-100" : ""}`}
               onMouseDown={stopPropagation}
@@ -1771,6 +1902,18 @@ export const WaveformVisualizer = () => {
             </div>
           )}
 
+          {!currentYouTube &&
+            (waveformLoadState.status === "analyzing" ||
+              waveformLoadState.status === "error") && (
+              <div className="absolute top-2 right-2 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/55 backdrop-blur-sm rounded border border-white/10 shadow-sm">
+                <span className="text-white/80 text-xs font-medium">
+                  {waveformLoadState.status === "error"
+                    ? t("waveform.analysisError")
+                    : `${t("waveform.analyzing")} ${waveformLoadState.progress}%`}
+                </span>
+              </div>
+            )}
+
           {/* Tooltip for current hover/touch position */}
           {hoverTime !== null && (
             <div
@@ -1801,45 +1944,87 @@ export const WaveformVisualizer = () => {
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[4px] border-b-red-600"></div>
           </div>
 
-          {/* Delete Recording Button - Grid layout: Top Right of bottom (shadowing) lane */}
-          {shadowingWaveforms.length > 0 && (
+          {(shadowingSegments.length > 0 || canRecord) && (
             <div
-              className="absolute right-2 z-30 top-[calc(50%+8px)] transition-all duration-200"
+              className={`absolute right-2 z-10 -translate-y-1/2 pointer-events-auto transition-all duration-200 top-[75%] max-w-[calc(100%-0.75rem)]`}
               onMouseDown={stopPropagation}
               onClick={stopPropagation}
+              onTouchStart={stopPropagation}
+              onPointerDown={stopPropagation}
             >
-              {!isConfirmingDelete ? (
+              <div className="flex flex-col items-center gap-1 bg-black/60 backdrop-blur-md border border-white/15 rounded-2xl text-white/80 shadow-[0_8px_24px_rgba(0,0,0,0.18)] py-1.5 px-1.5">
                 <button
-                  className="bg-gray-900/30 text-white/40 border border-white/5 hover:bg-red-900/40 hover:text-red-200 hover:border-red-500/30 p-1.5 rounded-md backdrop-blur-md transition-all shadow-sm"
-                  onClick={() => setIsConfirmingDelete(true)}
-                  title="Delete All Recordings"
+                  type="button"
+                  onClick={handleRecordingToggle}
+                  disabled={!canRecord}
+                  aria-pressed={isShadowingMode}
+                  aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+                  title={!canRecord ? getRecordingUnsupportedMessage(recordingCapabilities) : isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+                  className={`group relative inline-flex shrink-0 justify-center rounded-full border-2 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-400/70 ${
+                    !canRecord
+                      ? "cursor-not-allowed border-white/8 bg-white/5"
+                      : isRecording
+                        ? "border-red-500/70 bg-gradient-to-b from-red-700 to-red-500 shadow-[0_0_10px_rgba(220,38,38,0.5)]"
+                        : isShadowingMode
+                          ? "border-amber-400/50 bg-amber-500/20 shadow-[0_0_8px_rgba(251,191,36,0.25)] hover:bg-amber-500/28"
+                          : "border-white/12 bg-white/8 hover:bg-white/13"
+                  }`}
                 >
-                  <Trash2 size={14} />
+                  {/* Vertical track */}
+                  <span
+                    className={`relative flex flex-col items-center ${isMobile ? "w-6 h-11" : "w-5 h-9"} rounded-full`}
+                  >
+                    {/* Knob */}
+                    <span
+                      className={`absolute flex items-center justify-center rounded-full transition-all duration-300 ease-in-out ${
+                        isMobile ? "w-5 h-5" : "w-[18px] h-[18px]"
+                      } ${
+                        !canRecord
+                          ? "top-0.5 bg-white/15"
+                          : isShadowingMode
+                            ? `${isMobile ? "top-[calc(100%-1.375rem)]" : "top-[calc(100%-1.25rem)]"} bg-white shadow-[0_2px_8px_rgba(0,0,0,0.4),0_0_6px_rgba(255,255,255,0.3)]`
+                            : "top-0.5 bg-white/85 shadow-[0_1px_4px_rgba(0,0,0,0.25)]"
+                      }`}
+                    >
+                      {isRecording ? (
+                        <Radio size={isMobile ? 9 : 8} className="animate-pulse text-red-500" />
+                      ) : isShadowingMode ? (
+                        <Mic size={isMobile ? 9 : 8} className="text-amber-600" />
+                      ) : (
+                        <Mic size={isMobile ? 9 : 8} className="text-slate-500/80" />
+                      )}
+                    </span>
+                  </span>
                 </button>
-              ) : (
-                <div className="flex items-center bg-red-600 text-white rounded-md shadow-lg border border-red-500 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                  <button
-                    className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-700 transition-colors border-r border-red-500"
-                    onClick={async () => {
-                      if (mediaId) {
-                        await useShadowingStore.getState().deleteAllSegments(mediaId);
-                        toast.success("Recordings deleted");
-                      }
-                      setIsConfirmingDelete(false);
-                    }}
-                  >
-                    <Trash2 size={13} />
-                    <span className="text-xs font-bold leading-none">Delete</span>
-                  </button>
-                  <button
-                    className="p-1.5 hover:bg-red-700 transition-colors flex items-center justify-center"
-                    onClick={() => setIsConfirmingDelete(false)}
-                    title="Cancel"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-              )}
+
+                {shadowingSegments.length > 0 && (
+                  !isConfirmingDelete ? (
+                    <button
+                      className={`shrink-0 rounded-full text-white/35 hover:text-red-400 hover:bg-white/8 transition-colors ${
+                        isMobile ? "p-1.5" : "p-1"
+                      }`}
+                      onClick={() => setIsConfirmingDelete(true)}
+                      title="Delete shadow track"
+                    >
+                      <Trash2 size={isMobile ? 13 : 12} />
+                    </button>
+                  ) : (
+                    <button
+                      className="px-2 py-1 text-[10px] bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors leading-none"
+                      onClick={async () => {
+                        if (mediaId) {
+                          await useShadowingStore.getState().deleteAllSegments(mediaId);
+                          setShadowingMode(false);
+                          toast.success("Shadow track deleted");
+                        }
+                        setIsConfirmingDelete(false);
+                      }}
+                    >
+                      Confirm
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           )}
         </div>

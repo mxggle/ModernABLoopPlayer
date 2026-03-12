@@ -42,19 +42,19 @@ export class UniversalAudioRecorder {
             throw new Error('No audio stream available');
         }
 
-        this.isRecording = true;
-
         if (this.useWebAudioFallback) {
             console.log('🎤 [AudioRecorder] Using Web Audio API fallback for iOS Safari');
             await this.startWebAudioRecording();
         } else {
             console.log('🎤 [AudioRecorder] Using MediaRecorder API');
-            this.startMediaRecorderRecording();
+            await this.startMediaRecorderRecording();
         }
     }
 
-    private startMediaRecorderRecording(): void {
-        if (!this.stream) return;
+    private async startMediaRecorderRecording(): Promise<void> {
+        if (!this.stream) {
+            throw new Error('No audio stream available');
+        }
 
         try {
             // Create audio context for peak analysis
@@ -82,6 +82,7 @@ export class UniversalAudioRecorder {
             }
 
             this.mediaRecorder = new MediaRecorder(this.stream, { mimeType });
+            this.isRecording = true;
 
             this.mediaRecorder.ondataavailable = (e) => {
                 if (e.data.size > 0) {
@@ -97,19 +98,24 @@ export class UniversalAudioRecorder {
             };
 
             this.mediaRecorder.onerror = (e: Event) => {
+                this.isRecording = false;
                 console.error('MediaRecorder error:', e);
                 this.config.onError?.(new Error('MediaRecorder error'));
             };
 
             this.mediaRecorder.start(100); // Collect data every 100ms
         } catch (error) {
+            this.isRecording = false;
             console.error('Failed to start MediaRecorder:', error);
             this.config.onError?.(error as Error);
+            throw error;
         }
     }
 
     private async startWebAudioRecording(): Promise<void> {
-        if (!this.stream) return;
+        if (!this.stream) {
+            throw new Error('No audio stream available');
+        }
 
         try {
             // Create audio context
@@ -151,14 +157,17 @@ export class UniversalAudioRecorder {
             // Connect the nodes
             this.source.connect(this.scriptProcessor);
             this.scriptProcessor.connect(this.audioContext.destination);
+            this.isRecording = true;
 
             // Start peak monitoring
             this.startPeakMonitoring();
 
             console.log('✅ [AudioRecorder] Web Audio recording started');
         } catch (error) {
+            this.isRecording = false;
             console.error('Failed to start Web Audio recording:', error);
             this.config.onError?.(error as Error);
+            throw error;
         }
     }
 
@@ -178,15 +187,15 @@ export class UniversalAudioRecorder {
 
             this.analyser.getByteTimeDomainData(dataArray);
 
-            // Calculate RMS
+            // Match the saved waveform renderer, which uses average absolute amplitude.
             let sum = 0;
             for (let i = 0; i < dataArray.length; i++) {
                 const amplitude = (dataArray[i] - 128) / 128;
-                sum += amplitude * amplitude;
+                sum += Math.abs(amplitude);
             }
-            const rms = Math.sqrt(sum / dataArray.length);
+            const averageAmplitude = sum / dataArray.length;
 
-            this.config.onPeakUpdate?.(rms);
+            this.config.onPeakUpdate?.(averageAmplitude);
         };
 
         this.peakUpdateInterval = window.setInterval(updatePeak, 50);
@@ -285,6 +294,8 @@ export class UniversalAudioRecorder {
     }
 
     private cleanup(): void {
+        this.isRecording = false;
+
         if (this.source) {
             this.source.disconnect();
             this.source = null;

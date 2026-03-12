@@ -12,6 +12,12 @@ import i18n from "../i18n";
 let lastDuplicateToastAt = 0;
 const DUPLICATE_TOAST_ID = "bookmark-duplicate";
 
+const revokeObjectUrl = (url?: string | null) => {
+  if (url && url.startsWith("blob:")) {
+    URL.revokeObjectURL(url);
+  }
+};
+
 export interface MediaFile {
   name: string;
   type: string;
@@ -225,8 +231,8 @@ export interface PlayerActions {
   ) => void;
   updateHistoryPlaybackTime: (id: string, time: number) => void;
   loadFromHistory: (historyItemId: string) => void;
-  removeFromHistory: (historyItemId: string) => void;
-  clearMediaHistory: () => void;
+  removeFromHistory: (historyItemId: string) => Promise<void>;
+  clearMediaHistory: () => Promise<void>;
   setHistoryLimit: (limit: number) => void;
 
   // Folder & item management
@@ -307,17 +313,14 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setCurrentFile: async (file) => {
         if (file) {
           try {
-            // Store the file in IndexedDB if it's a local file (has File object)
+            const previousUrl = get().currentFile?.url;
             let storageId = file.storageId;
 
             if (file instanceof File && !storageId) {
               try {
-                // Store the actual file data in IndexedDB
                 storageId = await storeMediaFile(file);
-                console.log("File stored in IndexedDB with ID:", storageId);
               } catch (error) {
                 console.error("Failed to store file in IndexedDB:", error);
-                // Continue even if storage fails, just won't be available after refresh
               }
             }
 
@@ -386,10 +389,15 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
               isLooping: false,
               selectedBookmarkId: null,
             });
+
+            if (previousUrl && previousUrl !== fileWithId.url) {
+              revokeObjectUrl(previousUrl);
+            }
           } catch (error) {
             console.error("Error setting current file:", error);
             toast.error(i18n.t("history.failedToLoadMedia"));
 
+            revokeObjectUrl(get().currentFile?.url);
             set({
               currentFile: null,
               currentTime: 0,
@@ -401,6 +409,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             });
           }
         } else {
+          revokeObjectUrl(get().currentFile?.url);
           set({
             currentFile: null,
             currentTime: 0,
@@ -413,6 +422,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         }
       },
       setCurrentYouTube: (youtube) => {
+        revokeObjectUrl(get().currentFile?.url);
         if (youtube) {
           get().addRecentYouTubeVideo(youtube);
 
@@ -987,8 +997,95 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           (item) => item.id === historyItemId
         );
 
+        if (!historyItem) return;
+
+        const derivedMediaId =
+          historyItem.type === "file"
+            ? historyItem.storageId ||
+              (historyItem.fileData
+                ? `file-${historyItem.fileData.name}-${historyItem.fileData.size}`
+                : null)
+            : historyItem.youtubeData?.youtubeId
+              ? `youtube-${historyItem.youtubeData.youtubeId}`
+              : null;
+
+        const { currentFile, currentYouTube } = get();
+        const isDeletingCurrentMedia =
+          (historyItem.type === "file" &&
+            !!currentFile &&
+            ((historyItem.storageId &&
+              currentFile.storageId === historyItem.storageId) ||
+              (!!historyItem.fileData &&
+                currentFile.name === historyItem.fileData.name &&
+                currentFile.size === historyItem.fileData.size))) ||
+          (historyItem.type === "youtube" &&
+            !!currentYouTube &&
+            currentYouTube.id === historyItem.youtubeData?.youtubeId);
+
+        // Remove references immediately so the library updates even if storage cleanup is slow.
+        set((state) => {
+          const nextQueue = state.playbackQueue.filter((id) => id !== historyItemId);
+          const nextQueueOriginal = state.playbackQueueOriginal.filter(
+            (id) => id !== historyItemId
+          );
+          const deletedQueueIndex = state.playbackQueue.indexOf(historyItemId);
+
+          let nextPlaybackIndex = state.playbackIndex;
+          if (deletedQueueIndex !== -1) {
+            if (nextQueue.length === 0) {
+              nextPlaybackIndex = -1;
+            } else if (state.playbackIndex > deletedQueueIndex) {
+              nextPlaybackIndex = state.playbackIndex - 1;
+            } else if (state.playbackIndex >= nextQueue.length) {
+              nextPlaybackIndex = nextQueue.length - 1;
+            }
+          }
+
+          const nextBookmarks = { ...state.mediaBookmarks };
+          const nextTranscripts = { ...state.mediaTranscripts };
+
+          if (derivedMediaId) {
+            delete nextBookmarks[derivedMediaId];
+            delete nextTranscripts[derivedMediaId];
+          }
+
+          return {
+            mediaHistory: state.mediaHistory.filter(
+              (item) => item.id !== historyItemId
+            ),
+            mediaBookmarks: nextBookmarks,
+            mediaTranscripts: nextTranscripts,
+            playbackQueue: nextQueue,
+            playbackQueueOriginal: nextQueueOriginal,
+            playbackIndex: nextPlaybackIndex,
+            isQueueActive: nextQueue.length > 0 && state.isQueueActive,
+            ...(isDeletingCurrentMedia
+              ? {
+                  currentFile: null,
+                  currentYouTube: null,
+                  isPlaying: false,
+                  currentTime: 0,
+                  duration: 0,
+                  loopStart: null,
+                  loopEnd: null,
+                  isLooping: false,
+                  selectedBookmarkId: null,
+                }
+              : {}),
+          };
+        });
+
+        if (derivedMediaId) {
+          try {
+            const { useShadowingStore } = await import("./shadowingStore");
+            await useShadowingStore.getState().deleteAllSegments(derivedMediaId);
+          } catch (error) {
+            console.error("Failed to delete shadowing segments:", error);
+          }
+        }
+
         // If this item has a storage ID, delete the file from IndexedDB
-        if (historyItem && historyItem.storageId) {
+        if (historyItem.storageId) {
           try {
             await deleteMediaFile(historyItem.storageId);
             console.log(
@@ -1000,15 +1097,52 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           }
         }
 
-        // Remove from history state
-        set((state) => ({
-          mediaHistory: state.mediaHistory.filter(
-            (item) => item.id !== historyItemId
-          ),
-        }));
       },
 
       clearMediaHistory: async () => {
+        const mediaIds = get().mediaHistory
+          .map((item) =>
+            item.type === "file"
+              ? item.storageId ||
+                (item.fileData
+                  ? `file-${item.fileData.name}-${item.fileData.size}`
+                  : null)
+              : item.youtubeData?.youtubeId
+                ? `youtube-${item.youtubeData.youtubeId}`
+                : null
+          )
+          .filter((mediaId): mediaId is string => Boolean(mediaId));
+
+        set({
+          mediaHistory: [],
+          mediaBookmarks: {},
+          mediaTranscripts: {},
+          currentFile: null,
+          currentYouTube: null,
+          isPlaying: false,
+          currentTime: 0,
+          duration: 0,
+          loopStart: null,
+          loopEnd: null,
+          isLooping: false,
+          selectedBookmarkId: null,
+          playbackQueue: [],
+          playbackQueueOriginal: [],
+          playbackIndex: -1,
+          isQueueActive: false,
+        });
+
+        try {
+          const { useShadowingStore } = await import("./shadowingStore");
+          await Promise.all(
+            mediaIds.map((mediaId) =>
+              useShadowingStore.getState().deleteAllSegments(mediaId)
+            )
+          );
+        } catch (error) {
+          console.error("Failed to clear shadowing sessions:", error);
+        }
+
         try {
           // Clear all media files from IndexedDB
           const { clearAllMediaFiles } = await import("../utils/mediaStorage");
@@ -1017,9 +1151,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         } catch (error) {
           console.error("Failed to clear media storage:", error);
         }
-
-        // Clear history state
-        set({ mediaHistory: [] });
       },
 
       setHistoryLimit(limit) {
@@ -1465,40 +1596,55 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           content: string
         ): Omit<TranscriptSegment, "id">[] {
           const segments: Omit<TranscriptSegment, "id">[] = [];
-          const blocks = content.split("\n\n").filter((block) => block.trim());
+          const normalizedContent = normalizeTranscriptContent(content);
+          const blocks = normalizedContent
+            .split(/\n{2,}/)
+            .filter((block) => block.trim());
 
           blocks.forEach((block) => {
-            const lines = block.split("\n");
-            if (lines.length >= 3) {
-              const timeLine = lines[1];
-              const textLines = lines.slice(2);
+            const lines = block
+              .split("\n")
+              .map((line) => line.trim())
+              .filter(Boolean);
 
-              const timeMatch = timeLine.match(
-                /(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})/
-              );
-              if (timeMatch) {
-                const startTime = parseTimeToSeconds(
-                  timeMatch[1],
-                  timeMatch[2],
-                  timeMatch[3],
-                  timeMatch[4]
-                );
-                const endTime = parseTimeToSeconds(
-                  timeMatch[5],
-                  timeMatch[6],
-                  timeMatch[7],
-                  timeMatch[8]
-                );
-
-                segments.push({
-                  text: textLines.join(" ").trim(),
-                  startTime,
-                  endTime,
-                  confidence: 1.0,
-                  isFinal: true,
-                });
-              }
+            const timeLineIndex = lines.findIndex((line) => line.includes("-->"));
+            if (timeLineIndex === -1) {
+              return;
             }
+
+            const timeMatch = lines[timeLineIndex].match(
+              /(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s+-->\s+(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/
+            );
+
+            if (!timeMatch) {
+              return;
+            }
+
+            const textLines = lines.slice(timeLineIndex + 1);
+            if (textLines.length === 0) {
+              return;
+            }
+
+            const startTime = parseTimeToSeconds(
+              timeMatch[1],
+              timeMatch[2],
+              timeMatch[3],
+              timeMatch[4]
+            );
+            const endTime = parseTimeToSeconds(
+              timeMatch[5],
+              timeMatch[6],
+              timeMatch[7],
+              timeMatch[8]
+            );
+
+            segments.push({
+              text: textLines.join(" ").trim(),
+              startTime,
+              endTime,
+              confidence: 1.0,
+              isFinal: true,
+            });
           });
 
           return segments;
@@ -1508,7 +1654,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           content: string
         ): Omit<TranscriptSegment, "id">[] {
           const segments: Omit<TranscriptSegment, "id">[] = [];
-          const lines = content.split("\n");
+          const lines = normalizeTranscriptContent(content).split("\n");
           let i = 0;
 
           // Skip WEBVTT header
@@ -1565,7 +1711,9 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           content: string
         ): Omit<TranscriptSegment, "id">[] {
           const segments: Omit<TranscriptSegment, "id">[] = [];
-          const lines = content.split("\n").filter((line) => line.trim());
+          const lines = normalizeTranscriptContent(content)
+            .split("\n")
+            .filter((line) => line.trim());
 
           lines.forEach((line, index) => {
             const trimmedLine = line.trim();
@@ -1634,6 +1782,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             parseInt(seconds) +
             parseInt(milliseconds) / 1000
           );
+        }
+
+        function normalizeTranscriptContent(content: string): string {
+          return content.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").trim();
         }
       },
 

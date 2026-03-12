@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useTranslation } from "react-i18next";
 import { formatTime } from "../../utils/formatTime";
-import { checkAudioRecordingSupport, getRecordingUnsupportedMessage } from "../../utils/browserCheck";
 import {
   Play,
   Pause,
@@ -20,11 +19,8 @@ import {
   Bookmark,
   ListMusic,
   X,
-  Mic,
   RotateCcw,
 } from "lucide-react";
-import { useShadowingStore } from "../../stores/shadowingStore";
-import { useShadowingRecorder } from "../../hooks/useShadowingRecorder";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
 import { Plus } from "lucide-react";
@@ -69,18 +65,8 @@ export const CombinedControls = () => {
     selectedBookmarkId,
   } = usePlayerStore();
 
-  const {
-    isShadowingMode,
-    setShadowingMode,
-    isRecording,
-  } = useShadowingStore();
-
-  // Initialize shadowing recorder
-  useShadowingRecorder();
-
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
   const [showABControls, setShowABControls] = useState(false);
-
   // Get current media bookmarks for the bookmark button
   const bookmarks = getCurrentMediaBookmarks();
 
@@ -93,20 +79,6 @@ export const CombinedControls = () => {
 
     setRangeValues([(start / duration) * 100, (end / duration) * 100]);
   }, [loopStart, loopEnd, duration]);
-
-  // Check if audio recording is supported in this browser
-  const recordingCapabilities = useMemo(() => checkAudioRecordingSupport(), []);
-  const canRecord = recordingCapabilities.supportsAudioRecording;
-
-  // Handle shadowing mode toggle
-  const handleShadowingToggle = () => {
-    if (!isShadowingMode && !canRecord) {
-      const errorMessage = getRecordingUnsupportedMessage(recordingCapabilities);
-      toast.error(errorMessage, { duration: 5000 });
-      return;
-    }
-    setShadowingMode(!isShadowingMode);
-  };
 
   // Toggle play/pause
   const togglePlayPause = () => {
@@ -412,23 +384,6 @@ export const CombinedControls = () => {
                   className="ml-0.5 sm:ml-1 sm:w-[24px] sm:h-[24px]"
                 />
               )}
-            </button>
-
-            {/* Shadowing toggle button */}
-            <button
-              onClick={handleShadowingToggle}
-              className={`p-2.5 rounded-full transition-all duration-150 ${isRecording
-                ? "bg-red-600 text-white animate-pulse"
-                : isShadowingMode
-                  ? "bg-orange-600 text-white hover:bg-orange-700"
-                  : canRecord
-                    ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50"
-                }`}
-              aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
-              title={!canRecord ? "Audio recording is not supported on this device/browser" : (isShadowingMode ? t("shadowing.disable") : t("shadowing.enable"))}
-            >
-              <Mic size={18} className="sm:w-[20px] sm:h-[20px]" />
             </button>
 
             <button

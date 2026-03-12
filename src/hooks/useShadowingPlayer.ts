@@ -36,14 +36,14 @@ export const useShadowingPlayer = () => {
     // Track loaded state to preventing trying to play before ready
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // Use getCurrentMediaId to ensure consistency
     const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
-
-    // Use a Zustand selector for segments to ensure referential stability
     const segments = useShadowingStore((state) => {
         if (!mediaId) return EMPTY_SEGMENTS as any[];
         return state.sessions[mediaId]?.segments || (EMPTY_SEGMENTS as any[]);
     });
+    const segmentsLoadKey = segments
+        .map((seg) => `${seg.id}:${seg.storageId}:${seg.startTime}:${seg.duration}:${seg.fileOffset || 0}`)
+        .join("|");
 
     // Initialize AudioContext
     useEffect(() => {
@@ -121,7 +121,7 @@ export const useShadowingPlayer = () => {
 
         loadAudio();
         return () => { active = false; };
-    }, [mediaId, segments.length]); // Monitor segments.length to detect new recordings
+    }, [mediaId, segmentsLoadKey]);
 
     // Handle Playback
     const stopAll = useCallback(() => {
@@ -207,26 +207,6 @@ export const useShadowingPlayer = () => {
     }, [isPlaying, playAt, stopAll]); // currentTime dependency removed to avoid restart on every tick
 
     // Handle Seeking (when currentTime changes significantly while playing)
-    // This is tricky because currentTime updates constantly during playback.
-    // We need to differentiate a "seek" from a "tick".
-    // The store's currentTime is updated via requestAnimationFrame loop in the player?
-    // Usually, a manual seek calls setCurrentTime which might trigger a significant jump.
-
-    // Actually, we can just rely on `isPlaying` toggle for play/pause.
-    // For Seeking: the user usually pauses -> seeks -> plays.
-    // If they seek while playing, the player component usually pauses briefly?
-    // If not, we might drift.
-
-    // Ideally we listen to a specific "seek" event or compare last time.
-    // But usePlayerStore doesn't expose an event stream easily.
-    // Let's rely on the fact that if 'isPlaying' is true, and 'currentTime' jumps, we might need to re-sync?
-    // But re-syncing on every 0.1s update is bad.
-    // Let's assume audio stays synced because we scheduled it based on rate.
-    // We only re-schedule if we detect a drift or explicit seek?
-
-    // Use a ref to track the expected time.
-    // If (currentTime - expectedTime) > threshold, it's a seek.
-
     const lastTimeRef = useRef(currentTime);
     useEffect(() => {
         if (!isPlaying) {
@@ -251,7 +231,7 @@ export const useShadowingPlayer = () => {
         }
     }, [volume, muted, masterVolume, masterMuted]);
 
-    // Update Playback Rate 
+    // Update Playback Rate
     // Update active nodes if rate changes live
     useEffect(() => {
         if (audioContextRef.current) {

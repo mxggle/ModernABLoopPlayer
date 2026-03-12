@@ -304,6 +304,8 @@ export const MediaHistory = ({
   const [hoveredFolder, setHoveredFolder] = useState<
     string | "unfiled" | "all" | null
   >(null);
+  const [pendingDeleteItem, setPendingDeleteItem] =
+    useState<MediaHistoryItem | null>(null);
 
   const {
     mediaHistory,
@@ -473,7 +475,10 @@ export const MediaHistory = ({
   // Remove an item from history
   const handleRemoveFromHistory = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    removeFromHistory(id);
+    const item = mediaHistory.find((historyItem) => historyItem.id === id);
+    if (item) {
+      setPendingDeleteItem(item);
+    }
   };
 
   // Clear all history
@@ -1200,6 +1205,20 @@ export const MediaHistory = ({
           setConfirmClearOpen(false);
         }}
       />
+      <ConfirmDeleteDialog
+        open={!!pendingDeleteItem}
+        itemName={pendingDeleteItem?.name ?? ""}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDeleteItem(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!pendingDeleteItem) return;
+          await removeFromHistory(pendingDeleteItem.id);
+          setPendingDeleteItem(null);
+        }}
+      />
     </>
   );
 };
@@ -1420,6 +1439,40 @@ function ConfirmClearDialog({
           </Button>
           <Button className="bg-red-600 hover:bg-red-700" onClick={onConfirm}>
             {t("common.clear")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ConfirmDeleteDialog({
+  open,
+  itemName,
+  onOpenChange,
+  onConfirm,
+}: {
+  open: boolean;
+  itemName: string;
+  onOpenChange: (v: boolean) => void;
+  onConfirm: () => void | Promise<void>;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("history.deleteItemTitle")}</DialogTitle>
+          <DialogDescription>
+            {t("history.deleteItemDescription", { name: itemName })}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t("common.cancel")}
+          </Button>
+          <Button className="bg-red-600 hover:bg-red-700" onClick={onConfirm}>
+            {t("history.removeFromHistory")}
           </Button>
         </DialogFooter>
       </DialogContent>

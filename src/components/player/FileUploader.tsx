@@ -12,7 +12,7 @@ export const FileUploader = () => {
   const { setCurrentFile } = usePlayerStore();
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[]) => {
       if (acceptedFiles.length === 0) return;
 
       const file = acceptedFiles[0];
@@ -23,80 +23,17 @@ export const FileUploader = () => {
         return;
       }
 
-      // Store the file in IndexedDB and get a persistent ID
       try {
-        // First set with temporary URL so UI can show something immediately
+        const storageId = await storeMediaFile(file);
         const tempUrl = URL.createObjectURL(file);
+
         setCurrentFile({
           name: file.name,
           type: file.type,
           size: file.size,
           url: tempUrl,
-          // We'll update the storageId after storing in IndexedDB
+          storageId,
         });
-        console.log("🎸 zy 760625 FileUploader.tsx 36 ▷", file);
-
-        // Store the file in IndexedDB
-        storeMediaFile(file)
-          .then((storageId) => {
-            console.log("File stored successfully with ID:", storageId);
-
-            // Immediately test retrieving the file to verify storage
-            import("../../utils/mediaStorage").then(({ retrieveMediaFile }) => {
-              retrieveMediaFile(storageId)
-                .then((retrievedFile) => {
-                  if (retrievedFile) {
-                    console.log(
-                      "File retrieval test successful:",
-                      retrievedFile
-                    );
-
-                    // Create a new object URL from the retrieved file
-                    const retrievedUrl = URL.createObjectURL(retrievedFile);
-                    console.log(
-                      "Created new URL from retrieved file:",
-                      retrievedUrl
-                    );
-
-                    // Update the file in the store with both the storage ID and the new URL
-                    setCurrentFile({
-                      name: file.name,
-                      type: file.type,
-                      size: file.size,
-                      url: retrievedUrl, // Use the URL from the retrieved file
-                      storageId, // Add the storage ID for persistence
-                    });
-                  } else {
-                    console.error(
-                      "File retrieval test failed - couldn't retrieve file"
-                    );
-                    // Fall back to the temporary URL if retrieval test fails
-                    setCurrentFile({
-                      name: file.name,
-                      type: file.type,
-                      size: file.size,
-                      url: tempUrl,
-                      storageId,
-                    });
-                  }
-                })
-                .catch((err) => {
-                  console.error("Error in file retrieval test:", err);
-                  // Fall back to the temporary URL if retrieval test fails
-                  setCurrentFile({
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    url: tempUrl,
-                    storageId,
-                  });
-                });
-            });
-          })
-          .catch((error) => {
-            console.error("Failed to store file in IndexedDB:", error);
-            toast.error(t("upload.storageError"));
-          });
       } catch (error) {
         console.error("Error in file upload:", error);
         toast.error(t("upload.uploadError"));

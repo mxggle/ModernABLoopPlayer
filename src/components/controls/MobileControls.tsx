@@ -1,7 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useTranslation } from "react-i18next";
-import { checkAudioRecordingSupport, getRecordingUnsupportedMessage } from "../../utils/browserCheck";
 
 import { toast } from "react-hot-toast";
 import {
@@ -21,17 +20,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsRight,
-  Mic,
 } from "lucide-react";
 import { Button } from "../ui/button";
-import { useShadowingStore } from "../../stores/shadowingStore";
-import { useShadowingRecorder } from "../../hooks/useShadowingRecorder";
 
 export const MobileControls = () => {
   const { t } = useTranslation();
-
-  // Initialize shadowing recorder
-  useShadowingRecorder();
 
   const {
     isPlaying,
@@ -69,19 +62,9 @@ export const MobileControls = () => {
     toggleLooping,
   } = usePlayerStore();
 
-  const {
-    isShadowingMode,
-    setShadowingMode,
-    isRecording,
-  } = useShadowingStore();
-
   const [showSpeedControls, setShowSpeedControls] = useState(false);
   const [showVolumeDrawer, setShowVolumeDrawer] = useState(false);
   const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(false);
-
-  // Check if audio recording is supported in this browser
-  const recordingCapabilities = useMemo(() => checkAudioRecordingSupport(), []);
-  const canRecord = recordingCapabilities.supportsAudioRecording;
 
   // Get current media bookmarks for the bookmark button
   const bookmarks = getCurrentMediaBookmarks();
@@ -236,19 +219,6 @@ export const MobileControls = () => {
 
   // Clear loop points function moved to waveform footer
 
-  // Handle shadowing mode toggle
-  const handleShadowingToggle = () => {
-    // If trying to enable shadowing mode, check browser support first
-    if (!isShadowingMode && !canRecord) {
-      const errorMessage = getRecordingUnsupportedMessage(recordingCapabilities);
-      toast.error(errorMessage, { duration: 5000 });
-      return;
-    }
-
-    // Toggle shadowing mode
-    setShadowingMode(!isShadowingMode);
-  };
-
   // Note: Loop jump functions removed as they're not used in the mobile interface
 
   return (
@@ -291,23 +261,6 @@ export const MobileControls = () => {
               ) : (
                 <Play size={32} className="ml-1" />
               )}
-            </button>
-
-            {/* Shadowing toggle button */}
-            <button
-              onClick={handleShadowingToggle}
-              className={`p-3 rounded-full transition-all duration-150 ${isRecording
-                  ? "bg-red-600 text-white animate-pulse"
-                  : isShadowingMode
-                    ? "bg-orange-600 text-white hover:bg-orange-700"
-                    : canRecord
-                      ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50"
-                }`}
-              aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
-              title={!canRecord ? "Audio recording is not supported on this device/browser" : undefined}
-            >
-              <Mic size={24} />
             </button>
 
             <button

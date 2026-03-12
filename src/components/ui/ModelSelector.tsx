@@ -87,13 +87,13 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   const getProviderColor = (provider: AIProvider) => {
     switch (provider) {
       case "openai":
-        return "text-green-600 bg-green-50";
+        return "bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400";
       case "gemini":
-        return "text-blue-600 bg-blue-50";
+        return "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400";
       case "grok":
-        return "text-purple-600 bg-purple-50";
+        return "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400";
       default:
-        return "text-gray-600 bg-gray-50";
+        return "bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
     }
   };
 
@@ -178,12 +178,12 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       </Button>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-96 overflow-auto">
+        <div className="absolute z-50 mt-1 max-h-96 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
           {Object.entries(groupedModels).map(
             ([providerKey, providerModels]) => (
               <div key={providerKey}>
                 {showAllProviders && (
-                  <div className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 border-b">
+                  <div className="border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                     <div className="flex items-center gap-2">
                       {getProviderIcon(providerKey as AIProvider)}
                       {providerKey.toUpperCase()}
@@ -198,15 +198,15 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                       setIsOpen(false);
                     }}
                     className={cn(
-                      "w-full px-3 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0",
+                      "w-full border-b border-gray-100 px-3 py-2 text-left hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/80 last:border-b-0",
                       selectedModel === model.id &&
-                        "bg-blue-50 border-blue-200",
+                        "border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-950/30",
                       compact && "py-1"
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                        <div className="mb-1 flex items-center gap-2">
                           {!showAllProviders && (
                             <div
                               className={cn(
@@ -221,11 +221,11 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                             {model.name}
                           </span>
                           {selectedModel === model.id && (
-                            <CheckCircle className="w-4 h-4 text-blue-600" />
+                            <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           )}
                         </div>
                         {!compact && (
-                          <p className="text-xs text-gray-600 mb-2">
+                          <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
                             {model.description}
                           </p>
                         )}
@@ -236,14 +236,14 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                               .map((capability) => (
                                 <span
                                   key={capability}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-700 text-xs rounded"
+                                  className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                 >
                                   {getCapabilityIcon(capability)}
                                   {getCapabilityLabel(capability)}
                                 </span>
                               ))}
                             {model.capabilities.length > 4 && (
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
                                 {t("modelSelector.moreCapabilities", {
                                   count: model.capabilities.length - 4,
                                 })}
@@ -252,7 +252,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                           </div>
                         )}
                         {showPricing && !compact && (
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                             <div className="flex items-center gap-1">
                               <DollarSign className="w-3 h-3" />
                               {t("modelSelector.inputPrice", {
@@ -281,7 +281,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             )
           )}
           {models.length === 0 && (
-            <div className="px-3 py-4 text-center text-gray-500">
+            <div className="px-3 py-4 text-center text-gray-500 dark:text-gray-400">
               <AlertCircle className="w-6 h-6 mx-auto mb-2" />
               <p className="text-sm">{t("modelSelector.noModels")}</p>
               {!showAllProviders && !provider && (
