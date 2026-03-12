@@ -373,6 +373,7 @@ const TranscriptControlsPanel = () => {
 };
 
 export const TranscriptPanel = () => {
+  const LARGE_TRANSCRIPTION_FILE_SIZE = 25 * 1024 * 1024;
   const { t } = useTranslation();
   const navigate = useNavigate();
   const {
@@ -380,7 +381,8 @@ export const TranscriptPanel = () => {
     isTranscribing,
     currentFile,
     currentYouTube,
-    toggleTranscribing,
+    startTranscribing,
+    stopTranscribing,
     addTranscriptSegment,
     clearTranscript,
     exportTranscript,
@@ -391,6 +393,9 @@ export const TranscriptPanel = () => {
     setSelectedBookmarkId,
     setCurrentTime,
     setIsPlaying,
+    loopStart,
+    loopEnd,
+    duration,
   } = usePlayerStore();
 
   const transcriptSegments = getCurrentMediaTranscripts();
@@ -425,7 +430,6 @@ export const TranscriptPanel = () => {
       );
     })
     : transcriptSegments;
-
 
   const handleTabSelect = (id: string | null) => {
     if (id) {
@@ -489,8 +493,22 @@ export const TranscriptPanel = () => {
     }
   };
 
+  const getPreferredTranscriptRange = () => {
+    if (loopStart !== null && loopEnd !== null && loopEnd > loopStart) {
+      return { start: loopStart, end: loopEnd };
+    }
+
+    return undefined;
+  };
+
+  const handleTranscribeDefault = () => {
+    transcribeMedia(getPreferredTranscriptRange());
+  };
+
   const handleTranscribeFull = () => {
-    transcribeMedia();
+    transcribeMedia(duration > 0 ? { start: 0, end: duration } : undefined, {
+      forceFullRange: true,
+    });
   };
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -500,6 +518,14 @@ export const TranscriptPanel = () => {
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<TranscriptionProvider>("openai");
   const transcriptRef = useRef<HTMLDivElement>(null);
+
+  const isBookmarkTranscriptEmpty = Boolean(activeTabId) && filteredSegments.length === 0;
+  const isFullTranscriptEmpty = !activeTabId && transcriptSegments.length === 0;
+  const shouldShowTranscribeActionsInHeader =
+    !isProcessing &&
+    !showApiKeyInput &&
+    !isBookmarkTranscriptEmpty &&
+    !isFullTranscriptEmpty;
 
   // Load API key and transcription provider from localStorage on component mount
   useEffect(() => {
@@ -530,8 +556,23 @@ export const TranscriptPanel = () => {
     navigate("/ai-settings");
   };
 
+  type TimeRange = { start: number; end: number };
+
+  const normalizeRange = (range?: Partial<TimeRange>): TimeRange | undefined => {
+    if (
+      range &&
+      typeof range.start === "number" &&
+      typeof range.end === "number" &&
+      range.end > range.start
+    ) {
+      return { start: range.start, end: range.end };
+    }
+
+    return undefined;
+  };
+
   // Function to extract audio from the media file
-  const extractAudioFromMedia = async (range?: { start: number; end: number }): Promise<Blob> => {
+  const extractAudioFromMedia = async (range?: TimeRange): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       if (!currentFile) {
         reject(new Error(t("transcript.noFileLoaded")));
@@ -541,10 +582,18 @@ export const TranscriptPanel = () => {
       // For audio files, we can use them directly or slice them if range provided
       if (currentFile.type.includes("audio")) {
         fetch(currentFile.url)
-          .then((response) => response.arrayBuffer())
+          .then(async (response) => {
+            if (!range) {
+              resolve(await response.blob());
+              return;
+            }
+
+            return response.arrayBuffer();
+          })
           .then(async (arrayBuffer) => {
-            // If no range, return original blob if possible, or decode/encode to ensure WAV
-            // But to support detailed range slicing, we should always decode
+            if (!range || !arrayBuffer) {
+              return;
+            }
 
             try {
               const audioContext = new AudioContext();
@@ -588,6 +637,7 @@ export const TranscriptPanel = () => {
 
               // Encode to WAV
               const wavBlob = encodeWAV(slicedData, audioBuffer.sampleRate);
+              audioContext.close();
               resolve(wavBlob);
 
             } catch (err) {
@@ -661,7 +711,10 @@ export const TranscriptPanel = () => {
   };
 
   // Function to transcribe the current media using the selected transcription service
-  const transcribeMedia = async (range?: { start: number; end: number }) => {
+  const transcribeMedia = async (
+    requestedRange?: Partial<TimeRange>,
+    options?: { forceFullRange?: boolean }
+  ) => {
     // Check if we have media to transcribe
     if (!currentFile && !currentYouTube) {
       toast.error(t("transcript.noMediaToTranscribe"));
@@ -674,16 +727,28 @@ export const TranscriptPanel = () => {
       return;
     }
 
+    const range = options?.forceFullRange
+      ? normalizeRange(requestedRange)
+      : normalizeRange(requestedRange) || getPreferredTranscriptRange();
+
+    if (
+      currentFile &&
+      !range &&
+      currentFile.size > LARGE_TRANSCRIPTION_FILE_SIZE
+    ) {
+      toast(t("transcript.largeFileRangeRecommended"));
+    }
+
     try {
       setIsProcessing(true);
       setErrorMessage("");
 
       // Only clear if doing full transcript
-      if (!range) {
+      if (!range || options?.forceFullRange) {
         clearTranscript();
       }
 
-      toggleTranscribing(); // Set isTranscribing to true
+      startTranscribing();
       setProcessingProgress(10);
 
       // For YouTube videos, we can't directly access the audio
@@ -790,6 +855,7 @@ export const TranscriptPanel = () => {
       await simulateTranscription();
     } finally {
       setIsProcessing(false);
+      stopTranscribing();
     }
   };
 
@@ -1220,31 +1286,49 @@ export const TranscriptPanel = () => {
               <Settings size={16} />
             </button>
 
-            {/* Show transcribe button behavior based on active tab */}
-            {activeTabId ? (
-              <button
-                onClick={handleTranscribeBookmark}
-                className={`p-1.5 rounded-full ${isTranscribing
-                  ? "bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-                  }`}
-                title={t("transcript.transcribeBookmark")}
-                disabled={isProcessing || (!currentFile && !currentYouTube)}
-              >
-                <FileAudio size={16} />
-              </button>
-            ) : (
-              <button
-                onClick={handleTranscribeFull}
-                className={`p-1.5 rounded-full ${isTranscribing
-                  ? "bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-                  }`}
-                title={t("transcript.transcribeWithWhisper")}
-                disabled={isProcessing || (!currentFile && !currentYouTube)}
-              >
-                <FileAudio size={16} />
-              </button>
+            {shouldShowTranscribeActionsInHeader && (
+              <>
+                {activeTabId ? (
+                  <button
+                    onClick={handleTranscribeBookmark}
+                    className={`p-1.5 rounded-full ${isTranscribing
+                      ? "bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                      }`}
+                    title={t("transcript.transcribeBookmark")}
+                    disabled={isProcessing || (!currentFile && !currentYouTube)}
+                  >
+                    <FileAudio size={16} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleTranscribeDefault}
+                    className={`p-1.5 rounded-full ${isTranscribing
+                      ? "bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                      }`}
+                    title={
+                      loopStart !== null && loopEnd !== null
+                        ? t("transcript.transcribeLoopRange")
+                        : t("transcript.transcribeWithWhisper")
+                    }
+                    disabled={isProcessing || (!currentFile && !currentYouTube)}
+                  >
+                    <FileAudio size={16} />
+                  </button>
+                )}
+
+                {!activeTabId && currentFile && (
+                  <button
+                    onClick={handleTranscribeFull}
+                    className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                    title={t("transcript.transcribeFullRange")}
+                    disabled={isProcessing || (!currentFile && !currentYouTube)}
+                  >
+                    <Brain size={16} />
+                  </button>
+                )}
+              </>
             )}
 
             <button
@@ -1341,6 +1425,14 @@ export const TranscriptPanel = () => {
                     </div>
                     {(currentFile || currentYouTube) && (
                       <div className="space-y-2">
+                        <button
+                          onClick={handleTranscribeDefault}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium transition-colors"
+                        >
+                          {loopStart !== null && loopEnd !== null
+                            ? t("transcript.transcribeLoopRangeButton")
+                            : t("transcript.transcribeWithWhisper")}
+                        </button>
                         <div className="text-sm">{t("common.or")}</div>
                         <div className="flex justify-center">
                           <TranscriptUploader variant="prominent" />
