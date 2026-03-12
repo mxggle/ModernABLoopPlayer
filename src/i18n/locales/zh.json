@@ -17,7 +17,20 @@
     "upload": "上传",
     "create": "创建",
     "back": "返回",
-    "remove": "移除"
+    "show": "显示",
+    "hide": "隐藏",
+    "remove": "移除",
+    "shadowing": "跟读"
+  },
+  "shadowing": {
+    "title": "跟读",
+    "mode": "跟读模式",
+    "on": "录音开",
+    "off": "跟读",
+    "delay": "停止延迟（秒）",
+    "recording": "录音中...",
+    "enable": "启用跟读",
+    "disable": "禁用跟读"
   },
   "app": {
     "logoLabel": "LoopMate 标志"
@@ -47,30 +60,49 @@
   },
   "aiSettingsPage": {
     "title": "AI 设置",
-    "subtitle": "配置您的 AI 提供方和模型",
+    "subtitle": "配置您的 AI 提供方、默认值和转录工具",
+    "overviewTitle": "快速概览",
+    "overviewDescription": "先检查当前启用的服务，再统一保存设置。",
+    "sectionGuide": "页面分区",
+    "sectionNav": {
+      "defaults": "默认值",
+      "providers": "提供方",
+      "transcription": "转录"
+    },
     "generalSettings": "常规设置",
+    "defaultsDescription": "选择默认响应服务，并调整生成内容的行为。",
     "preferredProvider": "首选 AI 提供方",
     "targetLanguage": "目标语言",
+    "targetLanguageHelp": "用于翻译、解释和生成内容的默认语言。",
     "temperature": "温度 ({{value}})",
     "temperatureFocused": "专注",
     "temperatureBalanced": "平衡",
     "temperatureCreative": "创造",
+    "temperatureHelp": "值越低越稳定精准，值越高越灵活多样。",
+    "generationBehavior": "响应行为",
     "maxTokens": "最大 Tokens",
+    "maxTokensHelp": "限制每次 AI 响应的最大长度。",
     "providersSection": "AI 提供方",
+    "providerSetupDescription": "为每个提供方保存凭据，并选择默认模型。",
+    "storedLocally": "API 密钥只保存在当前浏览器中，只有发起请求时才会发送给对应提供方。",
     "providers": {
       "openai": "OpenAI",
       "gemini": "Google Gemini",
-      "grok": "xAI Grok"
+      "grok": "xAI Grok",
+      "groq": "Groq"
     },
     "providerDescriptions": {
       "openai": "OpenAI GPT 模型",
       "gemini": "Google Gemini 模型",
-      "grok": "xAI Grok 模型"
+      "grok": "xAI Grok 模型",
+      "groq": "Groq LPU 驱动的超快 Whisper 转录"
     },
     "apiKeyLabel": "API 密钥",
     "apiKeyPlaceholderLabel": "请输入 {{provider}} 的 API 密钥",
     "invalidApiKeyFormat": "API 密钥格式无效",
     "defaultModel": "默认模型",
+    "summaryDefaultModel": "默认模型",
+    "summaryTranscriptionModel": "转录模型",
     "selectModelPlaceholder": "请选择 {{provider}} 模型...",
     "enterApiKeyFirst": "请先输入 {{provider}} 的 API 密钥",
     "connectionSuccess": "{{provider}} 连接成功！",
@@ -78,6 +110,37 @@
     "connectionFailedWithError": "{{provider}} 连接失败：{{message}}",
     "saveSuccess": "AI 设置已保存！",
     "saveSettings": "保存设置",
+    "testConnection": "测试",
+    "status": {
+      "ready": "已就绪",
+      "missing": "需要 API 密钥",
+      "invalid": "请检查 API 密钥",
+      "default": "默认",
+      "active": "当前使用",
+      "testPassed": "上一次连接测试成功。",
+      "testFailed": "上一次连接测试失败。",
+      "configuredProviders": "已配置 {{count}} / {{total}} 个提供方"
+    },
+    "transcriptionSection": "转录服务",
+    "transcriptionDescription": "选择用于音频转录的服务，并检查它依赖的密钥。",
+    "transcriptionProvider": "转录提供方",
+    "transcriptionProviderDesc": "选择用于音频转录的服务",
+    "transcriptionDetails": "当前提供方详情",
+    "transcriptionSharedKey": "使用共享提供方密钥",
+    "transcriptionSharedKeyDescription": "此服务会使用“提供方设置”区域中的 {{provider}} API 密钥。",
+    "transcriptionProviders": {
+      "openai": "OpenAI Whisper",
+      "groq": "Groq Whisper（超快）",
+      "gemini": "Google Gemini"
+    },
+    "transcriptionProviderDescriptions": {
+      "openai": "高质量转录，并提供词级时间戳",
+      "groq": "由 Groq LPU 提供的超快转录",
+      "gemini": "支持说话人区分的多模态 AI 转录"
+    },
+    "groqApiKeyLabel": "Groq API 密钥",
+    "groqApiKeyPlaceholder": "gsk_...",
+    "getGroqApiKey": "获取 Groq API 密钥",
     "languages": {
       "english": "英语",
       "spanish": "西班牙语",
@@ -369,6 +432,8 @@
     "moveToFolder": "移动到文件夹",
     "unfiled": "未分类",
     "removeFromHistory": "从历史中移除",
+    "deleteItemTitle": "删除媒体",
+    "deleteItemDescription": "要将“{{name}}”从媒体库中删除吗？这也会删除其已存储的媒体数据。",
     "closeRecentMedia": "关闭最近媒体",
     "openRecentMedia": "打开最近媒体",
     "sort": "排序",

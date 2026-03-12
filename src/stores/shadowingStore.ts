@@ -117,7 +117,8 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
             },
 
             clearSegments: (mediaId) => set((state) => {
-                const { [mediaId]: _removed, ...rest } = state.sessions;
+                const rest = { ...state.sessions };
+                delete rest[mediaId];
                 return { sessions: rest };
             }),
 
@@ -128,7 +129,8 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
                 const storageIds = new Set(session.segments.map((segment) => segment.storageId));
 
                 set((state) => {
-                    const { [mediaId]: _removed, ...rest } = state.sessions;
+                    const rest = { ...state.sessions };
+                    delete rest[mediaId];
                     return { sessions: rest };
                 });
 

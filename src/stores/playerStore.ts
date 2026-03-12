@@ -225,8 +225,8 @@ export interface PlayerActions {
   ) => void;
   updateHistoryPlaybackTime: (id: string, time: number) => void;
   loadFromHistory: (historyItemId: string) => void;
-  removeFromHistory: (historyItemId: string) => void;
-  clearMediaHistory: () => void;
+  removeFromHistory: (historyItemId: string) => Promise<void>;
+  clearMediaHistory: () => Promise<void>;
   setHistoryLimit: (limit: number) => void;
 
   // Folder & item management
@@ -987,8 +987,95 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           (item) => item.id === historyItemId
         );
 
+        if (!historyItem) return;
+
+        const derivedMediaId =
+          historyItem.type === "file"
+            ? historyItem.storageId ||
+              (historyItem.fileData
+                ? `file-${historyItem.fileData.name}-${historyItem.fileData.size}`
+                : null)
+            : historyItem.youtubeData?.youtubeId
+              ? `youtube-${historyItem.youtubeData.youtubeId}`
+              : null;
+
+        const { currentFile, currentYouTube } = get();
+        const isDeletingCurrentMedia =
+          (historyItem.type === "file" &&
+            !!currentFile &&
+            ((historyItem.storageId &&
+              currentFile.storageId === historyItem.storageId) ||
+              (!!historyItem.fileData &&
+                currentFile.name === historyItem.fileData.name &&
+                currentFile.size === historyItem.fileData.size))) ||
+          (historyItem.type === "youtube" &&
+            !!currentYouTube &&
+            currentYouTube.id === historyItem.youtubeData?.youtubeId);
+
+        // Remove references immediately so the library updates even if storage cleanup is slow.
+        set((state) => {
+          const nextQueue = state.playbackQueue.filter((id) => id !== historyItemId);
+          const nextQueueOriginal = state.playbackQueueOriginal.filter(
+            (id) => id !== historyItemId
+          );
+          const deletedQueueIndex = state.playbackQueue.indexOf(historyItemId);
+
+          let nextPlaybackIndex = state.playbackIndex;
+          if (deletedQueueIndex !== -1) {
+            if (nextQueue.length === 0) {
+              nextPlaybackIndex = -1;
+            } else if (state.playbackIndex > deletedQueueIndex) {
+              nextPlaybackIndex = state.playbackIndex - 1;
+            } else if (state.playbackIndex >= nextQueue.length) {
+              nextPlaybackIndex = nextQueue.length - 1;
+            }
+          }
+
+          const nextBookmarks = { ...state.mediaBookmarks };
+          const nextTranscripts = { ...state.mediaTranscripts };
+
+          if (derivedMediaId) {
+            delete nextBookmarks[derivedMediaId];
+            delete nextTranscripts[derivedMediaId];
+          }
+
+          return {
+            mediaHistory: state.mediaHistory.filter(
+              (item) => item.id !== historyItemId
+            ),
+            mediaBookmarks: nextBookmarks,
+            mediaTranscripts: nextTranscripts,
+            playbackQueue: nextQueue,
+            playbackQueueOriginal: nextQueueOriginal,
+            playbackIndex: nextPlaybackIndex,
+            isQueueActive: nextQueue.length > 0 && state.isQueueActive,
+            ...(isDeletingCurrentMedia
+              ? {
+                  currentFile: null,
+                  currentYouTube: null,
+                  isPlaying: false,
+                  currentTime: 0,
+                  duration: 0,
+                  loopStart: null,
+                  loopEnd: null,
+                  isLooping: false,
+                  selectedBookmarkId: null,
+                }
+              : {}),
+          };
+        });
+
+        if (derivedMediaId) {
+          try {
+            const { useShadowingStore } = await import("./shadowingStore");
+            await useShadowingStore.getState().deleteAllSegments(derivedMediaId);
+          } catch (error) {
+            console.error("Failed to delete shadowing segments:", error);
+          }
+        }
+
         // If this item has a storage ID, delete the file from IndexedDB
-        if (historyItem && historyItem.storageId) {
+        if (historyItem.storageId) {
           try {
             await deleteMediaFile(historyItem.storageId);
             console.log(
@@ -1000,15 +1087,52 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           }
         }
 
-        // Remove from history state
-        set((state) => ({
-          mediaHistory: state.mediaHistory.filter(
-            (item) => item.id !== historyItemId
-          ),
-        }));
       },
 
       clearMediaHistory: async () => {
+        const mediaIds = get().mediaHistory
+          .map((item) =>
+            item.type === "file"
+              ? item.storageId ||
+                (item.fileData
+                  ? `file-${item.fileData.name}-${item.fileData.size}`
+                  : null)
+              : item.youtubeData?.youtubeId
+                ? `youtube-${item.youtubeData.youtubeId}`
+                : null
+          )
+          .filter((mediaId): mediaId is string => Boolean(mediaId));
+
+        set({
+          mediaHistory: [],
+          mediaBookmarks: {},
+          mediaTranscripts: {},
+          currentFile: null,
+          currentYouTube: null,
+          isPlaying: false,
+          currentTime: 0,
+          duration: 0,
+          loopStart: null,
+          loopEnd: null,
+          isLooping: false,
+          selectedBookmarkId: null,
+          playbackQueue: [],
+          playbackQueueOriginal: [],
+          playbackIndex: -1,
+          isQueueActive: false,
+        });
+
+        try {
+          const { useShadowingStore } = await import("./shadowingStore");
+          await Promise.all(
+            mediaIds.map((mediaId) =>
+              useShadowingStore.getState().deleteAllSegments(mediaId)
+            )
+          );
+        } catch (error) {
+          console.error("Failed to clear shadowing sessions:", error);
+        }
+
         try {
           // Clear all media files from IndexedDB
           const { clearAllMediaFiles } = await import("../utils/mediaStorage");
@@ -1017,9 +1141,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         } catch (error) {
           console.error("Failed to clear media storage:", error);
         }
-
-        // Clear history state
-        set({ mediaHistory: [] });
       },
 
       setHistoryLimit(limit) {

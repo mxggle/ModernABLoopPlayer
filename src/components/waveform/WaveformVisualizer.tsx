@@ -17,10 +17,14 @@ import {
   Volume2,
   VolumeX,
   Trash2,
+  Mic,
+  Radio,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { checkAudioRecordingSupport, getRecordingUnsupportedMessage } from "../../utils/browserCheck";
+import { useShadowingRecorder } from "../../hooks/useShadowingRecorder";
 
 // Constant toast ID to ensure only one bookmark notification is shown at a time
 const BOOKMARK_TOAST_ID = "bookmark-action-toast";
@@ -130,6 +134,7 @@ export const WaveformVisualizer = () => {
     muted: shadowMuted, setMuted: setShadowMuted,
     currentRecording,
     isShadowingMode, setShadowingMode,
+    isRecording,
   } = useShadowingStore();
 
   const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
@@ -142,9 +147,12 @@ export const WaveformVisualizer = () => {
   const [fadingRecording, setFadingRecording] = useState<RecordingOverlay | null>(null);
   const previousCurrentRecordingRef = useRef<typeof currentRecording>(null);
   const [fadeFrame, setFadeFrame] = useState(0);
+  const recordingCapabilities = checkAudioRecordingSupport();
+  const canRecord = recordingCapabilities.supportsAudioRecording;
 
   // Initialize Shadowing Player
   useShadowingPlayer();
+  useShadowingRecorder();
 
   // Load shadowing waveforms
   useEffect(() => {
@@ -1227,11 +1235,6 @@ export const WaveformVisualizer = () => {
     ]
   );
 
-  const hasMedia = currentFile?.url || currentYouTube?.id;
-  if (!showWaveform || !hasMedia) {
-    return null;
-  }
-
   // Handle zoom controls - commented out unused function
   // const handleZoomIn = () => {
   //   // Increase zoom by 25% with a maximum of 20x
@@ -1333,6 +1336,11 @@ export const WaveformVisualizer = () => {
       el.removeEventListener("touchmove", onTouchMove as EventListener);
     };
   }, [setWaveformZoom, scrollOffset]);
+
+  const hasMedia = currentFile?.url || currentYouTube?.id;
+  if (!showWaveform || !hasMedia) {
+    return null;
+  }
 
 
   // Handle mouse down for range selection, bookmark resizing, or Alt+pan
@@ -1621,6 +1629,15 @@ export const WaveformVisualizer = () => {
     }, 100);
   };
 
+  const handleRecordingToggle = () => {
+    if (!isShadowingMode && !canRecord) {
+      toast.error(getRecordingUnsupportedMessage(recordingCapabilities), { duration: 5000 });
+      return;
+    }
+
+    setShadowingMode(!isShadowingMode);
+  };
+
   return (
     <>
       <div className="mt-2 backdrop-blur-sm rounded-lg overflow-hidden border border-purple-500/30 relative">
@@ -1897,43 +1914,85 @@ export const WaveformVisualizer = () => {
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[4px] border-b-red-600"></div>
           </div>
 
-          {shadowingSegments.length > 0 && (
+          {(shadowingSegments.length > 0 || canRecord) && (
             <div
-              className={`absolute right-2 z-10 -translate-y-1/2 pointer-events-auto transition-all duration-200 top-[75%]`}
+              className={`absolute right-2 z-10 -translate-y-1/2 pointer-events-auto transition-all duration-200 top-[75%] max-w-[calc(100%-0.75rem)]`}
               onMouseDown={stopPropagation}
               onClick={stopPropagation}
               onTouchStart={stopPropagation}
               onPointerDown={stopPropagation}
             >
-              <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-full h-8 px-3 text-white/80">
-                <span className="text-xs font-medium">
-                  Shadow Track · {shadowingSegments.length} seg
-                </span>
-                {isShadowingMode && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                )}
-                {!isConfirmingDelete ? (
-                  <button
-                    className="p-1 rounded text-white/40 hover:text-red-400 transition-colors"
-                    onClick={() => setIsConfirmingDelete(true)}
-                    title="Delete shadow track"
+              <div className="flex flex-col items-center gap-1 bg-black/60 backdrop-blur-md border border-white/15 rounded-2xl text-white/80 shadow-[0_8px_24px_rgba(0,0,0,0.18)] py-1.5 px-1.5">
+                <button
+                  type="button"
+                  onClick={handleRecordingToggle}
+                  disabled={!canRecord}
+                  aria-pressed={isShadowingMode}
+                  aria-label={isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+                  title={!canRecord ? getRecordingUnsupportedMessage(recordingCapabilities) : isShadowingMode ? t("shadowing.disable") : t("shadowing.enable")}
+                  className={`group relative inline-flex shrink-0 justify-center rounded-full border-2 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-400/70 ${
+                    !canRecord
+                      ? "cursor-not-allowed border-white/8 bg-white/5"
+                      : isRecording
+                        ? "border-red-500/70 bg-gradient-to-b from-red-700 to-red-500 shadow-[0_0_10px_rgba(220,38,38,0.5)]"
+                        : isShadowingMode
+                          ? "border-amber-400/50 bg-amber-500/20 shadow-[0_0_8px_rgba(251,191,36,0.25)] hover:bg-amber-500/28"
+                          : "border-white/12 bg-white/8 hover:bg-white/13"
+                  }`}
+                >
+                  {/* Vertical track */}
+                  <span
+                    className={`relative flex flex-col items-center ${isMobile ? "w-6 h-11" : "w-5 h-9"} rounded-full`}
                   >
-                    <Trash2 size={12} />
-                  </button>
-                ) : (
-                  <button
-                    className="px-1.5 py-0.5 text-[10px] bg-red-600 text-white rounded hover:bg-red-700 transition-colors leading-none"
-                    onClick={async () => {
-                      if (mediaId) {
-                        await useShadowingStore.getState().deleteAllSegments(mediaId);
-                        setShadowingMode(false);
-                        toast.success("Shadow track deleted");
-                      }
-                      setIsConfirmingDelete(false);
-                    }}
-                  >
-                    Confirm
-                  </button>
+                    {/* Knob */}
+                    <span
+                      className={`absolute flex items-center justify-center rounded-full transition-all duration-300 ease-in-out ${
+                        isMobile ? "w-5 h-5" : "w-[18px] h-[18px]"
+                      } ${
+                        !canRecord
+                          ? "top-0.5 bg-white/15"
+                          : isShadowingMode
+                            ? `${isMobile ? "top-[calc(100%-1.375rem)]" : "top-[calc(100%-1.25rem)]"} bg-white shadow-[0_2px_8px_rgba(0,0,0,0.4),0_0_6px_rgba(255,255,255,0.3)]`
+                            : "top-0.5 bg-white/85 shadow-[0_1px_4px_rgba(0,0,0,0.25)]"
+                      }`}
+                    >
+                      {isRecording ? (
+                        <Radio size={isMobile ? 9 : 8} className="animate-pulse text-red-500" />
+                      ) : isShadowingMode ? (
+                        <Mic size={isMobile ? 9 : 8} className="text-amber-600" />
+                      ) : (
+                        <Mic size={isMobile ? 9 : 8} className="text-slate-500/80" />
+                      )}
+                    </span>
+                  </span>
+                </button>
+
+                {shadowingSegments.length > 0 && (
+                  !isConfirmingDelete ? (
+                    <button
+                      className={`shrink-0 rounded-full text-white/35 hover:text-red-400 hover:bg-white/8 transition-colors ${
+                        isMobile ? "p-1.5" : "p-1"
+                      }`}
+                      onClick={() => setIsConfirmingDelete(true)}
+                      title="Delete shadow track"
+                    >
+                      <Trash2 size={isMobile ? 13 : 12} />
+                    </button>
+                  ) : (
+                    <button
+                      className="px-2 py-1 text-[10px] bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors leading-none"
+                      onClick={async () => {
+                        if (mediaId) {
+                          await useShadowingStore.getState().deleteAllSegments(mediaId);
+                          setShadowingMode(false);
+                          toast.success("Shadow track deleted");
+                        }
+                        setIsConfirmingDelete(false);
+                      }}
+                    >
+                      Confirm
+                    </button>
+                  )
                 )}
               </div>
             </div>

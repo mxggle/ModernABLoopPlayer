@@ -1,47 +1,96 @@
-import React, { useState, useEffect } from "react";
-import { Button } from "../components/ui/button";
-import { ModelSelector } from "../components/ui/ModelSelector";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { toast } from "react-hot-toast";
 import {
+  AlertCircle,
   ArrowLeft,
-  Key,
   Brain,
-  Globe,
-  Save,
+  CheckCircle,
   Eye,
   EyeOff,
+  FileAudio,
+  Globe,
+  Key,
+  Save,
   TestTube,
-  CheckCircle,
-  AlertCircle,
 } from "lucide-react";
-import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { ModelSelector } from "../components/ui/ModelSelector";
+import { cn } from "../utils/cn";
+import { aiService } from "../services/aiService";
 import {
   AIProvider,
   AIServiceConfig,
   DEFAULT_MODELS,
   TranscriptionProvider,
   TRANSCRIPTION_PROVIDERS,
+  getModelById,
 } from "../types/aiService";
-import { aiService } from "../services/aiService";
-import { useTranslation } from "react-i18next";
-import { FileAudio } from "lucide-react";
+
+const LANGUAGE_OPTIONS = [
+  "english",
+  "spanish",
+  "french",
+  "german",
+  "chinese",
+  "japanese",
+  "korean",
+] as const;
+
+const LANGUAGE_VALUES: Record<(typeof LANGUAGE_OPTIONS)[number], string> = {
+  english: "English",
+  spanish: "Spanish",
+  french: "French",
+  german: "German",
+  chinese: "Chinese",
+  japanese: "Japanese",
+  korean: "Korean",
+};
+
+const providerSurfaceClassName: Record<AIProvider, string> = {
+  openai: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+  gemini: "bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
+  grok: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+};
+
+
+const statusToneClassName = {
+  success:
+    "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300",
+  warning:
+    "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300",
+  error:
+    "border border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300",
+  neutral:
+    "border border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300",
+};
+
+interface ProviderConfig {
+  provider: AIProvider;
+  apiKey: string;
+  setApiKey: (key: string) => void;
+  model: string;
+  setModel: (model: string) => void;
+}
+
+type SettingsTab = "defaults" | "providers" | "transcription";
 
 export const AISettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<SettingsTab>("defaults");
 
-  // API Keys state
   const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [grokApiKey, setGrokApiKey] = useState("");
   const [groqApiKey, setGroqApiKey] = useState("");
 
-  // Model selections
   const [openaiModel, setOpenaiModel] = useState(DEFAULT_MODELS.openai);
   const [geminiModel, setGeminiModel] = useState(DEFAULT_MODELS.gemini);
   const [grokModel, setGrokModel] = useState(DEFAULT_MODELS.grok);
 
-  // Settings state
   const [preferredProvider, setPreferredProvider] =
     useState<AIProvider>("openai");
   const [preferredTranscriptionProvider, setPreferredTranscriptionProvider] =
@@ -50,12 +99,12 @@ export const AISettingsPage: React.FC = () => {
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(1000);
 
-  // UI state
   const [showApiKeys, setShowApiKeys] = useState<Record<AIProvider, boolean>>({
     openai: false,
     gemini: false,
     grok: false,
   });
+  const [showGroqApiKey, setShowGroqApiKey] = useState(false);
   const [testingConnection, setTestingConnection] = useState<
     Record<AIProvider, boolean>
   >({
@@ -74,7 +123,6 @@ export const AISettingsPage: React.FC = () => {
   const providerDisplayName = (provider: AIProvider) =>
     t(`aiSettingsPage.providers.${provider}`);
 
-  // Load settings from localStorage
   useEffect(() => {
     const savedOpenaiKey = localStorage.getItem("openai_api_key") || "";
     const savedGeminiKey = localStorage.getItem("gemini_api_key") || "";
@@ -83,14 +131,17 @@ export const AISettingsPage: React.FC = () => {
     const savedPreferredProvider =
       (localStorage.getItem("preferred_ai_provider") as AIProvider) || "openai";
     const savedTranscriptionProvider =
-      (localStorage.getItem("preferred_transcription_provider") as TranscriptionProvider) || "openai";
+      (localStorage.getItem(
+        "preferred_transcription_provider"
+      ) as TranscriptionProvider) || "openai";
     const savedTargetLanguage =
       localStorage.getItem("target_language") || "English";
     const savedTemperature = parseFloat(
       localStorage.getItem("ai_temperature") || "0.7"
     );
     const savedMaxTokens = parseInt(
-      localStorage.getItem("ai_max_tokens") || "1000"
+      localStorage.getItem("ai_max_tokens") || "1000",
+      10
     );
     const savedOpenaiModel =
       localStorage.getItem("openai_model") || DEFAULT_MODELS.openai;
@@ -106,54 +157,115 @@ export const AISettingsPage: React.FC = () => {
     setPreferredProvider(savedPreferredProvider);
     setPreferredTranscriptionProvider(savedTranscriptionProvider);
     setTargetLanguage(savedTargetLanguage);
-    setTemperature(savedTemperature);
-    setMaxTokens(savedMaxTokens);
+    setTemperature(Number.isFinite(savedTemperature) ? savedTemperature : 0.7);
+    setMaxTokens(Number.isFinite(savedMaxTokens) ? savedMaxTokens : 1000);
     setOpenaiModel(savedOpenaiModel);
     setGeminiModel(savedGeminiModel);
     setGrokModel(savedGrokModel);
   }, []);
 
+  const providerConfigs: ProviderConfig[] = [
+    {
+      provider: "openai",
+      apiKey: openaiApiKey,
+      setApiKey: setOpenaiApiKey,
+      model: openaiModel,
+      setModel: setOpenaiModel,
+    },
+    {
+      provider: "gemini",
+      apiKey: geminiApiKey,
+      setApiKey: setGeminiApiKey,
+      model: geminiModel,
+      setModel: setGeminiModel,
+    },
+    {
+      provider: "grok",
+      apiKey: grokApiKey,
+      setApiKey: setGrokApiKey,
+      model: grokModel,
+      setModel: setGrokModel,
+    },
+  ];
+
+  const configuredProvidersCount = providerConfigs.filter(({ provider, apiKey }) =>
+    aiService.validateApiKey(provider, apiKey)
+  ).length;
+  const transcriptionSharedProvider =
+    preferredTranscriptionProvider === "groq"
+      ? null
+      : preferredTranscriptionProvider;
+
   const handleSave = () => {
-    // Save API keys
     localStorage.setItem("openai_api_key", openaiApiKey);
     localStorage.setItem("gemini_api_key", geminiApiKey);
     localStorage.setItem("grok_api_key", grokApiKey);
     localStorage.setItem("groq_api_key", groqApiKey);
 
-    // Save models
     localStorage.setItem("openai_model", openaiModel);
     localStorage.setItem("gemini_model", geminiModel);
     localStorage.setItem("grok_model", grokModel);
 
-    // Save general settings
     localStorage.setItem("preferred_ai_provider", preferredProvider);
-    localStorage.setItem("preferred_transcription_provider", preferredTranscriptionProvider);
+    localStorage.setItem(
+      "preferred_transcription_provider",
+      preferredTranscriptionProvider
+    );
     localStorage.setItem("target_language", targetLanguage);
     localStorage.setItem("ai_temperature", temperature.toString());
     localStorage.setItem("ai_max_tokens", maxTokens.toString());
 
-    // Dispatch custom event to notify other components
     window.dispatchEvent(new CustomEvent("aiSettingsUpdated"));
     window.dispatchEvent(new CustomEvent("ai-settings-updated"));
 
     toast.success(t("aiSettingsPage.saveSuccess"));
   };
 
-  const testConnection = async (provider: AIProvider) => {
-    const apiKey =
-      provider === "openai"
-        ? openaiApiKey
-        : provider === "gemini"
-          ? geminiApiKey
-          : grokApiKey;
-    const model =
-      provider === "openai"
-        ? openaiModel
-        : provider === "gemini"
-          ? geminiModel
-          : grokModel;
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    handleSave();
+  };
 
+  const toggleApiKeyVisibility = (provider: AIProvider) => {
+    setShowApiKeys((current) => ({ ...current, [provider]: !current[provider] }));
+  };
+
+  const getProviderSetupStatus = (provider: AIProvider, apiKey: string) => {
     if (!apiKey.trim()) {
+      return {
+        label: t("aiSettingsPage.status.missing"),
+        className: statusToneClassName.warning,
+      };
+    }
+
+    if (!aiService.validateApiKey(provider, apiKey)) {
+      return {
+        label: t("aiSettingsPage.status.invalid"),
+        className: statusToneClassName.error,
+      };
+    }
+
+    return {
+      label: t("aiSettingsPage.status.ready"),
+      className: statusToneClassName.success,
+    };
+  };
+
+  const getConnectionStatusIcon = (provider: AIProvider) => {
+    switch (connectionStatus[provider]) {
+      case "success":
+        return <CheckCircle className="h-4 w-4 text-emerald-500" />;
+      case "error":
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const testConnection = async (provider: AIProvider) => {
+    const config = providerConfigs.find((item) => item.provider === provider);
+
+    if (!config || !config.apiKey.trim()) {
       toast.error(
         t("aiSettingsPage.enterApiKeyFirst", {
           provider: providerDisplayName(provider),
@@ -162,29 +274,29 @@ export const AISettingsPage: React.FC = () => {
       return;
     }
 
-    setTestingConnection((prev) => ({ ...prev, [provider]: true }));
-    setConnectionStatus((prev) => ({ ...prev, [provider]: "idle" }));
+    setTestingConnection((current) => ({ ...current, [provider]: true }));
+    setConnectionStatus((current) => ({ ...current, [provider]: "idle" }));
 
     try {
-      const config: AIServiceConfig = {
+      const requestConfig: AIServiceConfig = {
         provider,
-        model,
-        apiKey,
+        model: config.model,
+        apiKey: config.apiKey,
         temperature: 0.1,
         maxTokens: 10,
       };
 
-      const success = await aiService.testConnection(config);
+      const success = await aiService.testConnection(requestConfig);
 
       if (success) {
-        setConnectionStatus((prev) => ({ ...prev, [provider]: "success" }));
+        setConnectionStatus((current) => ({ ...current, [provider]: "success" }));
         toast.success(
           t("aiSettingsPage.connectionSuccess", {
             provider: providerDisplayName(provider),
           })
         );
       } else {
-        setConnectionStatus((prev) => ({ ...prev, [provider]: "error" }));
+        setConnectionStatus((current) => ({ ...current, [provider]: "error" }));
         toast.error(
           t("aiSettingsPage.connectionFailed", {
             provider: providerDisplayName(provider),
@@ -192,7 +304,7 @@ export const AISettingsPage: React.FC = () => {
         );
       }
     } catch (error) {
-      setConnectionStatus((prev) => ({ ...prev, [provider]: "error" }));
+      setConnectionStatus((current) => ({ ...current, [provider]: "error" }));
       toast.error(
         t("aiSettingsPage.connectionFailedWithError", {
           provider: providerDisplayName(provider),
@@ -203,388 +315,441 @@ export const AISettingsPage: React.FC = () => {
         })
       );
     } finally {
-      setTestingConnection((prev) => ({ ...prev, [provider]: false }));
+      setTestingConnection((current) => ({ ...current, [provider]: false }));
     }
   };
 
-  const toggleApiKeyVisibility = (provider: AIProvider) => {
-    setShowApiKeys((prev) => ({ ...prev, [provider]: !prev[provider] }));
-  };
-
-  const getConnectionStatusIcon = (provider: AIProvider) => {
-    switch (connectionStatus[provider]) {
-      case "success":
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case "error":
-        return <AlertCircle className="w-4 h-4 text-red-600" />;
-      default:
-        return null;
-    }
-  };
-
-  const renderProviderSection = (
-    provider: AIProvider,
-    apiKey: string,
-    setApiKey: (key: string) => void,
-    model: string,
-    setModel: (model: string) => void
-  ) => {
-    const providerName = providerDisplayName(provider);
-    const isValidKey = aiService.validateApiKey(provider, apiKey);
-
-    return (
-      <div className="border border-gray-200 rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div
-              className={`p-2 rounded-lg ${provider === "openai"
-                ? "bg-green-100 text-green-600"
-                : provider === "gemini"
-                  ? "bg-blue-100 text-blue-600"
-                  : "bg-purple-100 text-purple-600"
-                }`}
-            >
-              <Brain className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">{providerName}</h3>
-              <p className="text-sm text-gray-600">
-                {t(`aiSettingsPage.providerDescriptions.${provider}`)}
-              </p>
-            </div>
-          </div>
-          {getConnectionStatusIcon(provider)}
-        </div>
-
-        <div className="space-y-4">
-          {/* API Key Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t("aiSettingsPage.apiKeyLabel")}
-            </label>
-            <div className="relative">
-              <input
-                type={showApiKeys[provider] ? "text" : "password"}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={t("aiSettingsPage.apiKeyPlaceholderLabel", {
-                  provider: providerName,
-                })}
-                className={`w-full px-3 py-2 pr-20 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${apiKey && !isValidKey ? "border-red-300" : "border-gray-300"
-                  }`}
-              />
-              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => toggleApiKeyVisibility(provider)}
-                  className="p-1 text-gray-400 hover:text-gray-600"
-                >
-                  {showApiKeys[provider] ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => testConnection(provider)}
-                  disabled={!apiKey.trim() || testingConnection[provider]}
-                  className="h-6 px-2 text-xs"
-                >
-                  {testingConnection[provider] ? (
-                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <TestTube className="w-3 h-3" />
-                  )}
-                </Button>
-              </div>
-            </div>
-            {apiKey && !isValidKey && (
-              <p className="text-xs text-red-600 mt-1">
-                {t("aiSettingsPage.invalidApiKeyFormat")}
-              </p>
-            )}
-          </div>
-
-          {/* Model Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t("aiSettingsPage.defaultModel")}
-            </label>
-            <ModelSelector
-              selectedModel={model}
-              onModelSelect={setModel}
-              provider={provider}
-              placeholder={t("aiSettingsPage.selectModelPlaceholder", {
-                provider: providerName,
-              })}
-              showPricing={true}
-              showCapabilities={true}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const TABS = [
+    { id: "defaults" as const, label: t("aiSettingsPage.sectionNav.defaults"), Icon: Globe },
+    { id: "providers" as const, label: t("aiSettingsPage.sectionNav.providers"), Icon: Key },
+    { id: "transcription" as const, label: t("aiSettingsPage.sectionNav.transcription"), Icon: FileAudio },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="outline"
-            size="sm"
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Sticky header */}
+      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-gray-950/95">
+        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
+          <button
+            type="button"
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2"
+            className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50"
           >
-            <ArrowLeft className="w-4 h-4" />
-            {t("common.back")}
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{t("aiSettingsPage.title")}</h1>
-            <p className="text-gray-600">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+              {t("aiSettingsPage.title")}
+            </h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">
               {t("aiSettingsPage.subtitle")}
             </p>
           </div>
+          <Button type="submit" size="sm" form="ai-settings-form" className="gap-2 shrink-0">
+            <Save className="h-3.5 w-3.5" />
+            {t("aiSettingsPage.saveSettings")}
+          </Button>
         </div>
 
-        <div className="space-y-8">
-          {/* General Settings */}
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Globe className="w-5 h-5" />
-              {t("aiSettingsPage.generalSettings")}
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t("aiSettingsPage.preferredProvider")}
-                </label>
-                <select
-                  value={preferredProvider}
-                  onChange={(e) =>
-                    setPreferredProvider(e.target.value as AIProvider)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="openai">{providerDisplayName("openai")}</option>
-                  <option value="gemini">{providerDisplayName("gemini")}</option>
-                  <option value="grok">{providerDisplayName("grok")}</option>
-                </select>
+        {/* AI glance */}
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-2 border-b border-gray-100 dark:border-gray-800/60">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="rounded-md bg-gray-100 p-1 dark:bg-gray-900">
+                <Brain className="h-3 w-3 text-gray-600 dark:text-gray-300" />
               </div>
+              <span className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-medium",
+                configuredProvidersCount > 0 ? statusToneClassName.success : statusToneClassName.warning
+              )}>
+                {configuredProvidersCount}/{providerConfigs.length}
+              </span>
+            </div>
+            <div className="w-px h-3.5 bg-gray-200 dark:bg-gray-700 hidden sm:block" />
+            {[
+              { label: t("aiSettingsPage.preferredProvider"), value: providerDisplayName(preferredProvider) },
+              { label: t("aiSettingsPage.summaryDefaultModel"), value: getModelById(providerConfigs.find(({ provider }) => provider === preferredProvider)?.model || DEFAULT_MODELS[preferredProvider])?.name || DEFAULT_MODELS[preferredProvider] },
+              { label: t("aiSettingsPage.transcriptionProvider"), value: t(`aiSettingsPage.transcriptionProviders.${preferredTranscriptionProvider}`) },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-center gap-1">
+                <span className="text-xs text-gray-400 dark:text-gray-500">{label}:</span>
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
+        {/* Tab bar */}
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <div className="flex gap-1">
+            {TABS.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id)}
+                className={cn(
+                  "flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
+                  activeTab === id
+                    ? "border-gray-900 text-gray-900 dark:border-gray-100 dark:text-gray-50"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                )}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <form
+        id="ai-settings-form"
+        onSubmit={handleSubmit}
+        className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-4"
+      >
+        {/* General Settings tab */}
+        {activeTab === "defaults" && (
+          <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950 divide-y divide-gray-100 dark:divide-gray-800">
+            {/* Preferred provider */}
+            <div className="px-5 py-5 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {t("aiSettingsPage.preferredProvider")}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {t("aiSettingsPage.providerSetupDescription")}
+                </p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {providerConfigs.map(({ provider, apiKey, model }) => {
+                  const status = getProviderSetupStatus(provider, apiKey);
+                  const modelName = getModelById(model)?.name || DEFAULT_MODELS[provider];
+                  const isActive = preferredProvider === provider;
+                  return (
+                    <button
+                      key={provider}
+                      type="button"
+                      onClick={() => setPreferredProvider(provider)}
+                      className={cn(
+                        "rounded-xl border p-3 text-left transition-all",
+                        isActive
+                          ? "border-gray-900 bg-gray-950 dark:border-gray-100 dark:bg-gray-50"
+                          : "border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-white dark:border-gray-800 dark:bg-gray-900/50 dark:hover:border-gray-700 dark:hover:bg-gray-900"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className={cn(
+                          "text-sm font-medium",
+                          isActive ? "text-white dark:text-gray-950" : "text-gray-900 dark:text-gray-100"
+                        )}>
+                          {providerDisplayName(provider)}
+                        </span>
+                        {isActive && <CheckCircle className="h-3.5 w-3.5 shrink-0 text-white/60 dark:text-gray-500" />}
+                      </div>
+                      <p className={cn(
+                        "text-xs truncate mb-2",
+                        isActive ? "text-white/60 dark:text-gray-500" : "text-gray-500 dark:text-gray-400"
+                      )}>
+                        {modelName}
+                      </p>
+                      <span className={cn(
+                        "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+                        isActive ? "bg-white/10 text-white/80 dark:bg-black/10 dark:text-gray-600" : status.className
+                      )}>
+                        {status.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Language + Max tokens */}
+            <div className="grid gap-4 px-5 py-5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="target-language" className="text-xs font-medium text-gray-700 dark:text-gray-300">
                   {t("aiSettingsPage.targetLanguage")}
                 </label>
                 <select
+                  id="target-language"
                   value={targetLanguage}
                   onChange={(e) => setTargetLanguage(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-gray-300/20"
                 >
-                  <option value="English">{t("aiSettingsPage.languages.english")}</option>
-                  <option value="Spanish">{t("aiSettingsPage.languages.spanish")}</option>
-                  <option value="French">{t("aiSettingsPage.languages.french")}</option>
-                  <option value="German">{t("aiSettingsPage.languages.german")}</option>
-                  <option value="Chinese">{t("aiSettingsPage.languages.chinese")}</option>
-                  <option value="Japanese">{t("aiSettingsPage.languages.japanese")}</option>
-                  <option value="Korean">{t("aiSettingsPage.languages.korean")}</option>
+                  {LANGUAGE_OPTIONS.map((k) => (
+                    <option key={k} value={LANGUAGE_VALUES[k]}>
+                      {t(`aiSettingsPage.languages.${k}`)}
+                    </option>
+                  ))}
                 </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t("aiSettingsPage.targetLanguageHelp")}
+                </p>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t("aiSettingsPage.temperature", { value: temperature })}
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={temperature}
-                  onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>{t("aiSettingsPage.temperatureFocused")}</span>
-                  <span>{t("aiSettingsPage.temperatureBalanced")}</span>
-                  <span>{t("aiSettingsPage.temperatureCreative")}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="space-y-1.5">
+                <label htmlFor="max-tokens" className="text-xs font-medium text-gray-700 dark:text-gray-300">
                   {t("aiSettingsPage.maxTokens")}
                 </label>
-                <input
+                <Input
+                  id="max-tokens"
                   type="number"
-                  min="100"
-                  max="4000"
+                  min={100}
+                  max={4000}
                   value={maxTokens}
-                  onChange={(e) => setMaxTokens(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    setMaxTokens(Number.isFinite(v) ? v : 1000);
+                  }}
+                  className="h-9"
                 />
-              </div>
-            </div>
-          </div>
-
-          {/* AI Providers */}
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Key className="w-5 h-5" />
-              {t("aiSettingsPage.providersSection")}
-            </h2>
-
-            {renderProviderSection(
-              "openai",
-              openaiApiKey,
-              setOpenaiApiKey,
-              openaiModel,
-              setOpenaiModel
-            )}
-            {renderProviderSection(
-              "gemini",
-              geminiApiKey,
-              setGeminiApiKey,
-              geminiModel,
-              setGeminiModel
-            )}
-            {renderProviderSection(
-              "grok",
-              grokApiKey,
-              setGrokApiKey,
-              grokModel,
-              setGrokModel
-            )}
-          </div>
-
-          {/* Transcription Service */}
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <FileAudio className="w-5 h-5" />
-              {t("aiSettingsPage.transcriptionSection")}
-            </h2>
-
-            <div className="space-y-6">
-              {/* Transcription Provider Selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t("aiSettingsPage.transcriptionProvider")}
-                </label>
-                <p className="text-sm text-gray-500 mb-3">
-                  {t("aiSettingsPage.transcriptionProviderDesc")}
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t("aiSettingsPage.maxTokensHelp")}
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {(Object.keys(TRANSCRIPTION_PROVIDERS) as TranscriptionProvider[]).map((provider) => (
-                    <button
-                      key={provider}
-                      onClick={() => setPreferredTranscriptionProvider(provider)}
-                      className={`p-4 rounded-lg border-2 transition-all text-left ${preferredTranscriptionProvider === provider
-                        ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
-                        : "border-gray-200 hover:border-gray-300 dark:border-gray-700"
-                        }`}
-                    >
-                      <div className="font-medium text-sm">
-                        {t(`aiSettingsPage.transcriptionProviders.${provider}`)}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {t(`aiSettingsPage.transcriptionProviderDescriptions.${provider}`)}
-                      </div>
-                      {preferredTranscriptionProvider === provider && (
-                        <div className="mt-2">
-                          <span className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 px-2 py-0.5 rounded-full">
-                            Active
-                          </span>
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
               </div>
+            </div>
 
-              {/* Selected Provider Details */}
-              <div className="border border-gray-200 rounded-lg p-5 bg-white shadow-sm ring-1 ring-gray-100">
-                <div className="flex items-center gap-4 mb-5">
-                  <div className={`p-2.5 rounded-xl ${preferredTranscriptionProvider === "openai"
-                      ? "bg-green-100 text-green-600"
-                      : preferredTranscriptionProvider === "gemini"
-                        ? "bg-blue-100 text-blue-600"
-                        : "bg-orange-100 text-orange-600"
-                    }`}>
-                    <Brain className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">
-                      {t(`aiSettingsPage.transcriptionProviders.${preferredTranscriptionProvider}`)}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {t(`aiSettingsPage.transcriptionProviderDescriptions.${preferredTranscriptionProvider}`)}
-                    </p>
-                  </div>
+            {/* Temperature */}
+            <div className="px-5 py-5">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {t("aiSettingsPage.generationBehavior")}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {t("aiSettingsPage.temperatureHelp")}
+                  </p>
                 </div>
-
-                {preferredTranscriptionProvider === "groq" ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        {t("aiSettingsPage.groqApiKeyLabel")}
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="password"
-                          value={groqApiKey}
-                          onChange={(e) => setGroqApiKey(e.target.value)}
-                          placeholder={t("aiSettingsPage.groqApiKeyPlaceholder")}
-                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        <a
-                          href="https://console.groq.com/keys"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
-                        >
-                          {t("aiSettingsPage.getGroqApiKey")}
-                        </a>
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                    <div className="p-1 bg-green-100 rounded-full mt-0.5">
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {preferredTranscriptionProvider === "openai"
-                          ? "Using OpenAI API Key"
-                          : "Using Gemini API Key"}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-0.5">
-                        {preferredTranscriptionProvider === "openai"
-                          ? "This service uses the OpenAI API key configured in the providers section above."
-                          : "This service uses the Gemini API key configured in the providers section above."}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <span className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1 text-sm font-mono font-medium text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+                  {temperature.toFixed(1)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value={temperature}
+                onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                className="w-full accent-gray-900 dark:accent-gray-100"
+              />
+              <div className="mt-1.5 flex justify-between text-xs text-gray-400 dark:text-gray-500">
+                <span>{t("aiSettingsPage.temperatureFocused")}</span>
+                <span>{t("aiSettingsPage.temperatureBalanced")}</span>
+                <span>{t("aiSettingsPage.temperatureCreative")}</span>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Save Button */}
-          <div className="flex justify-end">
-            <Button onClick={handleSave} className="flex items-center gap-2">
-              <Save className="w-4 h-4" />
-              {t("aiSettingsPage.saveSettings")}
-            </Button>
+        {/* Providers tab */}
+        {activeTab === "providers" && (
+          <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950 divide-y divide-gray-100 dark:divide-gray-800">
+            {providerConfigs.map(({ provider, apiKey, setApiKey, model, setModel }) => {
+              const providerName = providerDisplayName(provider);
+              const setupStatus = getProviderSetupStatus(provider, apiKey);
+              const isValidKey = aiService.validateApiKey(provider, apiKey);
+
+              return (
+                <div key={provider} className="px-5 py-5 space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("rounded-xl p-2", providerSurfaceClassName[provider])}>
+                        <Brain className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+                            {providerName}
+                          </h3>
+                          {getConnectionStatusIcon(provider)}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {t(`aiSettingsPage.providerDescriptions.${provider}`)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {preferredProvider === provider && (
+                        <span className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                          {t("aiSettingsPage.status.default")}
+                        </span>
+                      )}
+                      <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", setupStatus.className)}>
+                        {setupStatus.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {t("aiSettingsPage.apiKeyLabel")}
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          type={showApiKeys[provider] ? "text" : "password"}
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          placeholder={t("aiSettingsPage.apiKeyPlaceholderLabel", { provider: providerName })}
+                          className={cn(
+                            "h-9 pr-9 font-mono text-sm",
+                            apiKey && !isValidKey && "border-red-300 dark:border-red-700"
+                          )}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => toggleApiKeyVisibility(provider)}
+                          className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+                          aria-label={showApiKeys[provider] ? t("common.hide") : t("common.show")}
+                        >
+                          {showApiKeys[provider] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => testConnection(provider)}
+                        disabled={!apiKey.trim() || testingConnection[provider]}
+                        className="h-9 gap-1.5 shrink-0"
+                      >
+                        {testingConnection[provider]
+                          ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                          : <TestTube className="h-3.5 w-3.5" />
+                        }
+                        {t("aiSettingsPage.testConnection")}
+                      </Button>
+                    </div>
+                    {apiKey && !isValidKey && (
+                      <p className="text-xs text-red-600 dark:text-red-400">{t("aiSettingsPage.invalidApiKeyFormat")}</p>
+                    )}
+                    {connectionStatus[provider] === "success" && (
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400">{t("aiSettingsPage.status.testPassed")}</p>
+                    )}
+                    {connectionStatus[provider] === "error" && (
+                      <p className="text-xs text-red-600 dark:text-red-400">{t("aiSettingsPage.status.testFailed")}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {t("aiSettingsPage.defaultModel")}
+                    </label>
+                    <ModelSelector
+                      selectedModel={model}
+                      onModelSelect={setModel}
+                      provider={provider}
+                      placeholder={t("aiSettingsPage.selectModelPlaceholder", { provider: providerName })}
+                      showPricing={true}
+                      showCapabilities={true}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
-      </div>
+        )}
+
+        {/* Transcription tab */}
+        {activeTab === "transcription" && (
+          <div className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(Object.keys(TRANSCRIPTION_PROVIDERS) as TranscriptionProvider[]).map((provider) => {
+                const isSelected = preferredTranscriptionProvider === provider;
+                const usesSharedKey = provider !== "groq";
+                const sharedProvider = provider === "groq" ? null : (provider as AIProvider);
+                const sharedProviderReady = sharedProvider
+                  ? aiService.validateApiKey(sharedProvider, sharedProvider === "openai" ? openaiApiKey : sharedProvider === "gemini" ? geminiApiKey : grokApiKey)
+                  : groqApiKey.trim().length > 0;
+
+                return (
+                  <button
+                    key={provider}
+                    type="button"
+                    onClick={() => setPreferredTranscriptionProvider(provider)}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition-all",
+                      isSelected
+                        ? "border-gray-900 bg-gray-950 dark:border-gray-100 dark:bg-gray-50"
+                        : "border-gray-200 bg-white hover:border-gray-300 dark:border-gray-800 dark:bg-gray-950 dark:hover:border-gray-700"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className={cn(
+                        "text-sm font-medium",
+                        isSelected ? "text-white dark:text-gray-950" : "text-gray-900 dark:text-gray-100"
+                      )}>
+                        {t(`aiSettingsPage.transcriptionProviders.${provider}`)}
+                      </span>
+                      {isSelected && <CheckCircle className="h-3.5 w-3.5 shrink-0 text-white/60 dark:text-gray-500" />}
+                    </div>
+                    <p className={cn(
+                      "text-xs truncate mb-2",
+                      isSelected ? "text-white/60 dark:text-gray-500" : "text-gray-500 dark:text-gray-400"
+                    )}>
+                      {TRANSCRIPTION_PROVIDERS[provider].model}
+                    </p>
+                    <span className={cn(
+                      "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+                      isSelected
+                        ? "bg-white/10 text-white/80 dark:bg-black/10 dark:text-gray-600"
+                        : sharedProviderReady ? statusToneClassName.success : statusToneClassName.warning
+                    )}>
+                      {usesSharedKey ? t("aiSettingsPage.transcriptionSharedKey") : sharedProviderReady ? t("aiSettingsPage.status.ready") : t("aiSettingsPage.status.missing")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
+              {transcriptionSharedProvider ? (
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {t("aiSettingsPage.transcriptionSharedKey")}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {t("aiSettingsPage.transcriptionSharedKeyDescription", {
+                      provider: providerDisplayName(transcriptionSharedProvider),
+                    })}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    {t("aiSettingsPage.groqApiKeyLabel")}
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showGroqApiKey ? "text" : "password"}
+                      value={groqApiKey}
+                      onChange={(e) => setGroqApiKey(e.target.value)}
+                      placeholder={t("aiSettingsPage.groqApiKeyPlaceholder")}
+                      className="h-9 pr-9 font-mono text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowGroqApiKey((v) => !v)}
+                      className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+                      aria-label={showGroqApiKey ? t("common.hide") : t("common.show")}
+                    >
+                      {showGroqApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                  <a
+                    href="https://console.groq.com/keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex text-xs text-blue-600 hover:underline dark:text-blue-400"
+                  >
+                    {t("aiSettingsPage.getGroqApiKey")}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </form>
     </div>
   );
 };

@@ -326,7 +326,6 @@ export const retrieveMediaFile = async (id: string): Promise<File | null> => {
       const file = new File([storedMedia.fileData], storedMedia.fileName, {
         type: storedMedia.fileType,
       });
-      console.log("Successfully created File object:", file);
       return file;
     } catch (fileError) {
       console.error("Error creating File from ArrayBuffer:", fileError);

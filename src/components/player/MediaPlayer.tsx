@@ -118,6 +118,36 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
     }
   }, [isPlaying, currentFile, setIsPlaying, safePlay]);
 
+  // Keep the global playback state aligned with actual media element state.
+  // This is required for features like shadowing recording that react to store playback.
+  useEffect(() => {
+    const mediaElement = currentFile?.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+
+    const handlePlay = () => {
+      if (!usePlayerStore.getState().isPlaying) {
+        setIsPlaying(true);
+      }
+    };
+
+    const handlePause = () => {
+      if (isDelayingRef.current || mediaElement.ended) return;
+      if (usePlayerStore.getState().isPlaying) {
+        setIsPlaying(false);
+      }
+    };
+
+    mediaElement.addEventListener("play", handlePlay);
+    mediaElement.addEventListener("pause", handlePause);
+
+    return () => {
+      mediaElement.removeEventListener("play", handlePlay);
+      mediaElement.removeEventListener("pause", handlePause);
+    };
+  }, [currentFile, setIsPlaying]);
+
   // Handle volume changes
   useEffect(() => {
     const mediaElement = currentFile?.type.includes("video")
