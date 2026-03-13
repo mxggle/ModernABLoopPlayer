@@ -83,9 +83,9 @@
     "overviewDescription": "先检查当前启用的服务，再统一保存设置。",
     "sectionGuide": "页面分区",
     "sectionNav": {
-      "defaults": "默认值",
-      "providers": "提供方",
-      "transcription": "转录"
+      "defaults": "响应设置",
+      "providers": "AI 提供方设置",
+      "transcription": "转录设置"
     },
     "generalSettings": "常规设置",
     "defaultsDescription": "选择默认响应服务，并调整生成内容的行为。",

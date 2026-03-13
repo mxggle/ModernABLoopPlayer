@@ -34,8 +34,8 @@ import {
   TRANSCRIPTION_PROVIDERS,
   getModelById,
 } from "../types/aiService";
-import { usePlayerStore } from "../stores/playerStore";
 import { useLayoutSettings } from "../contexts/LayoutSettingsContext";
+import { usePlayerStore } from "../stores/playerStore";
 
 const LANGUAGE_OPTIONS = [
   "english",
@@ -460,6 +460,7 @@ export const SettingsPage: React.FC = () => {
                 </div>
               </div>
             </div>
+
           </div>
         )}
 

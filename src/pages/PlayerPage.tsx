@@ -7,7 +7,6 @@ import { MediaPlayer } from "../components/player/MediaPlayer";
 import { YouTubePlayer } from "../components/player/YouTubePlayer";
 import { CombinedControls } from "../components/controls/CombinedControls";
 import { MobileControls } from "../components/controls/MobileControls";
-import { BookmarkDrawer } from "../components/player/BookmarkDrawer";
 import { MediaHistory } from "../components/player/MediaHistory";
 import { WaveformVisualizer } from "../components/waveform/WaveformVisualizer";
 import { TranscriptPanel } from "../components/transcript";
@@ -155,9 +154,6 @@ export const PlayerPage = () => {
           </div>
         )
       }
-
-      {/* Bookmarks Drawer - its positioning is typically outside normal flex flow (e.g., fixed or absolute) */}
-      {(currentFile || youtubeId) && <BookmarkDrawer />}
 
       {/* Media History - also typically outside normal flex flow */}
       <MediaHistory />

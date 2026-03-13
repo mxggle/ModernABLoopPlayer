@@ -55,7 +55,7 @@ export const TranscriptUploader = ({
       <>
         <button
           onClick={handleUploadClick}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           title={t("transcript.uploadTranscript")}
         >
           <Upload size={16} />

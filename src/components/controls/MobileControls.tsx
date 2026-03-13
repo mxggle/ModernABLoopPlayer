@@ -283,23 +283,6 @@ export const MobileControls = () => {
 
           {/* Secondary controls row - features and tools */}
           <div className="flex items-center justify-center space-x-4">
-            <button
-              onClick={() => {
-                const bookmarkToggle = document.getElementById(
-                  "bookmarkDrawerToggle"
-                );
-                bookmarkToggle?.click();
-              }}
-              className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 relative"
-              aria-label={t("bookmarks.openDrawer")}
-            >
-              <Bookmark size={20} />
-              {bookmarks.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {bookmarks.length > 9 ? "9+" : bookmarks.length}
-                </span>
-              )}
-            </button>
 
             <button
               onClick={() => setAutoAdvanceBookmarks(!autoAdvanceBookmarks)}

@@ -93,9 +93,9 @@
     "overviewDescription": "Review active services and save once everything looks right.",
     "sectionGuide": "Sections",
     "sectionNav": {
-      "defaults": "Defaults",
-      "providers": "Providers",
-      "transcription": "Transcription"
+      "defaults": "Response Settings",
+      "providers": "AI Provider Setup",
+      "transcription": "Transcription Setup"
     },
     "generalSettings": "General Settings",
     "defaultsDescription": "Choose the default service for responses and tune how generated output behaves.",

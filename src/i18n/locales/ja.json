@@ -83,9 +83,9 @@
     "overviewDescription": "現在有効なサービスを確認して、最後にまとめて保存します。",
     "sectionGuide": "セクション",
     "sectionNav": {
-      "defaults": "既定値",
-      "providers": "プロバイダー",
-      "transcription": "文字起こし"
+      "defaults": "応答設定",
+      "providers": "AIプロバイダー設定",
+      "transcription": "文字起こし設定"
     },
     "generalSettings": "全般設定",
     "defaultsDescription": "応答に使う既定のサービスを選び、出力の振る舞いを調整します。",
