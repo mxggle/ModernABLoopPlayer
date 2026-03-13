@@ -8,7 +8,6 @@ import {
   Play,
   Bookmark,
   FileAudio,
-  Key,
   Repeat,
   Pause,
   Brain,
@@ -168,9 +167,9 @@ const TranscriptSegmentItem = ({
     }
   };
 
-  // Handle explain button click
+  // Handle explain button click — toggle
   const handleExplain = () => {
-    setShowExplanation(true);
+    setShowExplanation((prev) => !prev);
   };
 
   // Check if this segment has an associated bookmark
@@ -241,7 +240,7 @@ const TranscriptSegmentItem = ({
 
             <button
               onClick={handleExplain}
-              className="p-1 rounded transition-colors text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+              className={`p-1 rounded transition-colors ${showExplanation ? "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30" : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"}`}
               title={t("transcript.explainWithAI")}
             >
               <Brain size={18} />
@@ -575,7 +574,7 @@ export const TranscriptPanel = () => {
   }, []);
 
   const handleOpenAISettings = () => {
-    navigate("/ai-settings");
+    navigate("/settings?tab=ai");
   };
 
   type TimeRange = { start: number; end: number };
@@ -1316,65 +1315,12 @@ export const TranscriptPanel = () => {
 
           <div className="flex items-center space-x-1 flex-shrink-0">
             <button
-              onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-              className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-              title={t("transcript.setOpenAiApiKey")}
-            >
-              <Key size={16} />
-            </button>
-
-            <button
               onClick={handleOpenAISettings}
               className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
               title={t("transcript.openAiSettings")}
             >
               <Settings size={16} />
             </button>
-
-            {shouldShowTranscribeActionsInHeader && (
-              <>
-                {activeTabId ? (
-                  <button
-                    onClick={handleTranscribeBookmark}
-                    className={`p-1.5 rounded-full ${isTranscribing
-                      ? "bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-                      }`}
-                    title={t("transcript.transcribeBookmark")}
-                    disabled={isProcessing || (!currentFile && !currentYouTube)}
-                  >
-                    <FileAudio size={16} />
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleTranscribeDefault}
-                    className={`p-1.5 rounded-full ${isTranscribing
-                      ? "bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-                      }`}
-                    title={
-                      loopStart !== null && loopEnd !== null
-                        ? t("transcript.transcribeLoopRange")
-                        : t("transcript.transcribeWithWhisper")
-                    }
-                    disabled={isProcessing || (!currentFile && !currentYouTube)}
-                  >
-                    <FileAudio size={16} />
-                  </button>
-                )}
-
-                {!activeTabId && currentFile && (
-                  <button
-                    onClick={handleTranscribeFull}
-                    className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-                    title={t("transcript.transcribeFullRange")}
-                    disabled={isProcessing || (!currentFile && !currentYouTube)}
-                  >
-                    <Brain size={16} />
-                  </button>
-                )}
-              </>
-            )}
 
             <button
               onClick={() => handleExport("txt")}

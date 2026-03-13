@@ -1,14 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Drawer } from "../ui/drawer";
 import { MarkdownRenderer } from "../ui/MarkdownRenderer";
-import {
-  Loader,
-  BookOpen,
-  FileText,
-  CheckCircle,
-  X,
-} from "lucide-react";
+import { Loader, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
   AIProvider,
@@ -42,7 +35,6 @@ interface ExplanationState {
   error?: string;
 }
 
-// Simple global state management
 const globalExplanationStates = new Map<string, ExplanationState>();
 const globalExplanationListeners = new Set<() => void>();
 
@@ -62,7 +54,6 @@ const getGlobalExplanationState = (text: string): ExplanationState => {
   return globalExplanationStates.get(text) || { text, status: "idle" };
 };
 
-// Simplified local cache for backward compatibility
 const explanationCache = new Map<string, ExplanationResult>();
 
 export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
@@ -71,47 +62,22 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
   text,
 }) => {
   const { t } = useTranslation();
-  const [explanation, setExplanation] = useState<ExplanationResult | null>(
-    null
-  );
+  const [explanation, setExplanation] = useState<ExplanationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [canCloseWhileLoading, setCanCloseWhileLoading] = useState(false);
 
-  // Model selection state
-  const [selectedProvider, setSelectedProvider] =
-    useState<AIProvider>("openai");
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider>("openai");
   const [selectedModel, setSelectedModel] = useState("");
-
-  // Settings state
   const [targetLanguage, setTargetLanguage] = useState("English");
 
-  const handleClose = useCallback(() => {
-    if (isLoading && canCloseWhileLoading) {
-      toast(t("explanation.generatingInBackground"), {
-        icon: "ℹ️",
-        duration: 3000,
-      });
-    }
-    onClose();
-  }, [isLoading, canCloseWhileLoading, onClose, t]);
-
-  // Handle ESC key to close drawer
+  // Handle ESC key
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isOpen) {
-        handleClose();
-      }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) onClose();
     };
-
-    if (isOpen) {
-      document.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, handleClose]);
+    if (isOpen) document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   // Subscribe to global explanation state
   useEffect(() => {
@@ -119,7 +85,6 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
 
     const updateLocalState = () => {
       const globalState = getGlobalExplanationState(text);
-
       if (globalState.status === "completed" && globalState.result) {
         setExplanation(globalState.result);
         setError(null);
@@ -131,7 +96,6 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
       } else if (globalState.status === "loading") {
         setIsLoading(true);
         setError(null);
-        setCanCloseWhileLoading(true);
       } else {
         setIsLoading(false);
         setError(null);
@@ -139,77 +103,46 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
     };
 
     globalExplanationListeners.add(updateLocalState);
-    updateLocalState(); // Initial update
-
-    return () => {
-      globalExplanationListeners.delete(updateLocalState);
-    };
+    updateLocalState();
+    return () => { globalExplanationListeners.delete(updateLocalState); };
   }, [text]);
 
-  // Load settings and listen for updates
+  // Load settings
   useEffect(() => {
     const loadSettings = () => {
-      const savedProvider =
-        (localStorage.getItem("preferred_ai_provider") as AIProvider) ||
-        "openai";
-      const savedLanguage =
-        localStorage.getItem("target_language") || "English";
-      const savedModel =
-        localStorage.getItem(`${savedProvider}_model`) ||
-        DEFAULT_MODELS[savedProvider];
-
+      const savedProvider = (localStorage.getItem("preferred_ai_provider") as AIProvider) || "openai";
+      const savedLanguage = localStorage.getItem("target_language") || "English";
+      const savedModel = localStorage.getItem(`${savedProvider}_model`) || DEFAULT_MODELS[savedProvider];
       setSelectedProvider(savedProvider);
       setTargetLanguage(savedLanguage);
       setSelectedModel(savedModel);
     };
-
     loadSettings();
-
-    // Listen for settings updates
-    const handleSettingsUpdate = () => {
-      loadSettings();
-    };
-
-    window.addEventListener("aiSettingsUpdated", handleSettingsUpdate);
-    return () =>
-      window.removeEventListener("aiSettingsUpdated", handleSettingsUpdate);
+    window.addEventListener("aiSettingsUpdated", loadSettings);
+    return () => window.removeEventListener("aiSettingsUpdated", loadSettings);
   }, []);
 
-  // Update selected model when provider changes
   useEffect(() => {
-    const savedModel =
-      localStorage.getItem(`${selectedProvider}_model`) ||
-      DEFAULT_MODELS[selectedProvider];
+    const savedModel = localStorage.getItem(`${selectedProvider}_model`) || DEFAULT_MODELS[selectedProvider];
     setSelectedModel(savedModel);
   }, [selectedProvider]);
 
-  // Check for cached explanation when text changes
+  // Check cache
   useEffect(() => {
     if (text) {
       const cached = explanationCache.get(text);
-      if (cached) {
-        setExplanation(cached);
-        setError(null);
-      }
+      if (cached) { setExplanation(cached); setError(null); }
     }
   }, [text]);
 
-  const getApiKey = useCallback((provider: AIProvider): string => {
-    return localStorage.getItem(`${provider}_api_key`) || "";
-  }, []);
+  const getApiKey = useCallback((provider: AIProvider) =>
+    localStorage.getItem(`${provider}_api_key`) || "", []);
 
-  const hasValidApiKey = useCallback((provider: AIProvider): boolean => {
-    const apiKey = getApiKey(provider);
-    return aiService.validateApiKey(provider, apiKey);
-  }, [getApiKey]);
+  const hasValidApiKey = useCallback((provider: AIProvider) =>
+    aiService.validateApiKey(provider, getApiKey(provider)), [getApiKey]);
 
   const generateExplanation = useCallback(async () => {
-    if (!text.trim()) {
-      toast.error(t("explanation.noTextSelected"));
-      return;
-    }
-
-    const apiKey = getApiKey(selectedProvider);
+    if (!text.trim()) { toast.error(t("explanation.noTextSelected")); return; }
     if (!hasValidApiKey(selectedProvider)) {
       toast.error(t("explanation.configureApiKey", { provider: selectedProvider.toUpperCase() }));
       return;
@@ -218,31 +151,19 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
     setIsLoading(true);
     setError(null);
     setExplanation(null);
-    setCanCloseWhileLoading(true);
-
-    // Update global state
     setGlobalExplanationState(text, { status: "loading" });
 
     try {
       const config: AIServiceConfig = {
         provider: selectedProvider,
         model: selectedModel,
-        apiKey,
-        temperature: parseFloat(
-          localStorage.getItem("ai_temperature") || "0.7"
-        ),
-        maxTokens: parseInt(localStorage.getItem("ai_max_tokens") || "1000"),
-        systemPrompt: `You are a helpful assistant that explains text clearly and concisely. 
-        Provide explanations in ${targetLanguage}. 
-        Focus on making complex concepts easy to understand.`,
+        apiKey: getApiKey(selectedProvider),
+        temperature: parseFloat(localStorage.getItem("ai_temperature") || "0.7"),
+        maxTokens: parseInt(localStorage.getItem("ai_max_tokens") || "2000"),
+        systemPrompt: `You are a helpful assistant that explains text clearly and concisely. Provide explanations in ${targetLanguage}. Focus on making complex concepts easy to understand.`,
       };
 
-      const prompt = `Please explain the following text in detail, breaking down any complex concepts, terminology, or ideas:
-
-"${text}"
-
-Provide a clear, comprehensive explanation that would help someone understand this content better.`;
-
+      const prompt = `Please explain the following text in detail, breaking down any complex concepts, terminology, or ideas:\n\n"${text}"\n\nProvide a clear, comprehensive explanation that would help someone understand this content better.`;
       const response = await aiService.generateResponse(config, prompt);
 
       const result: ExplanationResult = {
@@ -252,135 +173,75 @@ Provide a clear, comprehensive explanation that would help someone understand th
         provider: response.provider,
       };
 
-      // Cache the result
       explanationCache.set(text, result);
       setExplanation(result);
-
-      // Update global state
       setGlobalExplanationState(text, { status: "completed", result });
-
-      toast.success(
-        <div className="flex items-center gap-2">
-          <CheckCircle className="w-4 h-4" />
-          <span>{t("explanation.explanationReady")}</span>
-        </div>,
-        { duration: 2000 }
-      );
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : t("explanation.unknownError");
-      setError(errorMessage);
-
-      // Update global state
-      setGlobalExplanationState(text, {
-        status: "error",
-        error: errorMessage,
-      });
-
-      toast.error(t("explanation.generationFailed", { message: errorMessage }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t("explanation.unknownError");
+      setError(msg);
+      setGlobalExplanationState(text, { status: "error", error: msg });
+      toast.error(t("explanation.generationFailed", { message: msg }));
     } finally {
       setIsLoading(false);
-      setCanCloseWhileLoading(false);
     }
   }, [text, selectedProvider, selectedModel, targetLanguage, getApiKey, hasValidApiKey, t]);
 
-  // Auto-generate explanation when drawer opens
+  // Auto-generate when opened
   useEffect(() => {
     if (isOpen && text && !explanation && !isLoading && !error) {
       generateExplanation();
     }
   }, [isOpen, text, explanation, isLoading, error, generateExplanation]);
 
-
-
-
-  const formatTokenUsage = (usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  }) => {
-    if (!usage) return null;
-    return t("explanation.tokenUsage", { total: usage.totalTokens, prompt: usage.promptTokens, completion: usage.completionTokens });
-  };
+  if (!isOpen) return null;
 
   return (
-    <Drawer
-      open={isOpen}
-      onOpenChange={(open) => !open && handleClose()}
-      title={t("explanation.title")}
-    >
-      <div className="space-y-6 p-4">
-        {/* Loading State with Close Option */}
-        {isLoading && canCloseWhileLoading && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Loader className="w-5 h-5 animate-spin text-blue-600" />
-                <div>
-                  <h4 className="text-sm font-medium text-blue-800">{t("explanation.generating")}</h4>
-                  <p className="text-xs text-blue-600 mt-1">{t("explanation.canCloseDrawer")}</p>
-                </div>
-              </div>
-              <button
-                onClick={handleClose}
-                className="text-blue-600 hover:text-blue-800 p-1"
-                title={t("explanation.closeAndContinue")}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+    <div className="mt-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+          {t("explanation.title")}
+        </span>
+        <button
+          onClick={onClose}
+          className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="px-3 py-3">
+        {isLoading && (
+          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <Loader size={14} className="animate-spin shrink-0" />
+            <span>{t("explanation.generating")}</span>
           </div>
         )}
 
-        {/* Selected Text */}
-        <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><FileText className="w-5 h-5" />{t("explanation.selectedText")}</h3>
-          <div className="p-4 bg-gray-50 rounded-lg border">
-            <p className="text-gray-700 whitespace-pre-wrap">{text}</p>
-          </div>
-        </div>
-
-        {/* Error Display */}
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-700 text-sm">{error}</p>
-          </div>
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         )}
 
-        {/* Explanation Result */}
         {explanation && (
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold flex items-center gap-2"><BookOpen className="w-5 h-5" />{t("explanation.explanation")}</h3>
-              {explanation.usage && (
-                <span className="text-xs text-gray-500">
-                  {formatTokenUsage(explanation.usage)}
-                </span>
-              )}
+            <div className="prose prose-sm dark:prose-invert max-w-none [&_h1]:text-sm [&_h1]:font-bold [&_h1]:text-blue-700 dark:[&_h1]:text-blue-400 [&_h1]:mb-1 [&_h1]:mt-3 [&_h1]:border-0 [&_h2]:text-sm [&_h2]:font-bold [&_h2]:text-blue-700 dark:[&_h2]:text-blue-400 [&_h2]:mb-1 [&_h2]:mt-3 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-gray-700 dark:[&_h3]:text-gray-300 [&_h3]:mb-1 [&_h3]:mt-2 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-gray-600 dark:[&_h4]:text-gray-400 [&_h4]:mb-1 [&_p]:text-sm [&_p]:mb-2 [&_li]:text-sm">
+              <MarkdownRenderer content={explanation.explanation} />
             </div>
-            <div className="p-4 bg-white border rounded-lg">
-              <div className="flex items-center gap-2 mb-3 text-xs text-gray-500">
-                <span
-                  className={`px-2 py-1 rounded text-xs font-medium ${explanation.provider === "openai"
-                      ? "bg-green-100 text-green-700"
-                      : explanation.provider === "gemini"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-purple-100 text-purple-700"
-                    }`}
-                >
-                  {explanation.provider.toUpperCase()}
-                </span>
-                <span>{explanation.model}</span>
-              </div>
-              <div className="prose prose-sm max-w-none">
-                <MarkdownRenderer content={explanation.explanation} />
-              </div>
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+              <span className="capitalize">{explanation.provider}</span>
+              <span>·</span>
+              <span>{explanation.model}</span>
+              {explanation.usage && (
+                <>
+                  <span>·</span>
+                  <span>{explanation.usage.totalTokens} tokens</span>
+                </>
+              )}
             </div>
           </div>
         )}
-
-
       </div>
-    </Drawer>
+    </div>
   );
 };
