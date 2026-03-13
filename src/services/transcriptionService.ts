@@ -76,7 +76,7 @@ class TranscriptionService {
         config: TranscriptionConfig,
         audioBlob: Blob
     ): Promise<TranscriptionResult> {
-        if (!config.apiKey) {
+        if (!config.apiKey && config.provider !== "local-whisper") {
             throw new Error(`API key is required for ${config.provider} transcription`);
         }
 
@@ -87,6 +87,8 @@ class TranscriptionService {
                 return this.transcribeWithGroq(config, audioBlob);
             case "gemini":
                 return this.transcribeWithGemini(config, audioBlob);
+            case "local-whisper":
+                return this.transcribeWithLocalWhisper(config, audioBlob);
             default:
                 throw new Error(`Unsupported transcription provider: ${config.provider}`);
         }
@@ -110,6 +112,8 @@ class TranscriptionService {
                 return localStorage.getItem("groq_api_key") || "";
             case "gemini":
                 return localStorage.getItem("gemini_api_key") || "";
+            case "local-whisper":
+                return ""; // No API key required
             default:
                 return "";
         }
@@ -120,7 +124,7 @@ class TranscriptionService {
      */
     public getPreferredProvider(): TranscriptionProvider {
         const saved = localStorage.getItem("preferred_transcription_provider");
-        if (saved && (saved === "openai" || saved === "groq" || saved === "gemini")) {
+        if (saved && (saved === "openai" || saved === "groq" || saved === "gemini" || saved === "local-whisper")) {
             return saved as TranscriptionProvider;
         }
         return "openai";
@@ -314,6 +318,41 @@ Example: 2 minutes and 15.5 seconds = 135.5 (NOT 2:15.5, NOT 135, NOT "2m15s")`,
         const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
         return this.parseGeminiResponse(content);
+    }
+
+    // ─── Local Whisper (faster-whisper-server) ─────────────────────
+
+    private async transcribeWithLocalWhisper(
+        config: TranscriptionConfig,
+        audioBlob: Blob
+    ): Promise<TranscriptionResult> {
+        const baseURL =
+            localStorage.getItem("local_whisper_url") || "http://localhost:8000";
+        const model =
+            localStorage.getItem("local_whisper_model") ||
+            "Systran/faster-whisper-large-v3";
+
+        const formData = new FormData();
+        formData.append("file", new File([audioBlob], "audio.wav", { type: "audio/wav" }));
+        formData.append("model", model);
+        formData.append("response_format", "verbose_json");
+        formData.append("temperature", "0");
+        if (config.language) {
+            formData.append("language", config.language);
+        }
+
+        const response = await fetch(`${baseURL}/v1/audio/transcriptions`, {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Local Whisper error: ${response.status} - ${errorText}`);
+        }
+
+        const whisperResponse: WhisperVerboseResponse = await response.json();
+        return this.parseWhisperResponse(whisperResponse, "local-whisper");
     }
 
     // ─── Response Parsers ──────────────────────────────────────────

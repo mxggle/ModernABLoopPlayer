@@ -99,14 +99,20 @@
       "openai": "OpenAI",
       "gemini": "Google Gemini",
       "grok": "xAI Grok",
-      "groq": "Groq"
+      "groq": "Groq",
+      "ollama": "Ollama (Local)"
     },
     "providerDescriptions": {
       "openai": "OpenAI GPT models",
       "gemini": "Google Gemini models",
       "grok": "xAI Grok models",
-      "groq": "Ultra-fast Whisper transcription via Groq LPU"
+      "groq": "Ultra-fast Whisper transcription via Groq LPU",
+      "ollama": "Local LLM via Ollama — no API key required"
     },
+    "ollamaBaseUrl": "Ollama Base URL",
+    "ollamaBaseUrlHelp": "URL where Ollama is running. Works when accessing this app via localhost.",
+    "ollamaModel": "Model Name",
+    "ollamaModelHelp": "Any model you have pulled locally, e.g. llama3.2, mistral, qwen2.5.",
     "apiKeyLabel": "API Key",
     "apiKeyPlaceholderLabel": "Enter your {{provider}} API key",
     "invalidApiKeyFormat": "Invalid API key format",
@@ -141,13 +147,19 @@
     "transcriptionProviders": {
       "openai": "OpenAI Whisper",
       "groq": "Groq Whisper (Ultra-fast)",
-      "gemini": "Google Gemini"
+      "gemini": "Google Gemini",
+      "local-whisper": "Local Whisper"
     },
     "transcriptionProviderDescriptions": {
       "openai": "High-quality transcription with word-level timestamps",
       "groq": "Ultra-fast transcription powered by Groq LPU",
-      "gemini": "Multimodal AI transcription with speaker diarization"
+      "gemini": "Multimodal AI transcription with speaker diarization",
+      "local-whisper": "Self-hosted faster-whisper-server — no API key required"
     },
+    "localWhisperUrl": "Server URL",
+    "localWhisperUrlHelp": "URL of your faster-whisper-server instance. Works when accessing this app via localhost.",
+    "localWhisperModel": "Model Name",
+    "localWhisperModelHelp": "Model loaded in your faster-whisper-server, e.g. Systran/faster-whisper-large-v3.",
     "groqApiKeyLabel": "Groq API Key",
     "groqApiKeyPlaceholder": "gsk_...",
     "getGroqApiKey": "Get a Groq API key",

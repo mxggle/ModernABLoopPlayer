@@ -53,6 +53,7 @@ const providerSurfaceClassName: Record<AIProvider, string> = {
   openai: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
   gemini: "bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
   grok: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+  ollama: "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300",
 };
 
 
@@ -91,6 +92,11 @@ export const AISettingsPage: React.FC = () => {
   const [geminiModel, setGeminiModel] = useState(DEFAULT_MODELS.gemini);
   const [grokModel, setGrokModel] = useState(DEFAULT_MODELS.grok);
 
+  const [ollamaBaseUrl, setOllamaBaseUrl] = useState("http://localhost:11434");
+  const [ollamaModel, setOllamaModel] = useState(DEFAULT_MODELS.ollama);
+  const [localWhisperUrl, setLocalWhisperUrl] = useState("http://localhost:8000");
+  const [localWhisperModel, setLocalWhisperModel] = useState("Systran/faster-whisper-large-v3");
+
   const [preferredProvider, setPreferredProvider] =
     useState<AIProvider>("openai");
   const [preferredTranscriptionProvider, setPreferredTranscriptionProvider] =
@@ -103,6 +109,7 @@ export const AISettingsPage: React.FC = () => {
     openai: false,
     gemini: false,
     grok: false,
+    ollama: false,
   });
   const [showGroqApiKey, setShowGroqApiKey] = useState(false);
   const [testingConnection, setTestingConnection] = useState<
@@ -111,6 +118,7 @@ export const AISettingsPage: React.FC = () => {
     openai: false,
     gemini: false,
     grok: false,
+    ollama: false,
   });
   const [connectionStatus, setConnectionStatus] = useState<
     Record<AIProvider, "idle" | "success" | "error">
@@ -118,6 +126,7 @@ export const AISettingsPage: React.FC = () => {
     openai: "idle",
     gemini: "idle",
     grok: "idle",
+    ollama: "idle",
   });
 
   const providerDisplayName = (provider: AIProvider) =>
@@ -149,6 +158,14 @@ export const AISettingsPage: React.FC = () => {
       localStorage.getItem("gemini_model") || DEFAULT_MODELS.gemini;
     const savedGrokModel =
       localStorage.getItem("grok_model") || DEFAULT_MODELS.grok;
+    const savedOllamaBaseUrl =
+      localStorage.getItem("ollama_base_url") || "http://localhost:11434";
+    const savedOllamaModel =
+      localStorage.getItem("ollama_model") || DEFAULT_MODELS.ollama;
+    const savedLocalWhisperUrl =
+      localStorage.getItem("local_whisper_url") || "http://localhost:8000";
+    const savedLocalWhisperModel =
+      localStorage.getItem("local_whisper_model") || "Systran/faster-whisper-large-v3";
 
     setOpenaiApiKey(savedOpenaiKey);
     setGeminiApiKey(savedGeminiKey);
@@ -162,6 +179,10 @@ export const AISettingsPage: React.FC = () => {
     setOpenaiModel(savedOpenaiModel);
     setGeminiModel(savedGeminiModel);
     setGrokModel(savedGrokModel);
+    setOllamaBaseUrl(savedOllamaBaseUrl);
+    setOllamaModel(savedOllamaModel);
+    setLocalWhisperUrl(savedLocalWhisperUrl);
+    setLocalWhisperModel(savedLocalWhisperModel);
   }, []);
 
   const providerConfigs: ProviderConfig[] = [
@@ -186,13 +207,20 @@ export const AISettingsPage: React.FC = () => {
       model: grokModel,
       setModel: setGrokModel,
     },
+    {
+      provider: "ollama",
+      apiKey: "", // no API key required
+      setApiKey: () => {},
+      model: ollamaModel,
+      setModel: setOllamaModel,
+    },
   ];
 
   const configuredProvidersCount = providerConfigs.filter(({ provider, apiKey }) =>
     aiService.validateApiKey(provider, apiKey)
   ).length;
   const transcriptionSharedProvider =
-    preferredTranscriptionProvider === "groq"
+    preferredTranscriptionProvider === "groq" || preferredTranscriptionProvider === "local-whisper"
       ? null
       : preferredTranscriptionProvider;
 
@@ -205,6 +233,10 @@ export const AISettingsPage: React.FC = () => {
     localStorage.setItem("openai_model", openaiModel);
     localStorage.setItem("gemini_model", geminiModel);
     localStorage.setItem("grok_model", grokModel);
+    localStorage.setItem("ollama_base_url", ollamaBaseUrl);
+    localStorage.setItem("ollama_model", ollamaModel);
+    localStorage.setItem("local_whisper_url", localWhisperUrl);
+    localStorage.setItem("local_whisper_model", localWhisperModel);
 
     localStorage.setItem("preferred_ai_provider", preferredProvider);
     localStorage.setItem(
@@ -368,7 +400,7 @@ export const AISettingsPage: React.FC = () => {
             <div className="w-px h-3.5 bg-gray-200 dark:bg-gray-700 hidden sm:block" />
             {[
               { label: t("aiSettingsPage.preferredProvider"), value: providerDisplayName(preferredProvider) },
-              { label: t("aiSettingsPage.summaryDefaultModel"), value: getModelById(providerConfigs.find(({ provider }) => provider === preferredProvider)?.model || DEFAULT_MODELS[preferredProvider])?.name || DEFAULT_MODELS[preferredProvider] },
+              { label: t("aiSettingsPage.summaryDefaultModel"), value: preferredProvider === "ollama" ? (ollamaModel || DEFAULT_MODELS.ollama) : (getModelById(providerConfigs.find(({ provider }) => provider === preferredProvider)?.model || DEFAULT_MODELS[preferredProvider])?.name || DEFAULT_MODELS[preferredProvider]) },
               { label: t("aiSettingsPage.transcriptionProvider"), value: t(`aiSettingsPage.transcriptionProviders.${preferredTranscriptionProvider}`) },
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center gap-1">
@@ -423,7 +455,7 @@ export const AISettingsPage: React.FC = () => {
               <div className="grid gap-2 sm:grid-cols-3">
                 {providerConfigs.map(({ provider, apiKey, model }) => {
                   const status = getProviderSetupStatus(provider, apiKey);
-                  const modelName = getModelById(model)?.name || DEFAULT_MODELS[provider];
+                  const modelName = provider === "ollama" ? (model || DEFAULT_MODELS.ollama) : (getModelById(model)?.name || DEFAULT_MODELS[provider]);
                   const isActive = preferredProvider === provider;
                   return (
                     <button
@@ -548,6 +580,7 @@ export const AISettingsPage: React.FC = () => {
               const providerName = providerDisplayName(provider);
               const setupStatus = getProviderSetupStatus(provider, apiKey);
               const isValidKey = aiService.validateApiKey(provider, apiKey);
+              const isOllama = provider === "ollama";
 
               return (
                 <div key={provider} className="px-5 py-5 space-y-4">
@@ -561,7 +594,7 @@ export const AISettingsPage: React.FC = () => {
                           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-50">
                             {providerName}
                           </h3>
-                          {getConnectionStatusIcon(provider)}
+                          {!isOllama && getConnectionStatusIcon(provider)}
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           {t(`aiSettingsPage.providerDescriptions.${provider}`)}
@@ -580,70 +613,107 @@ export const AISettingsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                      {t("aiSettingsPage.apiKeyLabel")}
-                    </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
+                  {isOllama ? (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          {t("aiSettingsPage.ollamaBaseUrl")}
+                        </label>
                         <Input
-                          type={showApiKeys[provider] ? "text" : "password"}
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                          placeholder={t("aiSettingsPage.apiKeyPlaceholderLabel", { provider: providerName })}
-                          className={cn(
-                            "h-9 pr-9 font-mono text-sm",
-                            apiKey && !isValidKey && "border-red-300 dark:border-red-700"
-                          )}
+                          type="text"
+                          value={ollamaBaseUrl}
+                          onChange={(e) => setOllamaBaseUrl(e.target.value)}
+                          placeholder="http://localhost:11434"
+                          className="h-9 font-mono text-sm"
                         />
-                        <button
-                          type="button"
-                          onClick={() => toggleApiKeyVisibility(provider)}
-                          className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
-                          aria-label={showApiKeys[provider] ? t("common.hide") : t("common.show")}
-                        >
-                          {showApiKeys[provider] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </button>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {t("aiSettingsPage.ollamaBaseUrlHelp")}
+                        </p>
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => testConnection(provider)}
-                        disabled={!apiKey.trim() || testingConnection[provider]}
-                        className="h-9 gap-1.5 shrink-0"
-                      >
-                        {testingConnection[provider]
-                          ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
-                          : <TestTube className="h-3.5 w-3.5" />
-                        }
-                        {t("aiSettingsPage.testConnection")}
-                      </Button>
-                    </div>
-                    {apiKey && !isValidKey && (
-                      <p className="text-xs text-red-600 dark:text-red-400">{t("aiSettingsPage.invalidApiKeyFormat")}</p>
-                    )}
-                    {connectionStatus[provider] === "success" && (
-                      <p className="text-xs text-emerald-600 dark:text-emerald-400">{t("aiSettingsPage.status.testPassed")}</p>
-                    )}
-                    {connectionStatus[provider] === "error" && (
-                      <p className="text-xs text-red-600 dark:text-red-400">{t("aiSettingsPage.status.testFailed")}</p>
-                    )}
-                  </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          {t("aiSettingsPage.ollamaModel")}
+                        </label>
+                        <Input
+                          type="text"
+                          value={model}
+                          onChange={(e) => setModel(e.target.value)}
+                          placeholder="llama3.2"
+                          className="h-9 text-sm"
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {t("aiSettingsPage.ollamaModelHelp")}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          {t("aiSettingsPage.apiKeyLabel")}
+                        </label>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Input
+                              type={showApiKeys[provider] ? "text" : "password"}
+                              value={apiKey}
+                              onChange={(e) => setApiKey(e.target.value)}
+                              placeholder={t("aiSettingsPage.apiKeyPlaceholderLabel", { provider: providerName })}
+                              className={cn(
+                                "h-9 pr-9 font-mono text-sm",
+                                apiKey && !isValidKey && "border-red-300 dark:border-red-700"
+                              )}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleApiKeyVisibility(provider)}
+                              className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+                              aria-label={showApiKeys[provider] ? t("common.hide") : t("common.show")}
+                            >
+                              {showApiKeys[provider] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </button>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => testConnection(provider)}
+                            disabled={!apiKey.trim() || testingConnection[provider]}
+                            className="h-9 gap-1.5 shrink-0"
+                          >
+                            {testingConnection[provider]
+                              ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                              : <TestTube className="h-3.5 w-3.5" />
+                            }
+                            {t("aiSettingsPage.testConnection")}
+                          </Button>
+                        </div>
+                        {apiKey && !isValidKey && (
+                          <p className="text-xs text-red-600 dark:text-red-400">{t("aiSettingsPage.invalidApiKeyFormat")}</p>
+                        )}
+                        {connectionStatus[provider] === "success" && (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400">{t("aiSettingsPage.status.testPassed")}</p>
+                        )}
+                        {connectionStatus[provider] === "error" && (
+                          <p className="text-xs text-red-600 dark:text-red-400">{t("aiSettingsPage.status.testFailed")}</p>
+                        )}
+                      </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                      {t("aiSettingsPage.defaultModel")}
-                    </label>
-                    <ModelSelector
-                      selectedModel={model}
-                      onModelSelect={setModel}
-                      provider={provider}
-                      placeholder={t("aiSettingsPage.selectModelPlaceholder", { provider: providerName })}
-                      showPricing={true}
-                      showCapabilities={true}
-                    />
-                  </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          {t("aiSettingsPage.defaultModel")}
+                        </label>
+                        <ModelSelector
+                          selectedModel={model}
+                          onModelSelect={setModel}
+                          provider={provider}
+                          placeholder={t("aiSettingsPage.selectModelPlaceholder", { provider: providerName })}
+                          showPricing={true}
+                          showCapabilities={true}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -656,11 +726,21 @@ export const AISettingsPage: React.FC = () => {
             <div className="grid gap-2 sm:grid-cols-3">
               {(Object.keys(TRANSCRIPTION_PROVIDERS) as TranscriptionProvider[]).map((provider) => {
                 const isSelected = preferredTranscriptionProvider === provider;
-                const usesSharedKey = provider !== "groq";
-                const sharedProvider = provider === "groq" ? null : (provider as AIProvider);
-                const sharedProviderReady = sharedProvider
-                  ? aiService.validateApiKey(sharedProvider, sharedProvider === "openai" ? openaiApiKey : sharedProvider === "gemini" ? geminiApiKey : grokApiKey)
-                  : groqApiKey.trim().length > 0;
+                const isLocalWhisper = provider === "local-whisper";
+                const isGroq = provider === "groq";
+                const isShared = !isGroq && !isLocalWhisper;
+                const providerReady = isLocalWhisper
+                  ? true
+                  : isGroq
+                  ? groqApiKey.trim().length > 0
+                  : provider === "openai"
+                  ? aiService.validateApiKey("openai", openaiApiKey)
+                  : aiService.validateApiKey("gemini", geminiApiKey);
+                const statusLabel = isShared
+                  ? t("aiSettingsPage.transcriptionSharedKey")
+                  : providerReady
+                  ? t("aiSettingsPage.status.ready")
+                  : t("aiSettingsPage.status.missing");
 
                 return (
                   <button
@@ -687,15 +767,15 @@ export const AISettingsPage: React.FC = () => {
                       "text-xs truncate mb-2",
                       isSelected ? "text-white/60 dark:text-gray-500" : "text-gray-500 dark:text-gray-400"
                     )}>
-                      {TRANSCRIPTION_PROVIDERS[provider].model}
+                      {isLocalWhisper ? localWhisperModel || "configurable" : TRANSCRIPTION_PROVIDERS[provider].model}
                     </p>
                     <span className={cn(
                       "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
                       isSelected
                         ? "bg-white/10 text-white/80 dark:bg-black/10 dark:text-gray-600"
-                        : sharedProviderReady ? statusToneClassName.success : statusToneClassName.warning
+                        : providerReady ? statusToneClassName.success : statusToneClassName.warning
                     )}>
-                      {usesSharedKey ? t("aiSettingsPage.transcriptionSharedKey") : sharedProviderReady ? t("aiSettingsPage.status.ready") : t("aiSettingsPage.status.missing")}
+                      {statusLabel}
                     </span>
                   </button>
                 );
@@ -703,7 +783,40 @@ export const AISettingsPage: React.FC = () => {
             </div>
 
             <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
-              {transcriptionSharedProvider ? (
+              {preferredTranscriptionProvider === "local-whisper" ? (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {t("aiSettingsPage.localWhisperUrl")}
+                    </label>
+                    <Input
+                      type="text"
+                      value={localWhisperUrl}
+                      onChange={(e) => setLocalWhisperUrl(e.target.value)}
+                      placeholder="http://localhost:8000"
+                      className="h-9 font-mono text-sm"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {t("aiSettingsPage.localWhisperUrlHelp")}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {t("aiSettingsPage.localWhisperModel")}
+                    </label>
+                    <Input
+                      type="text"
+                      value={localWhisperModel}
+                      onChange={(e) => setLocalWhisperModel(e.target.value)}
+                      placeholder="Systran/faster-whisper-large-v3"
+                      className="h-9 text-sm"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {t("aiSettingsPage.localWhisperModelHelp")}
+                    </p>
+                  </div>
+                </div>
+              ) : transcriptionSharedProvider ? (
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {t("aiSettingsPage.transcriptionSharedKey")}

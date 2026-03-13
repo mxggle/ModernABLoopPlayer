@@ -1,5 +1,5 @@
 // AI Service Types and Configurations
-export type AIProvider = "openai" | "gemini" | "grok";
+export type AIProvider = "openai" | "gemini" | "grok" | "ollama";
 
 // OpenAI Models - Updated February 2026
 export interface OpenAIModel {
@@ -536,10 +536,11 @@ export const DEFAULT_MODELS: Record<AIProvider, string> = {
   openai: "gpt-4.1",
   gemini: "gemini-2.5-flash",
   grok: "grok-4-fast",
+  ollama: "llama3.2",
 };
 
 // Transcription Provider Types
-export type TranscriptionProvider = "openai" | "groq" | "gemini";
+export type TranscriptionProvider = "openai" | "groq" | "gemini" | "local-whisper";
 
 export const DEFAULT_TRANSCRIPTION_PROVIDER: TranscriptionProvider = "openai";
 
@@ -558,5 +559,10 @@ export const TRANSCRIPTION_PROVIDERS: Record<TranscriptionProvider, { name: stri
     name: "Google Gemini",
     description: "Multimodal AI transcription with speaker diarization",
     model: "gemini-2.5-flash",
+  },
+  "local-whisper": {
+    name: "Local Whisper",
+    description: "Self-hosted faster-whisper-server (localhost)",
+    model: "configurable",
   },
 };

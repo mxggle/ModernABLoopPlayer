@@ -146,6 +146,62 @@ export class UnifiedAIService {
     };
   }
 
+  // Ollama API call (OpenAI-compatible, no API key required)
+  private async callOllama(
+    config: AIServiceConfig,
+    prompt: string
+  ): Promise<AIResponse> {
+    const baseURL =
+      config.baseURL ||
+      localStorage.getItem("ollama_base_url") ||
+      "http://localhost:11434";
+
+    const request: OpenAIRequest = {
+      model: config.model,
+      messages: [
+        ...(config.systemPrompt
+          ? [{ role: "system" as const, content: config.systemPrompt }]
+          : []),
+        { role: "user" as const, content: prompt },
+      ],
+      temperature: config.temperature ?? 0.7,
+      max_tokens: config.maxTokens ?? 2048,
+      top_p: config.topP ?? 1,
+    };
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (config.apiKey) {
+      headers["Authorization"] = `Bearer ${config.apiKey}`;
+    }
+
+    const response = await fetch(`${baseURL}/v1/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Ollama API error: ${response.status} - ${error}`);
+    }
+
+    const data: OpenAIResponse = await response.json();
+
+    return {
+      content: data.choices[0]?.message?.content || "",
+      usage: {
+        promptTokens: data.usage?.prompt_tokens ?? 0,
+        completionTokens: data.usage?.completion_tokens ?? 0,
+        totalTokens: data.usage?.total_tokens ?? 0,
+      },
+      model: config.model,
+      provider: "ollama",
+      finishReason: data.choices[0]?.finish_reason,
+    };
+  }
+
   // Grok API call
   private async callGrok(
     config: AIServiceConfig,
@@ -206,7 +262,7 @@ export class UnifiedAIService {
     config: AIServiceConfig,
     prompt: string
   ): Promise<AIResponse> {
-    if (!config.apiKey) {
+    if (!config.apiKey && config.provider !== "ollama") {
       throw new Error(`API key is required for ${config.provider}`);
     }
 
@@ -217,6 +273,8 @@ export class UnifiedAIService {
         return this.callGemini(config, prompt);
       case "grok":
         return this.callGrok(config, prompt);
+      case "ollama":
+        return this.callOllama(config, prompt);
       default:
         throw new Error(`Unsupported AI provider: ${config.provider}`);
     }
@@ -248,6 +306,8 @@ export class UnifiedAIService {
         return apiKey.length > 20; // Gemini keys don't have a specific prefix
       case "grok":
         return apiKey.startsWith("xai-") || apiKey.length > 20;
+      case "ollama":
+        return true; // No API key required
       default:
         return false;
     }
