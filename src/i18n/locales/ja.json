@@ -58,6 +58,24 @@
     "appearance": "外観",
     "colorTheme": "カラーテーマ"
   },
+  "settingsPage": {
+    "title": "設定",
+    "tabs": {
+      "general": "一般",
+      "ai": "AI"
+    },
+    "appearance": "外観",
+    "interfaceLayout": "インターフェースレイアウト",
+    "interfaceLayoutHelp": "プレーヤービューのセクションを表示または非表示にします。",
+    "playback": "再生",
+    "seekStep": "シークステップ",
+    "smallStep": "小ステップ"
+  },
+  "loop": {
+    "controlsTitle": "ループ設定",
+    "repeats": "繰り返し",
+    "gap": "間隔"
+  },
   "aiSettingsPage": {
     "title": "AI設定",
     "subtitle": "AIプロバイダー、既定値、文字起こしツールを設定します",

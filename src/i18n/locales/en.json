@@ -68,6 +68,24 @@
     "appearance": "Appearance",
     "colorTheme": "Color Theme"
   },
+  "settingsPage": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "ai": "AI"
+    },
+    "appearance": "Appearance",
+    "interfaceLayout": "Interface Layout",
+    "interfaceLayoutHelp": "Show or hide sections in the player view.",
+    "playback": "Playback",
+    "seekStep": "Seek Step",
+    "smallStep": "Small Step"
+  },
+  "loop": {
+    "controlsTitle": "Loop Settings",
+    "repeats": "Repeats",
+    "gap": "Gap"
+  },
   "aiSettingsPage": {
     "title": "AI Settings",
     "subtitle": "Configure your AI providers, defaults, and transcription tools",

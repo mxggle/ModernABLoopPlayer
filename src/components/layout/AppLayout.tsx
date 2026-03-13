@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useShallow } from "zustand/react/shallow";
-import { SettingsDrawer } from "./SettingsDrawer";
 import { Moon, Sun, Info, Settings, Layout, Eye, EyeOff, Music, Video, Youtube } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
@@ -29,7 +28,6 @@ export const AppLayout = ({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
-  const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [isLayoutPopoverOpen, setIsLayoutPopoverOpen] = useState(false);
 
   const {
@@ -64,11 +62,6 @@ export const AppLayout = ({
     setCurrentYouTube(null);
     // Then navigate
     navigate("/");
-  };
-
-  // Toggle Settings Drawer
-  const toggleSettingsDrawer = () => {
-    setIsSettingsDrawerOpen(!isSettingsDrawerOpen);
   };
 
   const youtubeId = currentYouTube?.id;
@@ -302,7 +295,7 @@ export const AppLayout = ({
 
           {/* Settings Button */}
           <button
-            onClick={toggleSettingsDrawer}
+            onClick={() => navigate("/settings")}
             className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
             aria-label={t("layout.openSettings")}
           >
@@ -406,14 +399,6 @@ export const AppLayout = ({
           </Dialog.Root>
         </div>
       </header>
-
-      {/* Settings Drawer - Always render but only show Interface Layout when media is loaded */}
-      <SettingsDrawer
-        isOpen={isSettingsDrawerOpen}
-        onClose={toggleSettingsDrawer}
-        layoutSettings={layoutSettings}
-        setLayoutSettings={setLayoutSettings}
-      />
 
       {/* Main Content */}
       <main className="flex-1 w-full">{children}</main>

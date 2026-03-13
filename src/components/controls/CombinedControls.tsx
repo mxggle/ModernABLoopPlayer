@@ -53,6 +53,10 @@ export const CombinedControls = () => {
     seekStepSeconds,
     getCurrentMediaBookmarks,
     addBookmark: storeAddBookmark,
+    maxLoops,
+    setMaxLoops,
+    loopDelay,
+    setLoopDelay,
     // Playlist / queue state
     playbackQueue,
     playbackIndex,
@@ -422,14 +426,46 @@ export const CombinedControls = () => {
               variant={isLooping ? "default" : "outline"}
               size="sm"
               onClick={toggleLooping}
-              className="gap-1 py-1 px-3 h-8 text-xs font-medium"
+              className="gap-1 py-1 px-3 h-8 text-xs font-medium whitespace-nowrap"
               aria-label={t("player.toggleLooping")}
             >
               <Repeat size={13} className="sm:w-[14px] sm:h-[14px]" />
               <span className="hidden sm:inline">
-                {isLooping ? t("player.loopOn") : t("player.loop")}
+                {t("player.loop")}
               </span>
             </Button>
+
+            {/* Loop Repeats selector */}
+            <select
+              value={maxLoops}
+              onChange={(e) => setMaxLoops(Number(e.target.value))}
+              className="h-8 rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-800"
+              aria-label={t("loop.repeats")}
+              title={t("loop.repeats")}
+            >
+              <option value={0}>∞</option>
+              <option value={1}>1×</option>
+              <option value={2}>2×</option>
+              <option value={3}>3×</option>
+              <option value={5}>5×</option>
+              <option value={10}>10×</option>
+            </select>
+
+            {/* Loop Gap selector */}
+            <select
+              value={loopDelay}
+              onChange={(e) => setLoopDelay(Number(e.target.value))}
+              className="h-8 rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-800"
+              aria-label={t("loop.gap")}
+              title={t("loop.gap")}
+            >
+              <option value={0}>0s</option>
+              <option value={0.5}>0.5s</option>
+              <option value={1}>1s</option>
+              <option value={2}>2s</option>
+              <option value={3}>3s</option>
+              <option value={5}>5s</option>
+            </select>
 
             {/* Bookmarks + Add grouped */}
             <div role="group" className="inline-flex items-stretch rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -437,7 +473,7 @@ export const CombinedControls = () => {
                 variant="outline"
                 size="sm"
                 onClick={toggleBookmarkDrawer}
-                className="gap-1 py-1 px-3 h-8 text-xs font-medium relative rounded-none border-0"
+                className="gap-1 py-1 px-3 h-8 text-xs font-medium whitespace-nowrap relative rounded-none border-0"
                 aria-label={t("bookmarks.openDrawer")}
               >
                 <Bookmark size={13} className="sm:w-[14px] sm:h-[14px]" />
@@ -448,7 +484,7 @@ export const CombinedControls = () => {
                 variant={isRemoveMode ? "destructive" : "default"}
                 size="sm"
                 onClick={handleBookmarkAction}
-                className="gap-1 py-1 px-3 h-8 text-xs font-medium rounded-none"
+                className="gap-1 py-1 px-3 h-8 text-xs font-medium whitespace-nowrap rounded-none"
                 aria-label={isRemoveMode ? t("bookmarks.removeBookmark") : t("bookmarks.addBookmark")}
               >
                 {isRemoveMode ? (
@@ -468,7 +504,7 @@ export const CombinedControls = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1 py-1 px-3 h-8 text-xs font-medium"
+                  className="gap-1 py-1 px-3 h-8 text-xs font-medium whitespace-nowrap"
                   title={t("player.showPlaylist")}
                 >
                   <ListMusic size={13} className="sm:w-[14px] sm:h-[14px]" />

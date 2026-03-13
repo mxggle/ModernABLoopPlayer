@@ -58,6 +58,24 @@
     "appearance": "外观",
     "colorTheme": "颜色主题"
   },
+  "settingsPage": {
+    "title": "设置",
+    "tabs": {
+      "general": "通用",
+      "ai": "AI"
+    },
+    "appearance": "外观",
+    "interfaceLayout": "界面布局",
+    "interfaceLayoutHelp": "显示或隐藏播放器中的各个区域。",
+    "playback": "播放",
+    "seekStep": "跳转步长",
+    "smallStep": "小步长"
+  },
+  "loop": {
+    "controlsTitle": "循环设置",
+    "repeats": "重复次数",
+    "gap": "间隔"
+  },
   "aiSettingsPage": {
     "title": "AI 设置",
     "subtitle": "配置您的 AI 提供方、默认值和转录工具",
