@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
 import {
@@ -88,7 +88,11 @@ type SettingsTab = "general" | "ai";
 export const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("tab") === "ai" ? "ai" : "general";
+  });
   const { layoutSettings, setLayoutSettings } = useLayoutSettings();
 
   const {
