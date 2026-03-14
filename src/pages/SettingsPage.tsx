@@ -33,6 +33,7 @@ import {
   TranscriptionProvider,
   TRANSCRIPTION_PROVIDERS,
   getModelById,
+  normalizeModelId,
 } from "../types/aiService";
 import { useLayoutSettings } from "../contexts/LayoutSettingsContext";
 import { usePlayerStore } from "../stores/playerStore";
@@ -164,11 +165,11 @@ export const SettingsPage: React.FC = () => {
     setTemperature(Number.isFinite(savedTemp) ? savedTemp : 0.7);
     const savedTokens = parseInt(localStorage.getItem("ai_max_tokens") || "1000", 10);
     setMaxTokens(Number.isFinite(savedTokens) ? savedTokens : 1000);
-    setOpenaiModel(localStorage.getItem("openai_model") || DEFAULT_MODELS.openai);
-    setGeminiModel(localStorage.getItem("gemini_model") || DEFAULT_MODELS.gemini);
-    setGrokModel(localStorage.getItem("grok_model") || DEFAULT_MODELS.grok);
+    setOpenaiModel(normalizeModelId("openai", localStorage.getItem("openai_model")));
+    setGeminiModel(normalizeModelId("gemini", localStorage.getItem("gemini_model")));
+    setGrokModel(normalizeModelId("grok", localStorage.getItem("grok_model")));
     setOllamaBaseUrl(localStorage.getItem("ollama_base_url") || "http://localhost:11434");
-    setOllamaModel(localStorage.getItem("ollama_model") || DEFAULT_MODELS.ollama);
+    setOllamaModel(normalizeModelId("ollama", localStorage.getItem("ollama_model")));
     setLocalWhisperUrl(localStorage.getItem("local_whisper_url") || "http://localhost:8000");
     setLocalWhisperModel(
       localStorage.getItem("local_whisper_model") || "Systran/faster-whisper-large-v3"

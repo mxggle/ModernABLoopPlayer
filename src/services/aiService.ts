@@ -12,6 +12,7 @@ import {
   getAllModels,
   getModelById,
   DEFAULT_MODELS,
+  normalizeModelId,
 } from "../types/aiService";
 
 export class UnifiedAIService {
@@ -86,7 +87,8 @@ export class UnifiedAIService {
     config: AIServiceConfig,
     prompt: string
   ): Promise<AIResponse> {
-    const model = getModelById(config.model);
+    const normalizedModel = normalizeModelId("gemini", config.model);
+    const model = getModelById(normalizedModel);
     if (!model || model.provider !== "gemini") {
       throw new Error(`Invalid Gemini model: ${config.model}`);
     }
@@ -116,7 +118,7 @@ export class UnifiedAIService {
     const apiKey = config.apiKey;
     const baseURL =
       config.baseURL || "https://generativelanguage.googleapis.com/v1beta";
-    const url = `${baseURL}/models/${config.model}:generateContent?key=${apiKey}`;
+    const url = `${baseURL}/models/${normalizedModel}:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -140,7 +142,7 @@ export class UnifiedAIService {
         completionTokens: data.usageMetadata.candidatesTokenCount,
         totalTokens: data.usageMetadata.totalTokenCount,
       },
-      model: config.model,
+      model: normalizedModel,
       provider: "gemini",
       finishReason: data.candidates[0]?.finishReason,
     };

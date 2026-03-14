@@ -27,6 +27,7 @@ import {
   TranscriptionProvider,
   TRANSCRIPTION_PROVIDERS,
   getModelById,
+  normalizeModelId,
 } from "../types/aiService";
 
 const LANGUAGE_OPTIONS = [
@@ -152,16 +153,24 @@ export const AISettingsPage: React.FC = () => {
       localStorage.getItem("ai_max_tokens") || "1000",
       10
     );
-    const savedOpenaiModel =
-      localStorage.getItem("openai_model") || DEFAULT_MODELS.openai;
-    const savedGeminiModel =
-      localStorage.getItem("gemini_model") || DEFAULT_MODELS.gemini;
-    const savedGrokModel =
-      localStorage.getItem("grok_model") || DEFAULT_MODELS.grok;
+    const savedOpenaiModel = normalizeModelId(
+      "openai",
+      localStorage.getItem("openai_model")
+    );
+    const savedGeminiModel = normalizeModelId(
+      "gemini",
+      localStorage.getItem("gemini_model")
+    );
+    const savedGrokModel = normalizeModelId(
+      "grok",
+      localStorage.getItem("grok_model")
+    );
     const savedOllamaBaseUrl =
       localStorage.getItem("ollama_base_url") || "http://localhost:11434";
-    const savedOllamaModel =
-      localStorage.getItem("ollama_model") || DEFAULT_MODELS.ollama;
+    const savedOllamaModel = normalizeModelId(
+      "ollama",
+      localStorage.getItem("ollama_model")
+    );
     const savedLocalWhisperUrl =
       localStorage.getItem("local_whisper_url") || "http://localhost:8000";
     const savedLocalWhisperModel =

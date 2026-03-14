@@ -7,6 +7,7 @@ import {
   AIProvider,
   AIServiceConfig,
   DEFAULT_MODELS,
+  normalizeModelId,
 } from "../../types/aiService";
 import { aiService } from "../../services/aiService";
 
@@ -112,7 +113,11 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
     const loadSettings = () => {
       const savedProvider = (localStorage.getItem("preferred_ai_provider") as AIProvider) || "openai";
       const savedLanguage = localStorage.getItem("target_language") || "English";
-      const savedModel = localStorage.getItem(`${savedProvider}_model`) || DEFAULT_MODELS[savedProvider];
+      const savedModel = normalizeModelId(
+        savedProvider,
+        localStorage.getItem(`${savedProvider}_model`) || DEFAULT_MODELS[savedProvider]
+      );
+      localStorage.setItem(`${savedProvider}_model`, savedModel);
       setSelectedProvider(savedProvider);
       setTargetLanguage(savedLanguage);
       setSelectedModel(savedModel);
@@ -123,7 +128,11 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
   }, []);
 
   useEffect(() => {
-    const savedModel = localStorage.getItem(`${selectedProvider}_model`) || DEFAULT_MODELS[selectedProvider];
+    const savedModel = normalizeModelId(
+      selectedProvider,
+      localStorage.getItem(`${selectedProvider}_model`) || DEFAULT_MODELS[selectedProvider]
+    );
+    localStorage.setItem(`${selectedProvider}_model`, savedModel);
     setSelectedModel(savedModel);
   }, [selectedProvider]);
 

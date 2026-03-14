@@ -104,6 +104,11 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     return `$${price.toFixed(2)}`;
   };
 
+  const hasPricing = (model: ModelOption) =>
+    model.pricing.input > 0 || model.pricing.output > 0;
+
+  const hasContextWindow = (model: ModelOption) => model.contextWindow > 0;
+
   const getCapabilityIcon = (capability: string) => {
     switch (capability) {
       case "vision":
@@ -159,7 +164,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 {selectedModelInfo.provider.toUpperCase()}
               </div>
               <span className="truncate">{selectedModelInfo.name}</span>
-              {showPricing && !compact && (
+              {showPricing && !compact && hasPricing(selectedModelInfo) && (
                 <span className="text-xs text-muted-foreground">
                   {formatPrice(selectedModelInfo.pricing.input)}/1M
                 </span>
@@ -251,26 +256,32 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                             )}
                           </div>
                         )}
-                        {showPricing && !compact && (
+                        {showPricing && !compact && (hasPricing(model) || hasContextWindow(model)) && (
                           <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <DollarSign className="w-3 h-3" />
-                              {t("modelSelector.inputPrice", {
-                                price: formatPrice(model.pricing.input),
-                              })}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <DollarSign className="w-3 h-3" />
-                              {t("modelSelector.outputPrice", {
-                                price: formatPrice(model.pricing.output),
-                              })}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {t("modelSelector.contextWindow", {
-                                value: (model.contextWindow / 1000).toFixed(0),
-                              })}
-                            </div>
+                            {hasPricing(model) && (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <DollarSign className="w-3 h-3" />
+                                  {t("modelSelector.inputPrice", {
+                                    price: formatPrice(model.pricing.input),
+                                  })}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <DollarSign className="w-3 h-3" />
+                                  {t("modelSelector.outputPrice", {
+                                    price: formatPrice(model.pricing.output),
+                                  })}
+                                </div>
+                              </>
+                            )}
+                            {hasContextWindow(model) && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {t("modelSelector.contextWindow", {
+                                  value: (model.contextWindow / 1000).toFixed(0),
+                                })}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
