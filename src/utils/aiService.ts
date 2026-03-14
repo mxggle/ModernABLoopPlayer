@@ -228,7 +228,7 @@ Please respond in this exact JSON format:
     console.log("Sending prompt to Gemini:", prompt);
 
     const response = await this.gemini.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash",
       contents: [
         {
           role: "user",

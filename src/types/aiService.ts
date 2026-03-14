@@ -1,7 +1,7 @@
 // AI Service Types and Configurations
 export type AIProvider = "openai" | "gemini" | "grok" | "ollama";
 
-// OpenAI Models - Updated February 2026
+// OpenAI Models - Updated March 2026
 export interface OpenAIModel {
   id: string;
   name: string;
@@ -14,14 +14,14 @@ export interface OpenAIModel {
 }
 
 export const OPENAI_MODELS: Record<string, OpenAIModel> = {
-  "gpt-5.2": {
-    id: "gpt-5.2",
-    name: "GPT-5.2",
-    description: "Best model for coding, agentic tasks, and complex reasoning",
+  "gpt-5": {
+    id: "gpt-5",
+    name: "GPT-5",
+    description: "Most capable OpenAI model for complex reasoning and agentic tasks",
     contextWindow: 400000,
-    maxOutputTokens: 100000,
-    inputPricing: 1.75,
-    outputPricing: 14.0,
+    maxOutputTokens: 65536,
+    inputPricing: 1.25,
+    outputPricing: 10.0,
     capabilities: ["text", "vision", "audio", "reasoning", "function-calling"],
   },
   "gpt-5-mini": {
@@ -39,7 +39,7 @@ export const OPENAI_MODELS: Record<string, OpenAIModel> = {
     name: "GPT-4.1",
     description: "Powerful and versatile with 1M context, great instruction following",
     contextWindow: 1047576,
-    maxOutputTokens: 32768,
+    maxOutputTokens: 65536,
     inputPricing: 2.0,
     outputPricing: 8.0,
     capabilities: ["text", "vision", "function-calling"],
@@ -49,7 +49,7 @@ export const OPENAI_MODELS: Record<string, OpenAIModel> = {
     name: "GPT-4.1 Mini",
     description: "Great balance of power, speed, and affordability",
     contextWindow: 1047576,
-    maxOutputTokens: 32768,
+    maxOutputTokens: 65536,
     inputPricing: 0.4,
     outputPricing: 1.6,
     capabilities: ["text", "vision", "function-calling"],
@@ -59,9 +59,9 @@ export const OPENAI_MODELS: Record<string, OpenAIModel> = {
     name: "GPT-4.1 Nano",
     description: "Fastest and most affordable GPT-4.1 variant",
     contextWindow: 1047576,
-    maxOutputTokens: 32768,
+    maxOutputTokens: 65536,
     inputPricing: 0.1,
-    outputPricing: 1.4,
+    outputPricing: 0.4,
     capabilities: ["text", "vision", "function-calling"],
   },
   "gpt-4o": {
@@ -80,8 +80,8 @@ export const OPENAI_MODELS: Record<string, OpenAIModel> = {
     description: "Affordable small model (legacy, available via API)",
     contextWindow: 128000,
     maxOutputTokens: 16384,
-    inputPricing: 0.6,
-    outputPricing: 2.4,
+    inputPricing: 0.15,
+    outputPricing: 0.6,
     capabilities: ["text", "vision", "function-calling"],
   },
   o3: {
@@ -90,23 +90,23 @@ export const OPENAI_MODELS: Record<string, OpenAIModel> = {
     description: "Advanced reasoning model for complex STEM problems",
     contextWindow: 200000,
     maxOutputTokens: 100000,
-    inputPricing: 10.0,
-    outputPricing: 40.0,
+    inputPricing: 2.0,
+    outputPricing: 8.0,
     capabilities: ["text", "reasoning", "function-calling"],
   },
-  "o3-mini": {
-    id: "o3-mini",
-    name: "o3-mini",
-    description: "Compact reasoning model for STEM domains",
+  "o4-mini": {
+    id: "o4-mini",
+    name: "o4-mini",
+    description: "Latest compact reasoning model with vision support",
     contextWindow: 200000,
     maxOutputTokens: 100000,
     inputPricing: 1.1,
     outputPricing: 4.4,
-    capabilities: ["text", "reasoning", "function-calling"],
+    capabilities: ["text", "vision", "reasoning", "function-calling"],
   },
 };
 
-// Gemini Models - Updated February 2026 from official documentation
+// Gemini Models - Updated March 2026 from official documentation
 export interface GeminiModel {
   id: string;
   name: string;
@@ -119,11 +119,11 @@ export interface GeminiModel {
 }
 
 export const GEMINI_MODELS: Record<string, GeminiModel> = {
-  "gemini-3-pro-preview": {
-    id: "gemini-3-pro-preview",
-    name: "Gemini 3 Pro",
-    description: "Most powerful model for multimodal understanding and agentic tasks",
-    contextWindow: 1048576,
+  "gemini-3.1-pro": {
+    id: "gemini-3.1-pro",
+    name: "Gemini 3.1 Pro",
+    description: "Most powerful Gemini model with 2M context for complex multimodal tasks",
+    contextWindow: 2097152,
     maxOutputTokens: 65536,
     inputPricing: 2.0,
     outputPricing: 12.0,
@@ -138,8 +138,8 @@ export const GEMINI_MODELS: Record<string, GeminiModel> = {
       "structured-outputs",
     ],
   },
-  "gemini-3-flash-preview": {
-    id: "gemini-3-flash-preview",
+  "gemini-3-flash": {
+    id: "gemini-3-flash",
     name: "Gemini 3 Flash",
     description: "Frontier intelligence with speed, search, and grounding",
     contextWindow: 1048576,
@@ -157,11 +157,29 @@ export const GEMINI_MODELS: Record<string, GeminiModel> = {
       "structured-outputs",
     ],
   },
+  "gemini-3.1-flash-lite": {
+    id: "gemini-3.1-flash-lite",
+    name: "Gemini 3.1 Flash-Lite",
+    description: "Cost-efficient Gemini 3 model for high-volume tasks",
+    contextWindow: 1048576,
+    maxOutputTokens: 65536,
+    inputPricing: 0.25,
+    outputPricing: 1.5,
+    capabilities: [
+      "text",
+      "vision",
+      "audio",
+      "video",
+      "thinking",
+      "function-calling",
+      "code-execution",
+    ],
+  },
   "gemini-2.5-pro": {
     id: "gemini-2.5-pro",
     name: "Gemini 2.5 Pro",
     description: "State-of-the-art thinking model for code, math, and STEM",
-    contextWindow: 1048576,
+    contextWindow: 2097152,
     maxOutputTokens: 65536,
     inputPricing: 1.25,
     outputPricing: 10.0,
@@ -181,8 +199,8 @@ export const GEMINI_MODELS: Record<string, GeminiModel> = {
     description: "Best price-performance with adaptive thinking and 1M context",
     contextWindow: 1048576,
     maxOutputTokens: 65536,
-    inputPricing: 0.3,
-    outputPricing: 2.5,
+    inputPricing: 0.15,
+    outputPricing: 0.6,
     capabilities: [
       "text",
       "vision",
@@ -211,19 +229,9 @@ export const GEMINI_MODELS: Record<string, GeminiModel> = {
       "code-execution",
     ],
   },
-  "gemini-2.0-flash": {
-    id: "gemini-2.0-flash",
-    name: "Gemini 2.0 Flash",
-    description: "Deprecated (shutdown March 31, 2026) — use 2.5 Flash instead",
-    contextWindow: 1048576,
-    maxOutputTokens: 8192,
-    inputPricing: 0.075,
-    outputPricing: 0.3,
-    capabilities: ["text", "vision", "audio", "video", "function-calling"],
-  },
 };
 
-// Grok Models - Updated February 2026 from xAI official documentation
+// Grok Models - Updated March 2026 from xAI official documentation
 export interface GrokModel {
   id: string;
   name: string;
@@ -236,25 +244,35 @@ export interface GrokModel {
 }
 
 export const GROK_MODELS: Record<string, GrokModel> = {
-  "grok-4": {
-    id: "grok-4",
+  "grok-4-0709": {
+    id: "grok-4-0709",
     name: "Grok 4",
-    description: "Most advanced reasoning model from xAI",
+    description: "Most advanced flagship reasoning model from xAI",
     contextWindow: 256000,
     maxOutputTokens: 131072,
     inputPricing: 3.0,
     outputPricing: 15.0,
     capabilities: ["text", "vision", "reasoning", "function-calling", "structured-outputs"],
   },
-  "grok-4-fast": {
-    id: "grok-4-fast",
-    name: "Grok 4 Fast",
+  "grok-4-fast-reasoning": {
+    id: "grok-4-fast-reasoning",
+    name: "Grok 4 Fast (Reasoning)",
     description: "Cost-efficient reasoning with 2M context window",
     contextWindow: 2000000,
     maxOutputTokens: 131072,
     inputPricing: 0.2,
     outputPricing: 0.5,
     capabilities: ["text", "reasoning", "function-calling", "structured-outputs"],
+  },
+  "grok-4-fast-non-reasoning": {
+    id: "grok-4-fast-non-reasoning",
+    name: "Grok 4 Fast",
+    description: "Fastest and most affordable Grok 4 variant with 2M context",
+    contextWindow: 2000000,
+    maxOutputTokens: 131072,
+    inputPricing: 0.2,
+    outputPricing: 0.5,
+    capabilities: ["text", "function-calling", "structured-outputs"],
   },
   "grok-3": {
     id: "grok-3",
@@ -531,11 +549,11 @@ export function getModelById(modelId: string): ModelOption | undefined {
   return getAllModels().find((model) => model.id === modelId);
 }
 
-// Default models for each provider - Updated February 2026
+// Default models for each provider - Updated March 2026
 export const DEFAULT_MODELS: Record<AIProvider, string> = {
   openai: "gpt-4.1",
-  gemini: "gemini-2.5-flash",
-  grok: "grok-4-fast",
+  gemini: "gemini-3-flash",
+  grok: "grok-4-fast-non-reasoning",
   ollama: "llama3.2",
 };
 
@@ -558,7 +576,7 @@ export const TRANSCRIPTION_PROVIDERS: Record<TranscriptionProvider, { name: stri
   gemini: {
     name: "Google Gemini",
     description: "Multimodal AI transcription with speaker diarization",
-    model: "gemini-2.5-flash",
+    model: "gemini-3-flash",
   },
   "local-whisper": {
     name: "Local Whisper",
