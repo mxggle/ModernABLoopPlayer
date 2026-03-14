@@ -15,8 +15,6 @@ import {
   AlignEndHorizontal,
   X,
   Bookmark,
-  ListMusic,
-  Shuffle,
   ChevronLeft,
   ChevronRight,
   ChevronsRight,
@@ -50,12 +48,6 @@ export const MobileControls = () => {
     getCurrentMediaBookmarks,
     addBookmark: storeAddBookmark,
     deleteBookmark,
-    // Playlist / queue state
-    playbackQueue,
-    playbackIndex,
-    stopPlaybackQueue,
-    setPlaybackMode,
-    playbackMode,
     // Auto-advance bookmarks
     autoAdvanceBookmarks,
     setAutoAdvanceBookmarks,
@@ -64,7 +56,6 @@ export const MobileControls = () => {
 
   const [showSpeedControls, setShowSpeedControls] = useState(false);
   const [showVolumeDrawer, setShowVolumeDrawer] = useState(false);
-  const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(false);
 
   // Get current media bookmarks for the bookmark button
   const bookmarks = getCurrentMediaBookmarks();
@@ -229,18 +220,6 @@ export const MobileControls = () => {
         <div className="space-y-4">
           {/* Primary controls row - play/pause and seek */}
           <div className="flex items-center justify-center space-x-3">
-            <button
-              onClick={() => setShowPlaylistDrawer(true)}
-              className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 relative"
-              aria-label={t("player.openPlaylist")}
-            >
-              <ListMusic size={20} />
-              {playbackQueue.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {playbackQueue.length > 9 ? "9+" : playbackQueue.length}
-                </span>
-              )}
-            </button>
             <button
               onClick={seekBackward}
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -427,146 +406,6 @@ export const MobileControls = () => {
                     }%, #e2e8f0 ${(muted ? 0 : volume) * 100}%)`,
                 }}
               />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Playlist Panel */}
-      {showPlaylistDrawer && (
-        <div
-          className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowPlaylistDrawer(false)}
-        >
-          <div
-            className="fixed bottom-0 left-0 right-0 max-h-[80vh] bg-white dark:bg-gray-800 rounded-t-xl shadow-xl p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="h-1.5 w-12 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto my-2" />
-
-            <div className="px-4 py-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold">
-                {t("player.playlist")}{" "}
-                {playbackQueue.length > 0 ? `(${playbackQueue.length})` : ""}
-              </h2>
-              <button
-                onClick={() => setShowPlaylistDrawer(false)}
-                className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-                aria-label={t("player.closePlaylist")}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {playbackQueue.length > 0 && (
-              <div className="px-4 py-2 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700">
-                <Button
-                  variant={playbackMode === "shuffle" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() =>
-                    setPlaybackMode(
-                      playbackMode === "shuffle" ? "order" : "shuffle"
-                    )
-                  }
-                  className="flex-1"
-                >
-                  <Shuffle size={16} className="mr-1" />
-                  {playbackMode === "shuffle"
-                    ? t("player.shuffle")
-                    : t("player.order")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={stopPlaybackQueue}
-                  className="px-3 text-red-600 dark:text-red-400"
-                >
-                  {t("player.clear")}
-                </Button>
-              </div>
-            )}
-
-            <div className="p-4">
-              {playbackQueue.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <ListMusic size={48} className="mx-auto mb-2 opacity-30" />
-                  <p>{t("player.noItemsInPlaylist")}</p>
-                </div>
-              ) : (
-                <ul className="max-h-64 overflow-y-auto space-y-2">
-                  {playbackQueue.map((id, idx) => {
-                    const { mediaHistory } = usePlayerStore.getState();
-                    const item = mediaHistory.find((h) => h.id === id);
-                    if (!item) return null;
-
-                    const isCurrentItem = idx === playbackIndex;
-                    return (
-                      <li
-                        key={id}
-                        className={`flex items-center gap-3 p-3 rounded-lg ${isCurrentItem
-                          ? "bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800"
-                          : "bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          }`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {item.name}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {item.type === "file"
-                              ? t("player.audioFile")
-                              : t("player.youtube")}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {isCurrentItem && (
-                            <span className="text-xs bg-purple-600 text-white px-2 py-1 rounded-full">
-                              {t("player.now")}
-                            </span>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              // Remove item from queue by creating new queue without this item
-                              const newQueue = playbackQueue.filter(
-                                (_, i) => i !== idx
-                              );
-                              const { playbackQueueOriginal } =
-                                usePlayerStore.getState();
-                              const newOriginal = playbackQueueOriginal.filter(
-                                (id) => newQueue.includes(id)
-                              );
-
-                              if (newQueue.length === 0) {
-                                stopPlaybackQueue();
-                              } else {
-                                const newIndex =
-                                  idx < playbackIndex
-                                    ? playbackIndex - 1
-                                    : idx === playbackIndex
-                                      ? Math.min(
-                                        playbackIndex,
-                                        newQueue.length - 1
-                                      )
-                                      : playbackIndex;
-                                usePlayerStore.setState({
-                                  playbackQueue: newQueue,
-                                  playbackQueueOriginal: newOriginal,
-                                  playbackIndex: newIndex,
-                                });
-                              }
-                            }}
-                            className="text-red-600 dark:text-red-400 p-1 h-8 w-8"
-                          >
-                            <X size={14} />
-                          </Button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
             </div>
           </div>
         </div>

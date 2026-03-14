@@ -19,7 +19,6 @@ import {
   FolderPlus,
   Pencil,
   ArrowUpDown,
-  PlayCircle,
   ChevronLeft,
   ChevronRight,
   Home,
@@ -318,7 +317,6 @@ export const MediaHistory = ({
     setHistoryFolderFilter,
     setHistorySort,
     moveHistoryItemToFolder,
-    startPlaybackQueue,
   } = usePlayerStore();
 
   const navigate = useNavigate();
@@ -639,29 +637,7 @@ export const MediaHistory = ({
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <Button
-                    variant="default"
-                    size="icon"
-                    onClick={() =>
-                      startPlaybackQueue(displayedHistory.map((i) => i.id))
-                    }
-                    title={t("history.playAll")}
-                  >
-                    <PlayCircle size={18} />
-                  </Button>
                 </div>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() =>
-                    startPlaybackQueue(displayedHistory.map((i) => i.id))
-                  }
-                  title={t("history.playAll")}
-                  className="hidden sm:flex"
-                >
-                  <PlayCircle size={16} className="mr-1" />{" "}
-                  {t("history.playAll")}
-                </Button>
               </div>
             </div>
             {/* Breadcrumb Navigation */}
@@ -977,29 +953,7 @@ export const MediaHistory = ({
                         </div>
                       </PopoverContent>
                     </Popover>
-                    <Button
-                      variant="default"
-                      size="icon"
-                      onClick={() =>
-                        startPlaybackQueue(displayedHistory.map((i) => i.id))
-                      }
-                      title={t("history.playAll")}
-                    >
-                      <PlayCircle size={18} />
-                    </Button>
                   </div>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() =>
-                      startPlaybackQueue(displayedHistory.map((i) => i.id))
-                    }
-                    title={t("history.playAll")}
-                    className="hidden sm:flex"
-                  >
-                    <PlayCircle size={16} className="mr-1" />{" "}
-                    {t("history.playAll")}
-                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
