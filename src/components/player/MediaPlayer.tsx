@@ -400,10 +400,6 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   const handleEnded = () => {
     console.log("Media playback ended");
     const state = usePlayerStore.getState();
-    if (state.isQueueActive) {
-      state.playNextInQueue?.();
-      return;
-    }
 
     // If looping is enabled but no A-B region is set (or the region covers
     // the whole track), restart from the beginning instead of stopping.

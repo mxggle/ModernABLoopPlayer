@@ -68,6 +68,24 @@
     "appearance": "Appearance",
     "colorTheme": "Color Theme"
   },
+  "settingsPage": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "ai": "AI"
+    },
+    "appearance": "Appearance",
+    "interfaceLayout": "Interface Layout",
+    "interfaceLayoutHelp": "Show or hide sections in the player view.",
+    "playback": "Playback",
+    "seekStep": "Seek Step",
+    "smallStep": "Small Step"
+  },
+  "loop": {
+    "controlsTitle": "Loop Settings",
+    "repeats": "Repeats",
+    "gap": "Gap"
+  },
   "aiSettingsPage": {
     "title": "AI Settings",
     "subtitle": "Configure your AI providers, defaults, and transcription tools",
@@ -75,9 +93,9 @@
     "overviewDescription": "Review active services and save once everything looks right.",
     "sectionGuide": "Sections",
     "sectionNav": {
-      "defaults": "Defaults",
-      "providers": "Providers",
-      "transcription": "Transcription"
+      "defaults": "Response Settings",
+      "providers": "AI Provider Setup",
+      "transcription": "Transcription Setup"
     },
     "generalSettings": "General Settings",
     "defaultsDescription": "Choose the default service for responses and tune how generated output behaves.",
@@ -99,14 +117,20 @@
       "openai": "OpenAI",
       "gemini": "Google Gemini",
       "grok": "xAI Grok",
-      "groq": "Groq"
+      "groq": "Groq",
+      "ollama": "Ollama (Local)"
     },
     "providerDescriptions": {
       "openai": "OpenAI GPT models",
       "gemini": "Google Gemini models",
       "grok": "xAI Grok models",
-      "groq": "Ultra-fast Whisper transcription via Groq LPU"
+      "groq": "Ultra-fast Whisper transcription via Groq LPU",
+      "ollama": "Local LLM via Ollama — no API key required"
     },
+    "ollamaBaseUrl": "Ollama Base URL",
+    "ollamaBaseUrlHelp": "URL where Ollama is running. Works when accessing this app via localhost.",
+    "ollamaModel": "Model Name",
+    "ollamaModelHelp": "Any model you have pulled locally, e.g. llama3.2, mistral, qwen2.5.",
     "apiKeyLabel": "API Key",
     "apiKeyPlaceholderLabel": "Enter your {{provider}} API key",
     "invalidApiKeyFormat": "Invalid API key format",
@@ -141,13 +165,19 @@
     "transcriptionProviders": {
       "openai": "OpenAI Whisper",
       "groq": "Groq Whisper (Ultra-fast)",
-      "gemini": "Google Gemini"
+      "gemini": "Google Gemini",
+      "local-whisper": "Local Whisper"
     },
     "transcriptionProviderDescriptions": {
       "openai": "High-quality transcription with word-level timestamps",
       "groq": "Ultra-fast transcription powered by Groq LPU",
-      "gemini": "Multimodal AI transcription with speaker diarization"
+      "gemini": "Multimodal AI transcription with speaker diarization",
+      "local-whisper": "Self-hosted faster-whisper-server — no API key required"
     },
+    "localWhisperUrl": "Server URL",
+    "localWhisperUrlHelp": "URL of your faster-whisper-server instance. Works when accessing this app via localhost.",
+    "localWhisperModel": "Model Name",
+    "localWhisperModelHelp": "Model loaded in your faster-whisper-server, e.g. Systran/faster-whisper-large-v3.",
     "groqApiKeyLabel": "Groq API Key",
     "groqApiKeyPlaceholder": "gsk_...",
     "getGroqApiKey": "Get a Groq API key",
@@ -188,25 +218,13 @@
     "seekForwardSeconds": "Seek forward {{seconds}} seconds",
     "decreaseSpeed": "Decrease playback rate",
     "increaseSpeed": "Increase playback rate",
-    "playlist": "Playlist",
     "youtubeTab": "YouTube",
     "localMediaTab": "Local Media",
     "playbackSpeed": "Playback Speed",
-    "noItemsInPlaylist": "No items in the playlist.",
     "bookmarkNavigation": "Bookmark Navigation",
-    "mode": "Mode:",
-    "order": "Order",
-    "shuffle": "Shuffle",
-    "repeatAll": "Repeat All",
-    "repeatOne": "Repeat One",
-    "clear": "Clear",
     "now": "Now",
     "audioFile": "Audio File",
     "youtube": "YouTube",
-    "showPlaylist": "Show playlist",
-    "openPlaylist": "Open playlist",
-    "closePlaylist": "Close playlist",
-    "playing": "Playing",
     "toggleLooping": "Toggle looping",
     "loopOn": "Loop On",
     "loopStatusOn": "Loop: On",
@@ -221,7 +239,6 @@
     "previousBookmark": "Previous bookmark",
     "nextBookmark": "Next bookmark",
     "quickAddBookmark": "Quick add bookmark",
-    "queueItemFallback": "Item {{index}}",
     "unnamedBookmark": "Unnamed",
     "loadedSharedBookmark": "Loaded shared bookmark: {{name}}",
     "windowTitle": "AB Loop Player",
@@ -341,7 +358,7 @@
     "errorLoadingVideo": "Error loading video",
     "unsupportedFileType": "Unsupported file type",
     "noMediaToTranscribe": "No media loaded to transcribe",
-    "openaiClientNotInitialized": "OpenAI client not initialized",
+    "openaiClientNotInitialized": "Transcription service not initialized",
     "youtubeTranscriptionWarning": "YouTube transcription requires server-side processing. Using simulation instead.",
     "transcriptionFailed": "Failed to transcribe media. ",
     "invalidApiKey": "Invalid API key. Please check your API key.",
@@ -350,7 +367,7 @@
     "networkError": "Network error. Please check your internet connection.",
     "genericError": "Error: {{message}}",
     "unknownError": "Unknown error occurred.",
-    "setOpenAiApiKey": "Set OpenAI API Key",
+    "setOpenAiApiKey": "Set API Key",
     "openAiSettings": "Open AI Settings",
     "transcribeWithWhisper": "Transcribe media",
     "transcribeLoopRange": "Transcribe current loop range",
@@ -366,11 +383,11 @@
     "importError": "Failed to import transcript file",
     "segmentNotFound": "Transcript segment not found",
     "saveApiKey": "Save API Key",
-    "getApiKey": "Get an API key from OpenAI",
+    "getApiKey": "Get an API key for your transcription provider",
     "processingWithProvider": "Processing media with {{provider}}...",
-    "processingWithWhisper": "Processing media with OpenAI Whisper...",
+    "processingWithWhisper": "Processing media...",
     "loadMediaFirst": "Load media first to generate a transcript",
-    "clickToTranscribe": "Click the transcribe button to generate a transcript",
+    "clickToTranscribe": "Click the transcribe button to generate a transcript using {{provider}}",
     "uploadExisting": "Upload an existing transcript file (.srt, .vtt, .txt)",
     "noTranscript": "No transcript available",
     "uploadTranscript": "Upload Transcript",
@@ -464,7 +481,6 @@
     "type": "Type",
     "asc": "Ascending",
     "desc": "Descending",
-    "playAll": "Play All",
     "libraryRoot": "Library root",
     "goBack": "Back to parent",
     "back": "Back",

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useTranslation } from "react-i18next";
 import { formatTime } from "../../utils/formatTime";
@@ -16,16 +16,10 @@ import {
   AlignEndHorizontal,
   ChevronLeft,
   ChevronRight,
-  Bookmark,
-  ListMusic,
-  X,
   RotateCcw,
 } from "lucide-react";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
-import { Plus } from "lucide-react";
-import { toast } from "react-hot-toast";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 export const CombinedControls = () => {
   const { t } = useTranslation();
@@ -39,8 +33,6 @@ export const CombinedControls = () => {
     loopStart,
     loopEnd,
     isLooping,
-    currentFile,
-    currentYouTube,
     setIsPlaying,
     setCurrentTime,
     setVolume,
@@ -51,24 +43,35 @@ export const CombinedControls = () => {
     seekForward: storeSeekForward,
     seekBackward: storeSeekBackward,
     seekStepSeconds,
-    getCurrentMediaBookmarks,
-    addBookmark: storeAddBookmark,
-    // Playlist / queue state
-    playbackQueue,
-    playbackIndex,
-    isQueueActive,
-    mediaHistory,
-    startPlaybackQueue,
-    stopPlaybackQueue,
-    playbackMode,
-    setPlaybackMode,
-    selectedBookmarkId,
+    seekSmallStepSeconds,
+    setSeekStepSeconds,
+    setSeekSmallStepSeconds,
+    maxLoops,
+    setMaxLoops,
+    loopDelay,
+    setLoopDelay,
   } = usePlayerStore();
 
   const [rangeValues, setRangeValues] = useState<[number, number]>([0, 100]);
   const [showABControls, setShowABControls] = useState(false);
-  // Get current media bookmarks for the bookmark button
-  const bookmarks = getCurrentMediaBookmarks();
+  const [showStepDropdown, setShowStepDropdown] = useState(false);
+  const stepDropdownRef = useRef<HTMLDivElement>(null);
+  const [showLoopDropdown, setShowLoopDropdown] = useState(false);
+  const loopDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (stepDropdownRef.current && !stepDropdownRef.current.contains(e.target as Node)) {
+        setShowStepDropdown(false);
+      }
+      if (loopDropdownRef.current && !loopDropdownRef.current.contains(e.target as Node)) {
+        setShowLoopDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Update range slider when loop points change
   useEffect(() => {
@@ -85,79 +88,6 @@ export const CombinedControls = () => {
     setIsPlaying(!isPlaying);
   };
 
-  // Handle bookmark toggle button - add/remove bookmarks directly
-  const handleBookmarkAction = () => {
-    // 1. If a bookmark is explicitly selected, delete it
-    if (selectedBookmarkId) {
-      // Find the bookmark index or object if needed, but we can just delete by ID
-      // We might want to confirm if the user really wants to delete, but for now we follow the pattern
-      usePlayerStore.getState().deleteBookmark(selectedBookmarkId);
-      toast.success(t("bookmarks.bookmarkRemoved"));
-      return;
-    }
-
-    // 2. If no bookmark is selected, we rely on the loop points
-    if (duration === 0) {
-      toast.error(t("bookmarks.loadMediaFirst"));
-      return;
-    }
-
-    // Require explicit loop points - do NOT default to ±2 seconds anymore
-    if (loopStart === null || loopEnd === null) {
-      toast.error(t("bookmarks.setValidRange"));
-      return;
-    }
-
-    if (loopEnd <= loopStart) {
-      toast.error(t("bookmarks.setValidRange"));
-      return;
-    }
-
-    // 3. Check if a bookmark already exists for this EXACT range (with tolerance)
-    // If so, delete it (toggle behavior), mimicking the other controls
-    const TOL = 0.05;
-    const existingBookmark = bookmarks.find(
-      (b) => Math.abs(b.start - loopStart) < TOL && Math.abs(b.end - loopEnd) < TOL
-    );
-
-    if (existingBookmark) {
-      usePlayerStore.getState().deleteBookmark(existingBookmark.id);
-      toast.success(t("bookmarks.bookmarkRemoved"));
-    } else {
-      // 4. Create new bookmark
-      const count = bookmarks.length + 1;
-      const name = t("bookmarks.defaultClipName", { count });
-
-      const added = storeAddBookmark({
-        name,
-        start: loopStart,
-        end: loopEnd,
-        playbackRate,
-        mediaName: currentFile?.name,
-        mediaType: currentFile?.type,
-        youtubeId: currentYouTube?.id,
-        annotation: "",
-      });
-      if (added) {
-        toast.success(t("bookmarks.bookmarkAdded"));
-      }
-    }
-  };
-
-  // ... (keeping other functions)
-
-  // Determine button state for UI
-  const isRemoveMode =
-    selectedBookmarkId !== null ||
-    (loopStart !== null &&
-      loopEnd !== null &&
-      bookmarks.some(
-        (b) =>
-          Math.abs(b.start - loopStart!) < 0.05 &&
-          Math.abs(b.end - loopEnd!) < 0.05
-      ));
-
-  // ... same as before ...
 
   // Find the button rendering part and replace it
 
@@ -298,11 +228,6 @@ export const CombinedControls = () => {
     }
   };
 
-  // Toggle bookmark drawer
-  const toggleBookmarkDrawer = () => {
-    const bookmarkToggle = document.getElementById("bookmarkDrawerToggle");
-    bookmarkToggle?.click();
-  };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-[50]">
@@ -418,151 +343,103 @@ export const CombinedControls = () => {
               </button>
             </div>
 
-            <Button
-              variant={isLooping ? "default" : "outline"}
-              size="sm"
-              onClick={toggleLooping}
-              className="gap-1 py-1 px-3 h-8 text-xs font-medium"
-              aria-label={t("player.toggleLooping")}
-            >
-              <Repeat size={13} className="sm:w-[14px] sm:h-[14px]" />
-              <span className="hidden sm:inline">
-                {isLooping ? t("player.loopOn") : t("player.loop")}
-              </span>
-            </Button>
+            {/* Loop button + dropdown */}
+            <div className="relative flex items-stretch rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" ref={loopDropdownRef}>
+              <Button
+                variant={isLooping ? "default" : "ghost"}
+                size="sm"
+                onClick={toggleLooping}
+                className="gap-1 py-1 px-3 h-8 text-xs font-medium whitespace-nowrap rounded-none border-0"
+                aria-label={t("player.toggleLooping")}
+              >
+                <Repeat size={13} className="sm:w-[14px] sm:h-[14px]" />
+                <span className="hidden sm:inline">{t("player.loop")}</span>
+              </Button>
+              <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" aria-hidden />
+              <button
+                onClick={() => setShowLoopDropdown(!showLoopDropdown)}
+                className="px-1.5 h-8 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+                aria-label="Loop settings"
+              >
+                <ChevronDown size={12} />
+              </button>
+              {showLoopDropdown && (
+                <div className="absolute left-0 bottom-full mb-1 z-[60] w-44 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{t("loop.repeats")}</label>
+                    <select
+                      value={maxLoops}
+                      onChange={(e) => setMaxLoops(Number(e.target.value))}
+                      className="h-7 rounded border border-gray-200 dark:border-gray-600 bg-transparent px-1 text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700"
+                    >
+                      <option value={0}>∞</option>
+                      <option value={1}>1×</option>
+                      <option value={2}>2×</option>
+                      <option value={3}>3×</option>
+                      <option value={5}>5×</option>
+                      <option value={10}>10×</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{t("loop.gap")}</label>
+                    <select
+                      value={loopDelay}
+                      onChange={(e) => setLoopDelay(Number(e.target.value))}
+                      className="h-7 rounded border border-gray-200 dark:border-gray-600 bg-transparent px-1 text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700"
+                    >
+                      <option value={0}>0s</option>
+                      <option value={0.5}>0.5s</option>
+                      <option value={1}>1s</option>
+                      <option value={2}>2s</option>
+                      <option value={3}>3s</option>
+                      <option value={5}>5s</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
 
-            {/* Bookmarks + Add grouped */}
-            <div role="group" className="inline-flex items-stretch rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+            {/* Step settings dropdown */}
+            <div className="relative" ref={stepDropdownRef}>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={toggleBookmarkDrawer}
-                className="gap-1 py-1 px-3 h-8 text-xs font-medium relative rounded-none border-0"
-                aria-label={t("bookmarks.openDrawer")}
+                onClick={() => setShowStepDropdown(!showStepDropdown)}
+                className="gap-1 py-1 px-3 h-8 text-xs font-medium whitespace-nowrap"
+                title={t("settings.seekStep")}
               >
-                <Bookmark size={13} className="sm:w-[14px] sm:h-[14px]" />
-                <span className="hidden sm:inline">{t("bookmarks.title")}</span>
+                {seekStepSeconds}s
               </Button>
-              <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" aria-hidden></div>
-              <Button
-                variant={isRemoveMode ? "destructive" : "default"}
-                size="sm"
-                onClick={handleBookmarkAction}
-                className="gap-1 py-1 px-3 h-8 text-xs font-medium rounded-none"
-                aria-label={isRemoveMode ? t("bookmarks.removeBookmark") : t("bookmarks.addBookmark")}
-              >
-                {isRemoveMode ? (
-                  <X size={13} className="sm:w-[14px] sm:h-[14px]" />
-                ) : (
-                  <Plus size={13} className="sm:w-[14px] sm:h-[14px]" />
-                )}
-                <span className="hidden sm:inline">
-                  {isRemoveMode ? t("common.remove") : t("common.add")}
-                </span>
-              </Button>
+              {showStepDropdown && (
+                <div className="absolute right-0 bottom-full mb-1 z-[60] w-48 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{t("settingsPage.seekStep")}</label>
+                    <input
+                      type="number"
+                      min={0.1}
+                      max={120}
+                      step={0.1}
+                      value={seekStepSeconds}
+                      onChange={(e) => setSeekStepSeconds(parseFloat(e.target.value) || 0)}
+                      className="w-16 h-7 rounded border border-gray-200 dark:border-gray-600 bg-transparent px-2 text-xs text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{t("settingsPage.smallStep")}</label>
+                    <input
+                      type="number"
+                      min={0.05}
+                      max={10}
+                      step={0.05}
+                      value={seekSmallStepSeconds}
+                      onChange={(e) => setSeekSmallStepSeconds(parseFloat(e.target.value) || 0)}
+                      className="w-16 h-7 rounded border border-gray-200 dark:border-gray-600 bg-transparent px-2 text-xs text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Playlist button */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 py-1 px-3 h-8 text-xs font-medium"
-                  title={t("player.showPlaylist")}
-                >
-                  <ListMusic size={13} className="sm:w-[14px] sm:h-[14px]" />
-                  <span className="hidden sm:inline">{t("player.playlist")}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-semibold">
-                    {t("player.playlist")} {playbackQueue.length > 0 ? `(${playbackQueue.length})` : ""}
-                  </div>
-                  {playbackQueue.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      {isQueueActive && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
-                          {t("player.playing")}
-                        </span>
-                      )}
-                      <Button size="sm" variant="ghost" onClick={() => stopPlaybackQueue()}>
-                        {t("player.clear")}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs text-gray-500">{t("player.mode")}</span>
-                  <div role="group" className="inline-flex rounded-md overflow-hidden border border-gray-200 dark:border-gray-700">
-                    <Button
-                      size="sm"
-                      variant={playbackMode === 'order' ? 'default' : 'ghost'}
-                      className="h-7 px-2 text-xs rounded-none"
-                      onClick={() => setPlaybackMode('order')}
-                    >
-                      {t("player.order")}
-                    </Button>
-                    <div className="w-px bg-gray-200 dark:bg-gray-700" />
-                    <Button
-                      size="sm"
-                      variant={playbackMode === 'shuffle' ? 'default' : 'ghost'}
-                      className="h-7 px-2 text-xs rounded-none"
-                      onClick={() => setPlaybackMode('shuffle')}
-                    >
-                      {t("player.shuffle")}
-                    </Button>
-                    <div className="w-px bg-gray-200 dark:bg-gray-700" />
-                    <Button
-                      size="sm"
-                      variant={playbackMode === 'repeat-all' ? 'default' : 'ghost'}
-                      className="h-7 px-2 text-xs rounded-none"
-                      onClick={() => setPlaybackMode('repeat-all')}
-                    >
-                      {t("player.repeatAll")}
-                    </Button>
-                    <div className="w-px bg-gray-200 dark:bg-gray-700" />
-                    <Button
-                      size="sm"
-                      variant={playbackMode === 'repeat-one' ? 'default' : 'ghost'}
-                      className="h-7 px-2 text-xs rounded-none"
-                      onClick={() => setPlaybackMode('repeat-one')}
-                    >
-                      {t("player.repeatOne")}
-                    </Button>
-                  </div>
-                </div>
-                {playbackQueue.length === 0 ? (
-                  <div className="text-sm text-gray-500">{t("player.noItemsInPlaylist")}</div>
-                ) : (
-                  <ul className="max-h-64 overflow-y-auto space-y-1">
-                    {playbackQueue.map((id, idx) => {
-                      const item = mediaHistory.find((h) => h.id === id);
-                      const title = item?.name || `Item ${idx + 1}`;
-                      const isCurrent = idx === playbackIndex;
-                      return (
-                        <li key={`${id}-${idx}`}>
-                          <button
-                            className={`w-full text-left px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${isCurrent ? "bg-gray-100 dark:bg-gray-800 font-medium" : ""
-                              }`}
-                            onClick={() => startPlaybackQueue(playbackQueue, id)}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs w-6 text-gray-500">{idx + 1}.</span>
-                              <span className="truncate flex-1">{title}</span>
-                              {isCurrent && (
-                                <span className="text-xs text-purple-600 dark:text-purple-300">{t("player.now")}</span>
-                              )}
-                            </div>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </PopoverContent>
-            </Popover>
 
 
             <Button

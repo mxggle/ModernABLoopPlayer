@@ -19,7 +19,7 @@
     "loop-station",
     "media-player"
   ],
-  "version": "0.9.0",
+  "version": "0.9.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

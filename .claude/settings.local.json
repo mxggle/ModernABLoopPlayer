@@ -10,7 +10,21 @@
       "Bash(grep -rn \"file.*size\\\\|maxFileSize\\\\|25MB\\\\|25 MB\\\\|fileSize\\\\|MAX_SIZE\" /Users/szy/CascadeProjects/modern-ab-loop/src/ --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | head -10)",
       "Bash(grep -rn \"local.*server\\\\|localhost\\\\|127\\\\.0\\\\.0\\\\.1\\\\|http://\\\\|proxy\\\\|API_URL\\\\|BASE_URL\\\\|VITE_\" /Users/szy/CascadeProjects/modern-ab-loop/src/ --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | grep -v \"//.*http\\\\|node_modules\" | head -20)",
       "Bash(grep -rn \"worker\\\\|Worker\" /Users/szy/CascadeProjects/modern-ab-loop/src/ --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | grep -v \"node_modules\\\\|WorkerController\\\\|service-worker\\\\|ServiceWorker\" | head -15)",
-      "Bash(grep -rn \"sampleRate\\\\|48000\\\\|16000\\\\|44100\" /Users/szy/CascadeProjects/modern-ab-loop/src/ --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | head -15)"
+      "Bash(grep -rn \"sampleRate\\\\|48000\\\\|16000\\\\|44100\" /Users/szy/CascadeProjects/modern-ab-loop/src/ --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | head -15)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(grep -n \"t\\(\\\\`explanation.providers\" /Users/szy/CascadeProjects/modern-ab-loop/src/components/transcript/ExplanationDrawer.tsx | head -5)",
+      "Bash(git commit:*)",
+      "WebSearch",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:docs.x.ai)",
+      "WebFetch(domain:openai.com)",
+      "WebFetch(domain:pricepertoken.com)",
+      "WebFetch(domain:www.aifreeapi.com)",
+      "WebFetch(domain:devtk.ai)",
+      "WebFetch(domain:mem0.ai)"
     ]
   }
 }

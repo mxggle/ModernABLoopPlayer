@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-03-14
+
+### Added
+- **Local AI services**:
+  - Added Ollama integration as a local LLM provider for AI chat and explanation features
+  - Added Local Whisper transcription support for fully offline audio transcription
+
+### Changed
+- **Playlist cleanup**:
+  - Removed leftover playlist and queue controls from desktop and mobile player UIs
+  - Removed obsolete queue state and media-end auto-advance behavior from the player store
+  - Removed `Play All` actions from the media library after playlist support was dropped
+- **Transcript and explanation UX**:
+  - Tightened explanation prompts to produce shorter language-learning focused output
+  - Updated transcript empty-state copy to reference the active transcription provider
+  - Refined transcript-related translations across English, Japanese, and Chinese
+- **AI provider defaults**:
+  - Refreshed OpenAI, Gemini, and Grok model catalogs and pricing metadata
+  - Updated default chat and transcription model selections to newer provider defaults
+- **Settings navigation**:
+  - Added support for opening the AI tab directly with the `tab=ai` settings query parameter
+
+### Fixed
+- **Build**:
+  - Removed unused variables in `TranscriptPanel` that caused TypeScript compilation errors
+
 ## [0.9.0] - 2026-03-12
 
 ### Added

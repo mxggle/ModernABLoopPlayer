@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../stores/playerStore";
@@ -7,7 +7,6 @@ import { MediaPlayer } from "../components/player/MediaPlayer";
 import { YouTubePlayer } from "../components/player/YouTubePlayer";
 import { CombinedControls } from "../components/controls/CombinedControls";
 import { MobileControls } from "../components/controls/MobileControls";
-import { BookmarkDrawer } from "../components/player/BookmarkDrawer";
 import { MediaHistory } from "../components/player/MediaHistory";
 import { WaveformVisualizer } from "../components/waveform/WaveformVisualizer";
 import { TranscriptPanel } from "../components/transcript";
@@ -15,16 +14,12 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useWindowSize } from "../hooks/useWindowSize";
 import { usePlaybackPersistence } from "../hooks/usePlaybackPersistence";
 import { AppLayout } from "../components/layout/AppLayout";
+import { useLayoutSettings } from "../contexts/LayoutSettingsContext";
 
 export const PlayerPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [layoutSettings, setLayoutSettings] = useState({
-    showPlayer: true,
-    showWaveform: true,
-    showTranscript: true,
-    showControls: true,
-  });
+  const { layoutSettings, setLayoutSettings } = useLayoutSettings();
   const { isMobile } = useWindowSize();
 
   const { currentFile, currentYouTube, showWaveform, isLoadingMedia } =
@@ -159,9 +154,6 @@ export const PlayerPage = () => {
           </div>
         )
       }
-
-      {/* Bookmarks Drawer - its positioning is typically outside normal flex flow (e.g., fixed or absolute) */}
-      {(currentFile || youtubeId) && <BookmarkDrawer />}
 
       {/* Media History - also typically outside normal flex flow */}
       <MediaHistory />
