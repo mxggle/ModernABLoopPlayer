@@ -7,16 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-03-14
+
 ### Added
 - **Local AI services**:
   - Added Ollama integration as a local LLM provider for AI chat and explanation features
   - Added Local Whisper transcription support for fully offline audio transcription
-
-### Fixed
-- **Build**:
-  - Removed unused variables (`isTranscribing`, `duration`, `handleTranscribeFull`, `isBookmarkTranscriptEmpty`, `isFullTranscriptEmpty`, `shouldShowTranscribeActionsInHeader`) from `TranscriptPanel` that caused TypeScript compilation errors
-
-## [0.9.1] - 2026-03-14
 
 ### Changed
 - **Playlist cleanup**:
@@ -32,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated default chat and transcription model selections to newer provider defaults
 - **Settings navigation**:
   - Added support for opening the AI tab directly with the `tab=ai` settings query parameter
+
+### Fixed
+- **Build**:
+  - Removed unused variables in `TranscriptPanel` that caused TypeScript compilation errors
 
 ## [0.9.0] - 2026-03-12
 
