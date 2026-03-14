@@ -1427,7 +1427,7 @@ export const TranscriptPanel = () => {
                         <FileAudio size={18} />
                       </div>
                       <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                        {t(!currentFile && !currentYouTube ? "transcript.loadMediaFirst" : "transcript.clickToTranscribe")}
+                        {t(!currentFile && !currentYouTube ? "transcript.loadMediaFirst" : "transcript.clickToTranscribe", { provider: transcriptionService.getProviderInfo(currentProvider).name })}
                       </h3>
                       <p className="mx-auto mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
                         {currentFile || currentYouTube

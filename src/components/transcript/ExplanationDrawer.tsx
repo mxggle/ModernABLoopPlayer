@@ -160,10 +160,10 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
         apiKey: getApiKey(selectedProvider),
         temperature: parseFloat(localStorage.getItem("ai_temperature") || "0.7"),
         maxTokens: parseInt(localStorage.getItem("ai_max_tokens") || "2000"),
-        systemPrompt: `You are a helpful assistant that explains text clearly and concisely. Provide explanations in ${targetLanguage}. Focus on making complex concepts easy to understand.`,
+        systemPrompt: `You are a language tutor. Reply in ${targetLanguage}. Be brief and direct — no intros, no summaries.`,
       };
 
-      const prompt = `Please explain the following text in detail, breaking down any complex concepts, terminology, or ideas:\n\n"${text}"\n\nProvide a clear, comprehensive explanation that would help someone understand this content better.`;
+      const prompt = `Explain this sentence for a language learner:\n"${text}"\n\nUse these section icons (no other section titles):\n💬 — overall meaning in 1 sentence\n📖 — bullet each unfamiliar word/phrase as \`word\` — meaning (part of speech, usage note if needed)\n🔤 — only non-obvious grammar patterns, 1 line each (omit if none)\n\nAll explanations in ${targetLanguage}. Skip obvious things. Be concise.`;
       const response = await aiService.generateResponse(config, prompt);
 
       const result: ExplanationResult = {
