@@ -359,7 +359,6 @@ export const TranscriptPanel = () => {
   const navigate = useNavigate();
   const {
     getCurrentMediaTranscripts,
-    isTranscribing,
     currentFile,
     currentYouTube,
     startTranscribing,
@@ -376,7 +375,6 @@ export const TranscriptPanel = () => {
     setIsPlaying,
     loopStart,
     loopEnd,
-    duration,
     importBookmarks: storeImportBookmarks,
   } = usePlayerStore();
 
@@ -526,12 +524,6 @@ export const TranscriptPanel = () => {
     transcribeMedia(getPreferredTranscriptRange());
   };
 
-  const handleTranscribeFull = () => {
-    transcribeMedia(duration > 0 ? { start: 0, end: duration } : undefined, {
-      forceFullRange: true,
-    });
-  };
-
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
@@ -539,14 +531,6 @@ export const TranscriptPanel = () => {
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<TranscriptionProvider>("openai");
   const transcriptRef = useRef<HTMLDivElement>(null);
-
-  const isBookmarkTranscriptEmpty = Boolean(activeTabId) && filteredSegments.length === 0;
-  const isFullTranscriptEmpty = !activeTabId && transcriptSegments.length === 0;
-  const shouldShowTranscribeActionsInHeader =
-    !isProcessing &&
-    !showApiKeyInput &&
-    !isBookmarkTranscriptEmpty &&
-    !isFullTranscriptEmpty;
 
   // Load API key and transcription provider from localStorage on component mount
   useEffect(() => {
