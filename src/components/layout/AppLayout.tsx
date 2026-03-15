@@ -34,10 +34,34 @@ export const AppLayout = ({
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [isLayoutPopoverOpen, setIsLayoutPopoverOpen] = useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = useState<'recent' | 'folders'>('recent');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(288); // 72 * 4 = 288px (w-72)
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  const {
+    currentFile,
+    currentYouTube,
+    theme,
+    setTheme,
+    seekStepSeconds,
+    seekSmallStepSeconds,
+    isSidebarOpen,
+    sidebarWidth,
+    setIsSidebarOpen,
+    setSidebarWidth,
+  } = usePlayerStore(
+    useShallow((state) => ({
+      currentFile: state.currentFile,
+      currentYouTube: state.currentYouTube,
+      theme: state.theme,
+      setTheme: state.setTheme,
+      seekStepSeconds: state.seekStepSeconds,
+      seekSmallStepSeconds: state.seekSmallStepSeconds,
+      isSidebarOpen: state.isSidebarOpen,
+      sidebarWidth: state.sidebarWidth,
+      setIsSidebarOpen: state.setIsSidebarOpen,
+      setSidebarWidth: state.setSidebarWidth,
+    }))
+  );
 
   const startResizing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -57,7 +81,7 @@ export const AppLayout = ({
         }
       }
     },
-    [isResizing]
+    [isResizing, setSidebarWidth]
   );
 
   useEffect(() => {
@@ -68,24 +92,6 @@ export const AppLayout = ({
       window.removeEventListener("mouseup", stopResizing);
     };
   }, [resize, stopResizing]);
-
-  const {
-    currentFile,
-    currentYouTube,
-    theme,
-    setTheme,
-    seekStepSeconds,
-    seekSmallStepSeconds,
-  } = usePlayerStore(
-    useShallow((state) => ({
-      currentFile: state.currentFile,
-      currentYouTube: state.currentYouTube,
-      theme: state.theme,
-      setTheme: state.setTheme,
-      seekStepSeconds: state.seekStepSeconds,
-      seekSmallStepSeconds: state.seekSmallStepSeconds,
-    }))
-  );
 
   // Toggle theme
   const toggleTheme = () => {

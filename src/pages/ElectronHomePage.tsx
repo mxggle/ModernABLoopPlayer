@@ -1,8 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { YouTubeInput } from "../components/player/YouTubeInput";
 import { FileUploader } from "../components/player/FileUploader";
+import { FolderBrowser } from "../components/player/FolderBrowser";
+import { PlayHistory } from "../components/player/PlayHistory";
 import { motion } from "framer-motion";
-import { Youtube, FileAudio, FolderSearch } from "lucide-react";
+import { Youtube, FileAudio } from "lucide-react";
 
 interface ElectronHomePageProps {
   handleVideoIdSubmit: (videoId: string) => void;

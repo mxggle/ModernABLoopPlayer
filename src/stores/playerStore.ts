@@ -144,6 +144,10 @@ export interface PlayerState {
   historyFolderFilter: "all" | "unfiled" | string;
   // Source folders (Electron only — persisted paths, files loaded at runtime)
   sourceFolders: string[];
+
+  // Layout state
+  isSidebarOpen: boolean;
+  sidebarWidth: number;
 }
 
 export interface PlayerActions {
@@ -249,6 +253,10 @@ export interface PlayerActions {
     order: "asc" | "desc"
   ) => void;
   setHistoryFolderFilter: (filter: "all" | "unfiled" | string) => void;
+
+  // Layout actions
+  setIsSidebarOpen: (isOpen: boolean) => void;
+  setSidebarWidth: (width: number) => void;
 }
 
 const initialState: PlayerState = {
@@ -293,6 +301,9 @@ const initialState: PlayerState = {
   historySortOrder: "desc",
   historyFolderFilter: "unfiled",
   sourceFolders: [],
+  // Layout defaults
+  isSidebarOpen: true,
+  sidebarWidth: 288,
 };
 
 export const usePlayerStore = create<PlayerState & PlayerActions>()(
@@ -1762,6 +1773,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         const mediaId = getCurrentMediaId();
         return mediaId ? mediaTranscripts[mediaId] || [] : [];
       },
+
+      // Layout actions
+      setIsSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
+      setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
     }),
     {
       name: "abloop-player-storage",
@@ -1825,6 +1840,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         seekStepSeconds: state.seekStepSeconds,
         seekSmallStepSeconds: state.seekSmallStepSeconds,
         sourceFolders: state.sourceFolders,
+        isSidebarOpen: state.isSidebarOpen,
+        sidebarWidth: state.sidebarWidth,
       }),
     }
   )
