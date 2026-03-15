@@ -19,7 +19,7 @@
     "loop-station",
     "media-player"
   ],
-  "version": "0.9.1",
+  "version": "1.0.0-beta.1",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {

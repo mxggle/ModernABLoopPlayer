@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-beta.1] - 2026-03-15
+
+### Added
+- **Electron desktop app (major milestone)**:
+  - Native local file and folder browsing via Electron APIs
+  - Local source folder management with a tree browser for navigating media libraries
+  - Media play history persisted natively on desktop
+  - Draggable window header for frameless desktop mode
+  - Configurable visibility for theme toggle and settings icon in desktop mode
+- **Platform architecture**:
+  - Enforced 4-layer platform architecture separating Electron and web code paths
+  - `WebHomePage` and `ElectronHomePage` platform-specific home page components
+  - Media history conditionally rendered per platform on the home page
+
+### Changed
+- **Electron security hardening**:
+  - Restricted file access to user-approved folders only
+  - Removed the legacy `ABLoopPlayer` component
+- **Sidebar and layout**:
+  - Sidebar defaults to closed on first load
+  - Sidebar open state and width are now global in the player store
+  - Control bar position adjusts dynamically based on sidebar state
+
+### Technical
+- Platform detection (`isElectron()`) restricted to designated files to prevent architecture drift
+- `window.electronAPI` access consolidated into `electron/preload.ts`, `electronStorage.ts`, and `src/components/electron/`
+
 ## [0.9.1] - 2026-03-14
 
 ### Added
@@ -281,7 +308,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Layout optimizations for desktop view
   - TypeScript and React component structure
 
-[Unreleased]: https://github.com/USERNAME/loopmate/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/USERNAME/loopmate/compare/v1.0.0-beta.1...HEAD
+[1.0.0-beta.1]: https://github.com/USERNAME/loopmate/compare/v0.9.1...v1.0.0-beta.1
+[0.9.1]: https://github.com/USERNAME/loopmate/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/USERNAME/loopmate/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/USERNAME/loopmate/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/USERNAME/loopmate/compare/v0.7.0...v0.8.0
