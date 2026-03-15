@@ -138,7 +138,7 @@ const RootFolder = ({ path, onFileClick, onRemove }: RootFolderProps) => {
           ) : (
             <Folder className="w-4 h-4 flex-shrink-0 text-indigo-500 dark:text-indigo-400" />
           )}
-          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate flex-1 min-w-0">
             {folderName}
           </span>
           {loading && (

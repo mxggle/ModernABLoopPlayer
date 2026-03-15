@@ -1,9 +1,13 @@
-import { useState, Dispatch, SetStateAction } from "react";
+import { useState, Dispatch, SetStateAction, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useShallow } from "zustand/react/shallow";
-import { Moon, Sun, Info, Settings, Layout, Eye, EyeOff, Music, Video, Youtube } from "lucide-react";
+import { Moon, Sun, Info, Settings, Layout, Eye, EyeOff, Music, Video, Youtube, LayoutDashboard, History as HistoryIcon, FolderSearch, PanelLeftOpen, PanelLeftClose, Home } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { isElectron } from "../../utils/platform";
+import { PlayHistory } from "../player/PlayHistory";
+import { FolderBrowser } from "../player/FolderBrowser";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
 
@@ -29,6 +33,41 @@ export const AppLayout = ({
   const navigate = useNavigate();
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [isLayoutPopoverOpen, setIsLayoutPopoverOpen] = useState(false);
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'recent' | 'folders'>('recent');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(288); // 72 * 4 = 288px (w-72)
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback(
+    (e: MouseEvent) => {
+      if (isResizing) {
+        const newWidth = e.clientX;
+        if (newWidth >= 200 && newWidth <= 450) {
+          setSidebarWidth(newWidth);
+        }
+      }
+    },
+    [isResizing]
+  );
+
+  useEffect(() => {
+    window.addEventListener("mousemove", resize);
+    window.addEventListener("mouseup", stopResizing);
+    return () => {
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [resize, stopResizing]);
 
   const {
     currentFile,
@@ -67,30 +106,186 @@ export const AppLayout = ({
   const youtubeId = currentYouTube?.id;
 
   return (
-    <div className="flex flex-col min-h-screen w-full max-w-5xl mx-auto overflow-x-hidden pb-20 sm:pb-40 px-2 sm:px-4">
-      {/* Spacer to prevent content from being hidden behind fixed header */}
-      <div className="h-[52px] sm:h-[56px]"></div>
-      {/* Header - fixed at the top */}
-      <header className="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 fixed top-0 left-0 right-0 z-[55] max-w-5xl mx-auto">
-        <button
-          onClick={navigateToHome}
-          className="flex items-center gap-1 sm:gap-2 focus:outline-none shrink-0"
+    <div className={`flex min-h-screen w-full bg-white dark:bg-gray-900 ${isElectron() ? "" : "max-w-5xl mx-auto overflow-x-hidden"} pb-20 sm:pb-40 px-2 sm:px-4`}>
+      {isElectron() && (
+        <aside 
+          ref={sidebarRef}
+          style={{ width: isSidebarOpen ? sidebarWidth : 0 }}
+          className={`fixed left-0 top-0 bottom-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex flex-col z-[60] shrink-0 ${!isSidebarOpen ? "border-none overflow-hidden" : ""} transition-[width] duration-300 ease-in-out`}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 1024 1024"
-            className="h-8 sm:h-9 w-auto fill-current text-purple-600"
-            aria-label={t("app.logoLabel")}
-          >
-            <g transform="translate(0,1024) scale(0.1,-0.1)">
-              <path d="M3246 7708 c-4 -24 -18 -92 -31 -153 -13 -60 -26 -121 -29 -135 -2 -14 -11 -56 -19 -95 -9 -38 -18 -83 -20 -100 -8 -47 -158 -811 -172 -875 -3 -14 -8 -38 -11 -55 -2 -16 -37 -187 -75 -380 -39 -192 -73 -361 -75 -375 -3 -14 -7 -32 -9 -40 -2 -8 -7 -31 -10 -50 -3 -19 -121 -609 -262 -1310 -140 -701 -257 -1284 -259 -1295 -2 -11 -15 -76 -29 -144 -14 -68 -25 -132 -25 -142 0 -18 51 -19 1813 -19 1174 0 1851 4 1922 10 712 67 1267 502 1450 1135 41 141 55 246 55 400 0 307 -81 568 -244 788 -192 260 -427 420 -703 477 l-58 12 72 28 c320 123 565 431 649 815 9 39 18 129 21 200 12 283 -76 580 -237 807 -217 305 -566 485 -1020 527 -75 7 -563 11 -1401 11 l-1286 0 -7 -42z m989 -828 c14 -5 52 -31 84 -57 206 -169 338 -278 347 -288 12 -11 25 -22 739 -620 281 -235 517 -435 525 -444 60 -63 85 -162 56 -223 -20 -42 -111 -130 -246 -240 -120 -97 -135 -110 -294 -241 -186 -154 -268 -222 -1021 -840 -148 -122 -370 -305 -493 -407 -146 -122 -240 -193 -275 -207 -64 -27 -154 -30 -203 -7 -60 29 -124 143 -124 223 0 37 35 211 164 801 24 113 54 252 66 310 12 58 24 112 25 120 19 84 50 229 85 390 44 208 70 326 75 350 2 8 31 143 65 300 72 338 104 485 130 600 10 47 21 96 24 110 43 218 67 298 98 328 48 45 120 62 173 42z" />
-              <path d="M4725 5688 c-263 -211 -602 -508 -615 -537 -9 -23 -8 -35 3 -62 8 -19 105 -132 216 -251 166 -180 208 -219 241 -229 44 -13 94 0 105 29 6 16 68 346 80 427 3 22 14 87 24 145 10 58 24 139 31 180 14 81 17 102 25 140 15 71 17 160 5 175 -21 25 -71 18 -115 -17z" />
-            </g>
-          </svg>
-          <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent whitespace-nowrap">
-            LoopMate
-          </h1>
-        </button>
+          {isSidebarOpen && (
+            <>
+              <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-2 min-w-0">
+                <div className="flex items-center gap-2 overflow-hidden min-w-0">
+                  <button
+                    onClick={navigateToHome}
+                    className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-purple-600 transition-colors shrink-0"
+                    title={t("common.home", "Home")}
+                  >
+                    <Home className="w-4 h-4" />
+                  </button>
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2 truncate">
+                    <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+                    {t("home.workspace", "Workspace")}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+                <div className="flex bg-gray-100 dark:bg-gray-800/50 p-1 rounded-lg">
+                  <button 
+                    onClick={() => setActiveSidebarTab('recent')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-[11px] font-medium rounded-md transition-all ${
+                      activeSidebarTab === 'recent' 
+                        ? "bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm" 
+                        : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    }`}
+                  >
+                    <HistoryIcon className="w-3.5 h-3.5" />
+                    {t("home.recent", "Recent")}
+                  </button>
+                  <button 
+                    onClick={() => setActiveSidebarTab('folders')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-[11px] font-medium rounded-md transition-all ${
+                      activeSidebarTab === 'folders' 
+                        ? "bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm" 
+                        : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    }`}
+                  >
+                    <FolderSearch className="w-3.5 h-3.5" />
+                    {t("home.folders", "Folders")}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-3 min-w-0">
+                <AnimatePresence mode="wait">
+                  {activeSidebarTab === 'recent' ? (
+                    <motion.div
+                      key="recent"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-1 min-w-0"
+                    >
+                      <div className="sidebar-container-override no-scroll-internal min-w-0">
+                        <PlayHistory />
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="folders"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="min-w-0"
+                    >
+                      <div className="sidebar-container-override no-scroll-internal min-w-0">
+                        <FolderBrowser />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/20">
+                <button 
+                  onClick={() => navigate("/settings")}
+                  className="w-full flex items-center justify-center gap-2 py-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-white dark:hover:bg-gray-800 rounded-lg transition-all border border-dashed border-gray-300 dark:border-gray-700"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  {t("layout.openSettings")}
+                </button>
+              </div>
+
+              <div 
+                onMouseDown={startResizing}
+                className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-purple-500/30 transition-colors z-[70] ${isResizing ? "bg-purple-500/50 w-1.5" : ""}`}
+              />
+            </>
+          )}
+          
+          <style>{`
+            .sidebar-container-override > div {
+              background: transparent !important;
+              border: none !important;
+              box-shadow: none !important;
+              padding: 0 !important;
+            }
+            .sidebar-container-override h3 {
+              display: none !important;
+            }
+            .no-scroll-internal ul, 
+            .no-scroll-internal .max-h-72, 
+            .no-scroll-internal .max-h-80 {
+              max-height: none !important;
+              overflow-y: visible !important;
+            }
+            .custom-scrollbar::-webkit-scrollbar {
+              width: 4px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+              background: rgba(156, 163, 175, 0.2);
+              border-radius: 10px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+              background: rgba(156, 163, 175, 0.4);
+            }
+          `}</style>
+        </aside>
+      )}
+
+      {/* Main Content Area */}
+      <div 
+        className="flex flex-col flex-1 min-w-0"
+        style={{ paddingLeft: isElectron() && isSidebarOpen ? sidebarWidth : 0 }}
+      >
+        {/* Spacer to prevent content from being hidden behind fixed header */}
+        <div className="h-[52px] sm:h-[56px]"></div>
+        
+        {/* Header - fixed at the top */}
+        <header 
+          className={`flex items-center justify-between px-2 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 fixed top-0 right-0 z-[55] ${isElectron() ? "" : "max-w-5xl mx-auto"}`}
+          style={{ left: isElectron() && isSidebarOpen ? sidebarWidth : 0 }}
+        >
+          {isElectron() && (
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors mr-2 shrink-0"
+              title={isSidebarOpen ? t("layout.hideSidebar", "Hide Sidebar") : t("layout.showSidebar", "Show Sidebar")}
+            >
+              {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+            </button>
+          )}
+
+          {!isElectron() ? (
+            <button
+              onClick={navigateToHome}
+              className="flex items-center gap-1 sm:gap-2 focus:outline-none shrink-0"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 1024 1024"
+                className="h-8 sm:h-9 w-auto fill-current text-purple-600"
+                aria-label={t("app.logoLabel")}
+              >
+                <g transform="translate(0,1024) scale(0.1,-0.1)">
+                  <path d="M3246 7708 c-4 -24 -18 -92 -31 -153 -13 -60 -26 -121 -29 -135 -2 -14 -11 -56 -19 -95 -9 -38 -18 -83 -20 -100 -8 -47 -158 -811 -172 -875 -3 -14 -8 -38 -11 -55 -2 -16 -37 -187 -75 -380 -39 -192 -73 -361 -75 -375 -3 -14 -7 -32 -9 -40 -2 -8 -7 -31 -10 -50 -3 -19 -121 -609 -262 -1310 -140 -701 -257 -1284 -259 -1295 -2 -11 -15 -76 -29 -144 -14 -68 -25 -132 -25 -142 0 -18 51 -19 1813 -19 1174 0 1851 4 1922 10 712 67 1267 502 1450 1135 41 141 55 246 55 400 0 307 -81 568 -244 788 -192 260 -427 420 -703 477 l-58 12 72 28 c320 123 565 431 649 815 9 39 18 129 21 200 12 283 -76 580 -237 807 -217 305 -566 485 -1020 527 -75 7 -563 11 -1401 11 l-1286 0 -7 -42z m989 -828 c14 -5 52 -31 84 -57 206 -169 338 -278 347 -288 12 -11 25 -22 739 -620 281 -235 517 -435 525 -444 60 -63 85 -162 56 -223 -20 -42 -111 -130 -246 -240 -120 -97 -135 -110 -294 -241 -186 -154 -268 -222 -1021 -840 -148 -122 -370 -305 -493 -407 -146 -122 -240 -193 -275 -207 -64 -27 -154 -30 -203 -7 -60 29 -124 143 -124 223 0 37 35 211 164 801 24 113 54 252 66 310 12 58 24 112 25 120 19 84 50 229 85 390 44 208 70 326 75 350 2 8 31 143 65 300 72 338 104 485 130 600 10 47 21 96 24 110 43 218 67 298 98 328 48 45 120 62 173 42z" />
+                  <path d="M4725 5688 c-263 -211 -602 -508 -615 -537 -9 -23 -8 -35 3 -62 8 -19 105 -132 216 -251 166 -180 208 -219 241 -229 44 -13 94 0 105 29 6 16 68 346 80 427 3 22 14 87 24 145 10 58 24 139 31 180 14 81 17 102 25 140 15 71 17 160 5 175 -21 25 -71 18 -115 -17z" />
+                </g>
+              </svg>
+              <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent whitespace-nowrap">
+                LoopMate
+              </h1>
+            </button>
+          ) : (
+            <div />
+          )}
 
         {/* Media Title - Centered in header */}
         {(currentFile || currentYouTube) && (
@@ -402,6 +597,7 @@ export const AppLayout = ({
 
       {/* Main Content */}
       <main className="flex-1 w-full">{children}</main>
+      </div>
     </div>
   );
 };

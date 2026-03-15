@@ -46,3 +46,15 @@ This repository is a Vite + React 18 + TypeScript application for A-B looping, s
 
 - Summarize what changed, note any risks, and mention validation performed.
 - If tests or build checks were not run, say so explicitly.
+
+
+
+## Compact Instructions
+
+When compressing, preserve in priority order:
+
+1. Architecture decisions (NEVER summarize)
+2. Modified files and their key changes
+3. Current verification status (pass/fail)
+4. Open TODOs and rollback notes
+5. Tool outputs (can delete, keep pass/fail only)
