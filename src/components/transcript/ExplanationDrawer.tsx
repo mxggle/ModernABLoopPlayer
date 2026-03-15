@@ -34,9 +34,19 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedProvider, setSelectedProvider] = useState<AIProvider>("openai");
-  const [selectedModel, setSelectedModel] = useState("");
-  const [targetLanguage, setTargetLanguage] = useState("English");
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider>(
+    () => (localStorage.getItem("preferred_ai_provider") as AIProvider) || "openai"
+  );
+  const [targetLanguage, setTargetLanguage] = useState(
+    () => localStorage.getItem("target_language") || "English"
+  );
+  const [selectedModel, setSelectedModel] = useState(() => {
+    const provider = (localStorage.getItem("preferred_ai_provider") as AIProvider) || "openai";
+    return normalizeModelId(
+      provider,
+      localStorage.getItem(`${provider}_model`) || DEFAULT_MODELS[provider]
+    );
+  });
 
   // Handle ESC key
   useEffect(() => {
