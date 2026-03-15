@@ -2,6 +2,8 @@
  * Utility functions for checking browser capabilities
  */
 
+import { isElectron } from './platform';
+
 export interface BrowserCapabilities {
     supportsMediaRecorder: boolean;
     supportsGetUserMedia: boolean;
@@ -16,11 +18,11 @@ export interface BrowserCapabilities {
  */
 export function checkAudioRecordingSupport(): BrowserCapabilities {
     // In Electron, navigator.userAgent contains "Electron" — never treat as mobile
-    const isMobile = !window.electronAPI?.isElectron && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isMobile = !isElectron() && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     // Detect browser name for better error messages
     let browserName = 'Unknown';
-    if (window.electronAPI?.isElectron) {
+    if (isElectron()) {
         browserName = 'Electron';
     } else if (navigator.userAgent.indexOf('Safari') !== -1 && navigator.userAgent.indexOf('Chrome') === -1) {
         browserName = 'Safari';

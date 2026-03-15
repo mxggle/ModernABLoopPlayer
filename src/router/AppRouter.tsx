@@ -2,8 +2,9 @@ import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router
 import { HomePage, PlayerPage } from "../pages";
 import { SettingsPage } from "../pages/SettingsPage";
 import { LayoutSettingsProvider } from "../contexts/LayoutSettingsContext";
+import { isElectron } from "../utils/platform";
 
-const Router = window.electronAPI?.isElectron ? HashRouter : BrowserRouter;
+const Router = isElectron() ? HashRouter : BrowserRouter;
 
 export const AppRouter = () => {
   return (

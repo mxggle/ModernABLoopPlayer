@@ -20,7 +20,9 @@ node_modules
 # Build output
 dist
 dist-ssr
+out
 *.tsbuildinfo
+*.backup
 
 # Debug
 npm-debug.log*

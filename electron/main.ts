@@ -1,5 +1,5 @@
 import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron'
-import { join, extname } from 'path'
+import { join, extname, sep } from 'path'
 import fs from 'fs'
 import { configStore } from './configStore'
 
@@ -22,7 +22,7 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: !isDev,
+      webSecurity: true,
     },
   })
 
@@ -61,8 +61,39 @@ ipcMain.handle('dialog:openFolder', async () => {
   return canceled ? null : filePaths[0]
 })
 
+/**
+ * Verify that targetPath is within one of the user-approved source folders.
+ * Throws if not approved. Uses realpath to resolve symlinks before comparing.
+ */
+async function assertPathInSourceFolders(targetPath: string): Promise<void> {
+  const sourceFolders: string[] = configStore.get('sourceFolders')
+  if (sourceFolders.length === 0) {
+    throw new Error('No source folders configured')
+  }
+  let realTarget: string
+  try {
+    realTarget = await fs.promises.realpath(targetPath)
+  } catch {
+    throw new Error(`Cannot resolve path: ${targetPath}`)
+  }
+  const isApproved = await Promise.all(
+    sourceFolders.map(async (folder) => {
+      try {
+        const realFolder = await fs.promises.realpath(folder)
+        return realTarget === realFolder || realTarget.startsWith(realFolder + sep)
+      } catch {
+        return false
+      }
+    }),
+  )
+  if (!isApproved.some(Boolean)) {
+    throw new Error('Path is outside approved source folders')
+  }
+}
+
 // IPC: list media files in a folder (non-recursive)
 ipcMain.handle('fs:listMediaFiles', async (_event, folderPath: string) => {
+  await assertPathInSourceFolders(folderPath)
   const entries = await fs.promises.readdir(folderPath, { withFileTypes: true })
   return entries
     .filter(
@@ -122,6 +153,7 @@ async function buildMediaTree(
 
 // IPC: list media files as a recursive tree
 ipcMain.handle('fs:listMediaTree', async (_event, folderPath: string) => {
+  await assertPathInSourceFolders(folderPath)
   return buildMediaTree(folderPath, 10, new Set())
 })
 

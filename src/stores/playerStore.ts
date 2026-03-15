@@ -301,8 +301,8 @@ const initialState: PlayerState = {
   historySortOrder: "desc",
   historyFolderFilter: "unfiled",
   sourceFolders: [],
-  // Layout defaults
-  isSidebarOpen: true,
+  // Layout defaults (sidebar is Electron-only; default closed so web is unaffected)
+  isSidebarOpen: false,
   sidebarWidth: 288,
 };
 

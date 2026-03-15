@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
-import { isElectron } from "../../utils/platform";
 
 export const CombinedControls = () => {
   const { t } = useTranslation();
@@ -234,8 +233,8 @@ export const CombinedControls = () => {
 
   return (
     <div 
-      className={`fixed bottom-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-[50] transition-[left] duration-300 ease-in-out ${isElectron() ? "" : "left-0"}`}
-      style={isElectron() ? { left: isSidebarOpen ? sidebarWidth : 0 } : {}}
+      className="fixed bottom-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-[50] transition-[left] duration-300 ease-in-out"
+      style={{ left: isSidebarOpen ? sidebarWidth : 0 }}
     >
       <div className="max-w-6xl mx-auto px-2 sm:px-4 py-1 sm:py-2">
         {/* Timeline slider - improved design and visibility */}
