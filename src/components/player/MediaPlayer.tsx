@@ -111,11 +111,13 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
     };
   }, [currentFile, setIsPlaying]);
 
-  // Pause playback when the component unmounts so the store stays in sync
+  // Pause playback when the component unmounts only if media has been cleared.
+  // During navigation (settings → player), currentFile stays set so we preserve playback.
   useEffect(() => {
     return () => {
-      const { isPlaying: stillPlaying } = usePlayerStore.getState();
-      if (stillPlaying) {
+      const { isPlaying: stillPlaying, currentFile: fileAtUnmount } =
+        usePlayerStore.getState();
+      if (stillPlaying && !fileAtUnmount) {
         usePlayerStore.getState().setIsPlaying(false);
       }
     };

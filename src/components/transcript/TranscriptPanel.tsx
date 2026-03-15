@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
+import { useShallow } from "zustand/react/shallow";
+import { useSegmentState } from "../../hooks/useSegmentState";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Loader,
-  Save,
   Trash,
   Play,
   Bookmark,
@@ -41,14 +43,27 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 
+const EMPTY_SEGMENTS: TranscriptSegmentType[] = [];
+const EMPTY_BOOKMARKS: LoopBookmark[] = [];
 
 // WhisperSegment/WhisperResponse types moved to transcriptionService.ts
 
+// Pure helper — defined outside the component to avoid per-render allocation
+function formatSegmentTime(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
 // TranscriptSegmentItem component
-const TranscriptSegmentItem = ({
+// bookmarks is passed from the parent (TranscriptPanel already subscribes to it)
+// so this component no longer needs its own per-tick store subscription for isBookmarked.
+const TranscriptSegmentItem = memo(({
   segment,
+  bookmarks,
 }: {
   segment: TranscriptSegmentType;
+  bookmarks: LoopBookmark[];
 }) => {
   const { t } = useTranslation();
   const [showExplanation, setShowExplanation] = useState(false);
@@ -56,128 +71,78 @@ const TranscriptSegmentItem = ({
   const {
     setCurrentTime,
     createBookmarkFromTranscript,
-    currentTime,
     setIsPlaying,
-    getCurrentMediaBookmarks,
     setIsLooping,
     setLoopPoints,
-    isLooping,
-    isPlaying,
-  } = usePlayerStore();
+  } = usePlayerStore(
+    useShallow((state) => ({
+      setCurrentTime: state.setCurrentTime,
+      createBookmarkFromTranscript: state.createBookmarkFromTranscript,
+      setIsPlaying: state.setIsPlaying,
+      setIsLooping: state.setIsLooping,
+      setLoopPoints: state.setLoopPoints,
+    }))
+  );
 
-  // Get current media bookmarks to check if this segment is bookmarked
-  const bookmarks = getCurrentMediaBookmarks();
+  // External subscription — only re-renders when active/playing/looping state changes
+  const { isActive, isPlaying, isCurrentlyLooping } = useSegmentState(segment);
 
-  // Format time as MM:SS
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
+  // Computed from parent-provided bookmarks — no store subscription needed,
+  // so this never runs during currentTime ticks (only when bookmarks array changes).
+  const isBookmarked = useMemo(
+    () =>
+      bookmarks.some(
+        (b) =>
+          Math.abs(b.start - segment.startTime) < 0.5 &&
+          Math.abs(b.end - segment.endTime) < 0.5
+      ),
+    [bookmarks, segment.startTime, segment.endTime]
+  );
+
+  const shouldShowPauseButton = isActive && isPlaying;
 
   // Jump to this segment's time and start playing
   const handleJumpToTime = () => {
-    // Cancel any active A-B loop to allow the selected line to play with highest priority
     setIsLooping(false);
-
-    // Add a small buffer before the segment start to prevent cutoff
-    const bufferTime = 0.15; // 150ms buffer to catch any lead-in audio
-    const startTime = Math.max(0, segment.startTime - bufferTime);
-
+    const startTime = Math.max(0, segment.startTime - 0.15);
     setCurrentTime(startTime);
-    setIsPlaying(true); // Start playback immediately
+    setIsPlaying(true);
   };
 
-  // Pause playback
   const handlePausePlayback = () => {
     setIsPlaying(false);
   };
 
-  // Get player state for checking loop status
-  const playerState = usePlayerStore.getState();
-  const currentLoopStart = playerState.loopStart;
-  const currentLoopEnd = playerState.loopEnd;
-
-  // Check if this segment is currently being looped
-  const bufferTime = 0.15; // Same buffer as used in loop creation
-  const expectedLoopStart = Math.max(0, segment.startTime - bufferTime);
-
-  const isCurrentlyLooping =
-    isLooping &&
-    currentLoopStart !== null &&
-    currentLoopEnd !== null &&
-    Math.abs(currentLoopStart - expectedLoopStart) < 0.1 &&
-    Math.abs(currentLoopEnd - segment.endTime) < 0.1;
-
-  // Determine if this segment is currently active
-  // For looped segments, consider the buffer zone as part of the active range
-  // But ensure only the looped segment gets priority when looping is active
-  const isActive = isCurrentlyLooping
-    ? currentTime >= expectedLoopStart && currentTime <= segment.endTime
-    : !isLooping &&
-    currentTime >= segment.startTime &&
-    currentTime <= segment.endTime;
-
-  // Determine if we should show pause button (when segment is active and audio is playing)
-  const shouldShowPauseButton = isActive && isPlaying;
-
-  // Toggle looping for this segment
   const handleToggleLoop = () => {
-    // If we're already looping this segment, turn off looping
-    if (
-      isLooping &&
-      currentLoopStart !== null &&
-      currentLoopEnd !== null &&
-      Math.abs(currentLoopStart - expectedLoopStart) < 0.1 &&
-      Math.abs(currentLoopEnd - segment.endTime) < 0.1
-    ) {
+    if (isCurrentlyLooping) {
       setIsLooping(false);
     } else {
-      // Add a small buffer before the segment start to prevent cutoff
-      const bufferTime = 0.15; // 150ms buffer to catch any lead-in audio
-      const loopStartTime = Math.max(0, segment.startTime - bufferTime);
-
-      // Set loop points to this segment's start and end times
+      const loopStartTime = Math.max(0, segment.startTime - 0.15);
       setLoopPoints(loopStartTime, segment.endTime);
       setIsLooping(true);
-      // Jump to start of the segment (with buffer)
       setCurrentTime(loopStartTime);
       setIsPlaying(true);
     }
   };
 
-  // Toggle bookmark for this segment
   const handleToggleBookmark = () => {
-    // If already bookmarked, find and delete the bookmark
     if (isBookmarked) {
-      // Find the bookmark ID that matches this segment
       const bookmarkToDelete = bookmarks.find(
-        (bookmark) =>
-          Math.abs(bookmark.start - segment.startTime) < 0.5 &&
-          Math.abs(bookmark.end - segment.endTime) < 0.5
+        (b: LoopBookmark) =>
+          Math.abs(b.start - segment.startTime) < 0.5 &&
+          Math.abs(b.end - segment.endTime) < 0.5
       );
-
       if (bookmarkToDelete) {
-        // Use the deleteBookmark function from the store
         usePlayerStore.getState().deleteBookmark(bookmarkToDelete.id);
       }
     } else {
-      // Create a new bookmark
       createBookmarkFromTranscript(segment.id);
     }
   };
 
-  // Handle explain button click — toggle
   const handleExplain = () => {
     setShowExplanation((prev) => !prev);
   };
-
-  // Check if this segment has an associated bookmark
-  const isBookmarked = bookmarks.some(
-    (bookmark) =>
-      Math.abs(bookmark.start - segment.startTime) < 0.5 &&
-      Math.abs(bookmark.end - segment.endTime) < 0.5
-  );
 
   return (
     <>
@@ -189,7 +154,7 @@ const TranscriptSegmentItem = ({
       >
         <div className="flex justify-between items-start mb-1">
           <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-            {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
+            {formatSegmentTime(segment.startTime)} - {formatSegmentTime(segment.endTime)}
           </span>
 
           <div className="flex space-x-1">
@@ -251,20 +216,73 @@ const TranscriptSegmentItem = ({
         <p className="text-gray-800 dark:text-gray-200">{segment.text}</p>
       </div>
 
-      <ExplanationDrawer
-        isOpen={showExplanation}
-        onClose={() => setShowExplanation(false)}
-        text={segment.text}
-      />
+      {showExplanation && (
+        <ExplanationDrawer
+          isOpen={showExplanation}
+          onClose={() => setShowExplanation(false)}
+          text={segment.text}
+        />
+      )}
     </>
   );
-};
+});
 
-// TranscriptControlsPanel component
-const TranscriptControlsPanel = () => {
+export const TranscriptPanel = () => {
+  const LARGE_TRANSCRIPTION_FILE_SIZE = 25 * 1024 * 1024;
   const { t } = useTranslation();
-  const { transcriptLanguage, setTranscriptLanguage, exportTranscript } =
-    usePlayerStore();
+  const navigate = useNavigate();
+  const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
+  const {
+    currentFile,
+    currentYouTube,
+    startTranscribing,
+    stopTranscribing,
+    addTranscriptSegment,
+    clearTranscript,
+    exportTranscript,
+    updateBookmark,
+    selectedBookmarkId,
+    loadBookmark,
+    setSelectedBookmarkId,
+    setCurrentTime,
+    setIsPlaying,
+    loopStart,
+    loopEnd,
+    importBookmarks: storeImportBookmarks,
+    isTranscriptLoading,
+    transcriptLanguage,
+    setTranscriptLanguage,
+  } = usePlayerStore(
+    useShallow((state) => ({
+      currentFile: state.currentFile,
+      currentYouTube: state.currentYouTube,
+      startTranscribing: state.startTranscribing,
+      stopTranscribing: state.stopTranscribing,
+      addTranscriptSegment: state.addTranscriptSegment,
+      clearTranscript: state.clearTranscript,
+      exportTranscript: state.exportTranscript,
+      updateBookmark: state.updateBookmark,
+      selectedBookmarkId: state.selectedBookmarkId,
+      loadBookmark: state.loadBookmark,
+      setSelectedBookmarkId: state.setSelectedBookmarkId,
+      setCurrentTime: state.setCurrentTime,
+      setIsPlaying: state.setIsPlaying,
+      loopStart: state.loopStart,
+      loopEnd: state.loopEnd,
+      importBookmarks: state.importBookmarks,
+      isTranscriptLoading: state.isTranscriptLoading,
+      transcriptLanguage: state.transcriptLanguage,
+      setTranscriptLanguage: state.setTranscriptLanguage,
+    }))
+  );
+  const transcriptSegments = usePlayerStore(
+    (state) => (mediaId ? state.mediaTranscripts[mediaId] ?? EMPTY_SEGMENTS : EMPTY_SEGMENTS)
+  );
+  const bookmarks = usePlayerStore(
+    (state) => (mediaId ? state.mediaBookmarks[mediaId] ?? EMPTY_BOOKMARKS : EMPTY_BOOKMARKS)
+  );
+
+  const [exportOpen, setExportOpen] = useState(false);
 
   const LANGUAGE_OPTIONS = [
     { value: "en-US", label: t("transcript.languages.en-US") },
@@ -277,109 +295,6 @@ const TranscriptControlsPanel = () => {
     { value: "zh-CN", label: t("transcript.languages.zh-CN") },
     { value: "ru-RU", label: t("transcript.languages.ru-RU") },
   ];
-
-  const handleExport = (format: "txt" | "srt" | "vtt") => {
-    const content = exportTranscript(format);
-    if (!content) return;
-
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `transcript.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast.success(
-      t("transcript.exportSuccess", { format: format.toUpperCase() })
-    );
-  };
-
-  return (
-    <div className="border-t border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="space-y-1">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {t("transcript.language")}
-            </p>
-            <div className="relative">
-              <select
-                id="transcript-language"
-                value={transcriptLanguage}
-                onChange={(e) => setTranscriptLanguage(e.target.value)}
-                className="min-w-[200px] appearance-none rounded-md border border-gray-300 bg-white px-3 py-2 pr-8 text-sm text-gray-700 outline-none transition focus:border-purple-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-              >
-                {LANGUAGE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400 dark:text-gray-500">
-                ▼
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {t("common.export")}
-          </span>
-          <button
-            onClick={() => handleExport("txt")}
-            className="inline-flex items-center justify-center rounded-md bg-gray-200 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-          >
-            TXT
-          </button>
-          <button
-            onClick={() => handleExport("srt")}
-            className="inline-flex items-center justify-center rounded-md bg-gray-200 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-          >
-            SRT
-          </button>
-          <button
-            onClick={() => handleExport("vtt")}
-            className="inline-flex items-center justify-center rounded-md bg-gray-200 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-          >
-            VTT
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export const TranscriptPanel = () => {
-  const LARGE_TRANSCRIPTION_FILE_SIZE = 25 * 1024 * 1024;
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const {
-    getCurrentMediaTranscripts,
-    currentFile,
-    currentYouTube,
-    startTranscribing,
-    stopTranscribing,
-    addTranscriptSegment,
-    clearTranscript,
-    exportTranscript,
-    getCurrentMediaBookmarks,
-    updateBookmark,
-    selectedBookmarkId,
-    loadBookmark,
-    setSelectedBookmarkId,
-    setCurrentTime,
-    setIsPlaying,
-    loopStart,
-    loopEnd,
-    importBookmarks: storeImportBookmarks,
-  } = usePlayerStore();
-
-  const transcriptSegments = getCurrentMediaTranscripts();
-  const bookmarks = getCurrentMediaBookmarks();
 
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -434,21 +349,26 @@ export const TranscriptPanel = () => {
   }, [selectedBookmarkId]);
 
   // Filter segments based on active tab
-  const filteredSegments = activeTabId
-    ? transcriptSegments.filter((segment) => {
-      const bookmark = bookmarks.find((b) => b.id === activeTabId);
-      if (!bookmark) return false;
-      // Allow some overlap (e.g. 0.5s)
+  const activeBookmark = useMemo(
+    () => bookmarks.find((bookmark) => bookmark.id === activeTabId) ?? null,
+    [bookmarks, activeTabId]
+  );
+
+  const filteredSegments = useMemo(() => {
+    if (!activeBookmark) {
+      return transcriptSegments;
+    }
+
+    return transcriptSegments.filter((segment) => {
       const elementStart = segment.startTime;
       const elementEnd = segment.endTime;
       return (
-        // Segment roughly inside bookmark
-        (elementStart >= bookmark.start - 0.5 && elementEnd <= bookmark.end + 0.5) ||
-        // Or segment covers bookmark (unlikely but possible for short bookmarks)
-        (elementStart <= bookmark.start && elementEnd >= bookmark.end)
+        (elementStart >= activeBookmark.start - 0.5 &&
+          elementEnd <= activeBookmark.end + 0.5) ||
+        (elementStart <= activeBookmark.start && elementEnd >= activeBookmark.end)
       );
-    })
-    : transcriptSegments;
+    });
+  }, [activeBookmark, transcriptSegments]);
 
   const handleTabSelect = (id: string | null) => {
     if (id) {
@@ -531,6 +451,14 @@ export const TranscriptPanel = () => {
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<TranscriptionProvider>("openai");
   const transcriptRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: filteredSegments.length,
+    getScrollElement: () => transcriptRef.current,
+    estimateSize: () => 72,
+    overscan: 5,
+    getItemKey: (index) => filteredSegments[index]?.id ?? `segment-${index}`,
+  });
 
   // Load API key and transcription provider from localStorage on component mount
   useEffect(() => {
@@ -1120,12 +1048,12 @@ export const TranscriptPanel = () => {
     }
   };
 
-  // Scroll to bottom when new segments are added
+  // Scroll to bottom when new segments are added (during live transcription)
   useEffect(() => {
-    if (transcriptRef.current) {
-      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+    if (isProcessing && filteredSegments.length > 0) {
+      virtualizer.scrollToIndex(filteredSegments.length - 1, { align: "end" });
     }
-  }, [transcriptSegments]);
+  }, [isProcessing, transcriptSegments]);
 
   // Handle export
   const handleExport = (format: "txt" | "srt" | "vtt") => {
@@ -1297,22 +1225,58 @@ export const TranscriptPanel = () => {
             )}
           </div>
 
-          <div className="flex items-center space-x-1 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="relative">
+              <select
+                value={transcriptLanguage}
+                onChange={(e) => setTranscriptLanguage(e.target.value)}
+                className="appearance-none rounded-md border border-gray-300 bg-white px-2 py-1 pr-6 text-xs text-gray-700 outline-none transition focus:border-purple-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+              >
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center text-[10px] text-gray-400 dark:text-gray-500">
+                ▼
+              </span>
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={() => setExportOpen((o) => !o)}
+                disabled={transcriptSegments.length === 0}
+                className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 disabled:opacity-40 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+              >
+                <Download size={13} />
+                {t("common.export")}
+                <span className="text-[10px]">▾</span>
+              </button>
+              {exportOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setExportOpen(false)} />
+                  <div className="absolute right-0 top-full z-20 mt-1 min-w-[72px] rounded-md border border-gray-200 bg-white py-1 shadow-md dark:border-gray-700 dark:bg-gray-800">
+                    {(["txt", "srt", "vtt"] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        onClick={() => { handleExport(fmt); setExportOpen(false); }}
+                        className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      >
+                        {fmt.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
             <button
               onClick={handleOpenAISettings}
               className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
               title={t("transcript.openAiSettings")}
             >
               <Settings size={16} />
-            </button>
-
-            <button
-              onClick={() => handleExport("txt")}
-              className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-              title={t("transcript.exportAsTxt")}
-              disabled={transcriptSegments.length === 0}
-            >
-              <Save size={16} />
             </button>
 
             <button
@@ -1328,7 +1292,7 @@ export const TranscriptPanel = () => {
 
         <div
           ref={transcriptRef}
-          className="flex-1 overflow-y-auto p-3 space-y-2 text-sm"
+          className="flex-1 min-h-0 max-h-[60vh] overflow-y-auto p-3 text-sm"
         >
           {showApiKeyInput && (
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-md mb-3">
@@ -1376,7 +1340,14 @@ export const TranscriptPanel = () => {
           {/* Empty state logic based on active tab */}
           {!isProcessing && !showApiKeyInput && (
             <>
-              {activeTabId ? (
+              {isTranscriptLoading ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Loader size={24} className="animate-spin text-blue-500 mb-2" />
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {t("common.loading")}
+                  </p>
+                </div>
+              ) : activeTabId ? (
                 // Bookmark View Empty State
                 filteredSegments.length === 0 ? (
                   <div className="mx-auto flex min-h-[240px] max-w-md items-center justify-center py-6">
@@ -1449,12 +1420,37 @@ export const TranscriptPanel = () => {
             </>
           )}
 
-          {filteredSegments.map((segment) => (
-            <TranscriptSegmentItem key={segment.id} segment={segment} />
-          ))}
-        </div>
+          {filteredSegments.length > 0 && (
+            <div
+              style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+            >
+              {virtualizer.getVirtualItems().map((virtualItem) => {
+                const segment = filteredSegments[virtualItem.index];
+                if (!segment) {
+                  return null;
+                }
 
-        <TranscriptControlsPanel />
+                return (
+                  <div
+                    key={segment.id}
+                    data-index={virtualItem.index}
+                    ref={virtualizer.measureElement}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                    className="pb-2"
+                  >
+                    <TranscriptSegmentItem segment={segment} bookmarks={bookmarks} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Edit bookmark dialog */}

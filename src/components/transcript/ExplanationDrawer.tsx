@@ -10,52 +10,19 @@ import {
   normalizeModelId,
 } from "../../types/aiService";
 import { aiService } from "../../services/aiService";
+import {
+  ExplanationResult,
+  globalExplanationListeners,
+  explanationCache,
+  setGlobalExplanationState,
+  getGlobalExplanationState,
+} from "./explanationState";
 
 interface ExplanationDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   text: string;
 }
-
-interface ExplanationResult {
-  explanation: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-  model: string;
-  provider: AIProvider;
-}
-
-// Global explanation state management (shared with TranscriptSegment)
-interface ExplanationState {
-  text: string;
-  status: "idle" | "loading" | "completed" | "error";
-  result?: ExplanationResult;
-  error?: string;
-}
-
-const globalExplanationStates = new Map<string, ExplanationState>();
-const globalExplanationListeners = new Set<() => void>();
-
-const setGlobalExplanationState = (
-  text: string,
-  state: Partial<ExplanationState>
-) => {
-  const existing = globalExplanationStates.get(text) || {
-    text,
-    status: "idle",
-  };
-  globalExplanationStates.set(text, { ...existing, ...state });
-  globalExplanationListeners.forEach((listener) => listener());
-};
-
-const getGlobalExplanationState = (text: string): ExplanationState => {
-  return globalExplanationStates.get(text) || { text, status: "idle" };
-};
-
-const explanationCache = new Map<string, ExplanationResult>();
 
 export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
   isOpen,
@@ -67,9 +34,19 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedProvider, setSelectedProvider] = useState<AIProvider>("openai");
-  const [selectedModel, setSelectedModel] = useState("");
-  const [targetLanguage, setTargetLanguage] = useState("English");
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider>(
+    () => (localStorage.getItem("preferred_ai_provider") as AIProvider) || "openai"
+  );
+  const [targetLanguage, setTargetLanguage] = useState(
+    () => localStorage.getItem("target_language") || "English"
+  );
+  const [selectedModel, setSelectedModel] = useState(() => {
+    const provider = (localStorage.getItem("preferred_ai_provider") as AIProvider) || "openai";
+    return normalizeModelId(
+      provider,
+      localStorage.getItem(`${provider}_model`) || DEFAULT_MODELS[provider]
+    );
+  });
 
   // Handle ESC key
   useEffect(() => {

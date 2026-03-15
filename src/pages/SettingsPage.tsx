@@ -101,7 +101,11 @@ export const SettingsPage: React.FC = () => {
     seekSmallStepSeconds,
     setSeekStepSeconds,
     setSeekSmallStepSeconds,
+    currentFile,
+    currentYouTube,
   } = usePlayerStore();
+
+  const hasMedia = !!(currentFile || currentYouTube);
 
   // AI Settings state
   const [openaiApiKey, setOpenaiApiKey] = useState("");
@@ -301,7 +305,7 @@ export const SettingsPage: React.FC = () => {
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(hasMedia ? "/player" : "/")}
             className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50"
           >
             <ArrowLeft className="h-5 w-5" />
