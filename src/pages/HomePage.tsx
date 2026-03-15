@@ -6,6 +6,7 @@ import { FileUploader } from "../components/player/FileUploader";
 import { FolderBrowser } from "../components/player/FolderBrowser";
 import { YouTubeInput } from "../components/player/YouTubeInput";
 import { PlayHistory } from "../components/player/PlayHistory";
+import { MediaHistory } from "../components/player/MediaHistory";
 import { AppLayout } from "../components/layout/AppLayout";
 import { isElectron } from "../utils/platform";
 
@@ -101,8 +102,12 @@ export const HomePage = () => {
         </div>
       )}
 
-      {/* Play History */}
-      <PlayHistory />
+      {/* Play History (Electron) / Media Library (web) */}
+      {isElectron() ? (
+        <PlayHistory />
+      ) : (
+        <MediaHistory embedded title={t("home.mediaLibrary")} />
+      )}
     </AppLayout>
   );
 };
