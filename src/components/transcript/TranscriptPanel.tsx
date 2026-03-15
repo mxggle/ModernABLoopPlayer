@@ -6,7 +6,6 @@ import { useSegmentState } from "../../hooks/useSegmentState";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Loader,
-  Save,
   Trash,
   Play,
   Bookmark,
@@ -228,99 +227,6 @@ const TranscriptSegmentItem = memo(({
   );
 });
 
-// TranscriptControlsPanel component
-const TranscriptControlsPanel = () => {
-  const { t } = useTranslation();
-  const { transcriptLanguage, setTranscriptLanguage, exportTranscript } =
-    usePlayerStore();
-
-  const LANGUAGE_OPTIONS = [
-    { value: "en-US", label: t("transcript.languages.en-US") },
-    { value: "en-GB", label: t("transcript.languages.en-GB") },
-    { value: "es-ES", label: t("transcript.languages.es-ES") },
-    { value: "fr-FR", label: t("transcript.languages.fr-FR") },
-    { value: "de-DE", label: t("transcript.languages.de-DE") },
-    { value: "ja-JP", label: t("transcript.languages.ja-JP") },
-    { value: "ko-KR", label: t("transcript.languages.ko-KR") },
-    { value: "zh-CN", label: t("transcript.languages.zh-CN") },
-    { value: "ru-RU", label: t("transcript.languages.ru-RU") },
-  ];
-
-  const handleExport = (format: "txt" | "srt" | "vtt") => {
-    const content = exportTranscript(format);
-    if (!content) return;
-
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `transcript.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast.success(
-      t("transcript.exportSuccess", { format: format.toUpperCase() })
-    );
-  };
-
-  return (
-    <div className="border-t border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="space-y-1">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {t("transcript.language")}
-            </p>
-            <div className="relative">
-              <select
-                id="transcript-language"
-                value={transcriptLanguage}
-                onChange={(e) => setTranscriptLanguage(e.target.value)}
-                className="min-w-[200px] appearance-none rounded-md border border-gray-300 bg-white px-3 py-2 pr-8 text-sm text-gray-700 outline-none transition focus:border-purple-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-              >
-                {LANGUAGE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400 dark:text-gray-500">
-                ▼
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {t("common.export")}
-          </span>
-          <button
-            onClick={() => handleExport("txt")}
-            className="inline-flex items-center justify-center rounded-md bg-gray-200 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-          >
-            TXT
-          </button>
-          <button
-            onClick={() => handleExport("srt")}
-            className="inline-flex items-center justify-center rounded-md bg-gray-200 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-          >
-            SRT
-          </button>
-          <button
-            onClick={() => handleExport("vtt")}
-            className="inline-flex items-center justify-center rounded-md bg-gray-200 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-          >
-            VTT
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export const TranscriptPanel = () => {
   const LARGE_TRANSCRIPTION_FILE_SIZE = 25 * 1024 * 1024;
   const { t } = useTranslation();
@@ -344,6 +250,8 @@ export const TranscriptPanel = () => {
     loopEnd,
     importBookmarks: storeImportBookmarks,
     isTranscriptLoading,
+    transcriptLanguage,
+    setTranscriptLanguage,
   } = usePlayerStore(
     useShallow((state) => ({
       currentFile: state.currentFile,
@@ -363,6 +271,8 @@ export const TranscriptPanel = () => {
       loopEnd: state.loopEnd,
       importBookmarks: state.importBookmarks,
       isTranscriptLoading: state.isTranscriptLoading,
+      transcriptLanguage: state.transcriptLanguage,
+      setTranscriptLanguage: state.setTranscriptLanguage,
     }))
   );
   const transcriptSegments = usePlayerStore(
@@ -371,6 +281,20 @@ export const TranscriptPanel = () => {
   const bookmarks = usePlayerStore(
     (state) => (mediaId ? state.mediaBookmarks[mediaId] ?? EMPTY_BOOKMARKS : EMPTY_BOOKMARKS)
   );
+
+  const [exportOpen, setExportOpen] = useState(false);
+
+  const LANGUAGE_OPTIONS = [
+    { value: "en-US", label: t("transcript.languages.en-US") },
+    { value: "en-GB", label: t("transcript.languages.en-GB") },
+    { value: "es-ES", label: t("transcript.languages.es-ES") },
+    { value: "fr-FR", label: t("transcript.languages.fr-FR") },
+    { value: "de-DE", label: t("transcript.languages.de-DE") },
+    { value: "ja-JP", label: t("transcript.languages.ja-JP") },
+    { value: "ko-KR", label: t("transcript.languages.ko-KR") },
+    { value: "zh-CN", label: t("transcript.languages.zh-CN") },
+    { value: "ru-RU", label: t("transcript.languages.ru-RU") },
+  ];
 
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1301,22 +1225,58 @@ export const TranscriptPanel = () => {
             )}
           </div>
 
-          <div className="flex items-center space-x-1 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="relative">
+              <select
+                value={transcriptLanguage}
+                onChange={(e) => setTranscriptLanguage(e.target.value)}
+                className="appearance-none rounded-md border border-gray-300 bg-white px-2 py-1 pr-6 text-xs text-gray-700 outline-none transition focus:border-purple-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+              >
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center text-[10px] text-gray-400 dark:text-gray-500">
+                ▼
+              </span>
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={() => setExportOpen((o) => !o)}
+                disabled={transcriptSegments.length === 0}
+                className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 disabled:opacity-40 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+              >
+                <Download size={13} />
+                {t("common.export")}
+                <span className="text-[10px]">▾</span>
+              </button>
+              {exportOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setExportOpen(false)} />
+                  <div className="absolute right-0 top-full z-20 mt-1 min-w-[72px] rounded-md border border-gray-200 bg-white py-1 shadow-md dark:border-gray-700 dark:bg-gray-800">
+                    {(["txt", "srt", "vtt"] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        onClick={() => { handleExport(fmt); setExportOpen(false); }}
+                        className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      >
+                        {fmt.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
             <button
               onClick={handleOpenAISettings}
               className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
               title={t("transcript.openAiSettings")}
             >
               <Settings size={16} />
-            </button>
-
-            <button
-              onClick={() => handleExport("txt")}
-              className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-              title={t("transcript.exportAsTxt")}
-              disabled={transcriptSegments.length === 0}
-            >
-              <Save size={16} />
             </button>
 
             <button
@@ -1491,8 +1451,6 @@ export const TranscriptPanel = () => {
             </div>
           )}
         </div>
-
-        <TranscriptControlsPanel />
       </div>
 
       {/* Edit bookmark dialog */}
