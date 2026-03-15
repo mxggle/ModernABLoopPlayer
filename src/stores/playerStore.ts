@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { electronStorage } from "./electronStorage";
 import {
   storeMediaFile,
   retrieveMediaFile,
@@ -141,6 +142,8 @@ export interface PlayerState {
   historySortBy: "date" | "name" | "type";
   historySortOrder: "asc" | "desc";
   historyFolderFilter: "all" | "unfiled" | string;
+  // Source folders (Electron only — persisted paths, files loaded at runtime)
+  sourceFolders: string[];
 }
 
 export interface PlayerActions {
@@ -231,6 +234,10 @@ export interface PlayerActions {
   clearMediaHistory: () => Promise<void>;
   setHistoryLimit: (limit: number) => void;
 
+  // Source folder actions (Electron only)
+  addSourceFolder: (path: string) => void;
+  removeSourceFolder: (path: string) => void;
+
   // Folder & item management
   createMediaFolder: (name: string, parentId?: string | null) => string;
   renameMediaFolder: (folderId: string, newName: string) => void;
@@ -285,6 +292,7 @@ const initialState: PlayerState = {
   historySortBy: "date",
   historySortOrder: "desc",
   historyFolderFilter: "unfiled",
+  sourceFolders: [],
 };
 
 export const usePlayerStore = create<PlayerState & PlayerActions>()(
@@ -1236,6 +1244,16 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         })),
       setHistorySort: (by, order) => set({ historySortBy: by, historySortOrder: order }),
       setHistoryFolderFilter: (filter) => set({ historyFolderFilter: filter }),
+      addSourceFolder: (path) =>
+        set((state) => ({
+          sourceFolders: state.sourceFolders.includes(path)
+            ? state.sourceFolders
+            : [...state.sourceFolders, path],
+        })),
+      removeSourceFolder: (path) =>
+        set((state) => ({
+          sourceFolders: state.sourceFolders.filter((f) => f !== path),
+        })),
 
       // Transcript actions
       startTranscribing() {
@@ -1747,7 +1765,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
     }),
     {
       name: "abloop-player-storage",
-      version: 2,
+      storage: createJSONStorage(() => electronStorage),
+      version: 3,
       migrate: (persistedState: any, version) => {
         if (!persistedState) return persistedState;
 
@@ -1770,6 +1789,16 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           if (persistedState.historyFolderFilter === "all") {
             persistedState.historyFolderFilter = "unfiled";
           }
+        }
+
+        // v2 → v3: migrate single sourceFolder to sourceFolders array
+        if (version < 3) {
+          if (persistedState.sourceFolder) {
+            persistedState.sourceFolders = [persistedState.sourceFolder];
+          } else {
+            persistedState.sourceFolders = [];
+          }
+          delete persistedState.sourceFolder;
         }
 
         return persistedState;
@@ -1795,6 +1824,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         historyFolderFilter: state.historyFolderFilter,
         seekStepSeconds: state.seekStepSeconds,
         seekSmallStepSeconds: state.seekSmallStepSeconds,
+        sourceFolders: state.sourceFolders,
       }),
     }
   )

@@ -5,8 +5,7 @@ import { usePlayerStore } from "../stores/playerStore";
 import { FileUploader } from "../components/player/FileUploader";
 import { FolderBrowser } from "../components/player/FolderBrowser";
 import { YouTubeInput } from "../components/player/YouTubeInput";
-import { MediaHistory } from "../components/player/MediaHistory";
-// Use the same component as the file drawer, embedded in-page
+import { PlayHistory } from "../components/player/PlayHistory";
 import { AppLayout } from "../components/layout/AppLayout";
 import { isElectron } from "../utils/platform";
 
@@ -102,8 +101,8 @@ export const HomePage = () => {
         </div>
       )}
 
-      {/* Inline Library Manager - uses the same component as the file drawer */}
-      <MediaHistory embedded title={t("home.mediaLibrary")} />
+      {/* Play History */}
+      <PlayHistory />
     </AppLayout>
   );
 };

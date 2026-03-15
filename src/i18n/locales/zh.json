@@ -562,5 +562,18 @@
     "youtubePlaceholder": "此处为占位波形，真实波形功能即将上线",
     "analyzing": "正在分析波形...",
     "analysisError": "波形分析失败，正在使用预览。"
+  },
+  "playHistory": {
+    "title": "播放历史",
+    "emptyState": "暂无播放历史。请打开文件或YouTube视频开始使用。",
+    "clearHistory": "清除"
+  },
+  "folderBrowser": {
+    "title": "源文件夹",
+    "addFolder": "添加文件夹",
+    "removeFolder": "移除文件夹",
+    "noFiles": "未找到媒体文件。",
+    "hint": "添加源文件夹以浏览本地音频和视频文件。",
+    "loading": "加载中..."
   }
 }

@@ -7,4 +7,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   listMediaFiles: (folderPath: string) =>
     ipcRenderer.invoke('fs:listMediaFiles', folderPath),
+  listMediaTree: (folderPath: string) =>
+    ipcRenderer.invoke('fs:listMediaTree', folderPath),
+  configGet: (key: string) => ipcRenderer.invoke('config:get', key),
+  configSet: (key: string, value: unknown) =>
+    ipcRenderer.invoke('config:set', key, value),
+  configGetAll: () => ipcRenderer.invoke('config:getAll'),
 })

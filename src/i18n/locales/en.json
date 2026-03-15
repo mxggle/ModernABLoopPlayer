@@ -590,5 +590,18 @@
     "youtubePlaceholder": "Placeholder waveform displayed. Real waveform coming soon.",
     "analyzing": "Analyzing waveform...",
     "analysisError": "Waveform analysis failed. Using preview."
+  },
+  "playHistory": {
+    "title": "Play History",
+    "emptyState": "No play history yet. Open a file or YouTube video to get started.",
+    "clearHistory": "Clear"
+  },
+  "folderBrowser": {
+    "title": "Source Folders",
+    "addFolder": "Add Folder",
+    "removeFolder": "Remove folder",
+    "noFiles": "No media files found.",
+    "hint": "Add source folders to browse your local audio and video files.",
+    "loading": "Loading..."
   }
 }
