@@ -62,11 +62,30 @@ ipcMain.handle('dialog:openFolder', async () => {
 })
 
 /**
+ * Read source folders from the Zustand persisted state blob.
+ * Falls back to the legacy top-level configStore key for older installs.
+ */
+function getSourceFolders(): string[] {
+  const raw = configStore.get('abloop-player-storage')
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      const folders = parsed?.state?.sourceFolders
+      if (Array.isArray(folders)) return folders as string[]
+    } catch {
+      // fall through to legacy key
+    }
+  }
+  return configStore.get('sourceFolders')
+}
+
+/**
  * Verify that targetPath is within one of the user-approved source folders.
  * Throws if not approved. Uses realpath to resolve symlinks before comparing.
+ * Path comparison is case-insensitive to support Windows (NTFS).
  */
 async function assertPathInSourceFolders(targetPath: string): Promise<void> {
-  const sourceFolders: string[] = configStore.get('sourceFolders')
+  const sourceFolders = getSourceFolders()
   if (sourceFolders.length === 0) {
     throw new Error('No source folders configured')
   }
@@ -80,7 +99,9 @@ async function assertPathInSourceFolders(targetPath: string): Promise<void> {
     sourceFolders.map(async (folder) => {
       try {
         const realFolder = await fs.promises.realpath(folder)
-        return realTarget === realFolder || realTarget.startsWith(realFolder + sep)
+        const t = realTarget.toLowerCase()
+        const f = realFolder.toLowerCase()
+        return t === f || t.startsWith(f + sep.toLowerCase())
       } catch {
         return false
       }

@@ -18,7 +18,10 @@ export const FileUploader = () => {
 
       const file = acceptedFiles[0];
 
-      if (!file.type.includes("audio") && !file.type.includes("video")) {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+      const validExts = new Set(["mp3", "wav", "ogg", "flac", "aac", "mp4", "webm", "ogv"]);
+      const typeOk = file.type.includes("audio") || file.type.includes("video") || validExts.has(ext);
+      if (!typeOk) {
         toast.error(t("upload.invalidFileType"));
         return;
       }
