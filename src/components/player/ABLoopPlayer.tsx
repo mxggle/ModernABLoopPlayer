@@ -6,7 +6,7 @@ import { MediaPlayer } from './MediaPlayer'
 import { ABLoopControls as LoopControls } from '../controls/ABLoopControls'
 import { PlaybackControls as PlayerControls } from '../controls/PlaybackControls'
 import { BookmarkManager } from './BookmarkManager'
-import { FileUploader } from './FileUploader'
+import { FileUploader } from '../web/FileUploader'
 import { YouTubeInput } from './YouTubeInput'
 import { 
   Tabs, 

@@ -23,6 +23,27 @@ This repository is a Vite + React 18 + TypeScript application for A-B looping, s
 - Routing: React Router
 - i18n: `src/i18n` with locale JSON files in `src/i18n/locales`
 
+## Platform Architecture
+
+This project builds for both Electron and web from a single codebase. A strict
+4-layer architecture is enforced — see **[docs/platform-architecture.md](docs/platform-architecture.md)**
+for the full rules.
+
+Quick reference:
+
+| Layer | Directory | Rule |
+|---|---|---|
+| 4 – Entry points | `pages/`, `electron/`, `components/layout/AppLayout.tsx` | Can import anything |
+| 3 – Platform-specific UI | `components/electron/`, `components/web/` | Imports Layer 1–2 only |
+| 2 – Shared UI & state | `components/ui/`, `components/controls/`, `stores/`, `hooks/` | Must NOT import Layer 3–4 |
+| 1 – Core / pure | `utils/`, `services/`, `types/`, `i18n/` | No platform dependencies |
+
+Critical rules:
+- `isElectron()` is only allowed in `utils/platform.ts`, `stores/electronStorage.ts`, `components/layout/AppLayout.tsx`, and files inside `components/electron/` or `components/web/`.
+- `window.electronAPI` is only allowed in `electron/preload.ts`, `stores/electronStorage.ts`, and `components/electron/`.
+- Pages always use `<AppLayout>` — never `ElectronAppLayout` or `WebAppLayout` directly.
+- Cross-platform imports between `components/electron/` and `components/web/` are forbidden.
+
 ## Project Conventions
 
 - Preserve the current component structure under `src/components`, `src/pages`, `src/hooks`, `src/stores`, and `src/utils`.

@@ -37,6 +37,62 @@ Designed for language learners to practice speaking:
 - **Keyboard Shortcuts**: Comprehensive hotkeys for mouse-free operation.
 - **Privacy First**: All local files and recordings are stored locally in your browser (IndexedDB). Nothing is uploaded to a server.
 
+## 🏗 Architecture
+
+LoopMate ships as both a **web app** (Vite SPA) and a **desktop app** (Electron) from a single TypeScript codebase. A 4-layer architecture keeps shared and platform-specific code strictly separated.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Layer 4 · Entry Points                          │
+│                                                                     │
+│   pages/WebHomePage.tsx          pages/ElectronHomePage.tsx         │
+│   pages/PlayerPage.tsx           electron/main.ts                   │
+│   components/layout/AppLayout.tsx  ← single platform branch here    │
+└───────────────┬─────────────────────────┬───────────────────────────┘
+                │                         │
+                ▼                         ▼
+┌───────────────────────┐   ┌─────────────────────────┐
+│  Layer 3 · Web UI     │   │  Layer 3 · Electron UI  │
+│                       │   │                         │
+│  components/web/      │   │  components/electron/   │
+│  ├ WebAppLayout       │   │  ├ ElectronAppLayout    │
+│  ├ FileUploader       │   │  ├ ElectronFileOpener   │
+│  ├ MediaHistory       │   │  ├ FolderBrowser        │
+│  └ StorageUsageInfo   │   │  └ PlayHistory          │
+│                       │   │                         │
+│  Web APIs only        │   │  window.electronAPI only│
+└───────────┬───────────┘   └────────────┬────────────┘
+            │                            │
+            └──────────┬─────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   Layer 2 · Shared UI & State                       │
+│                                                                     │
+│   components/layout/AppLayoutBase.tsx   (shared chrome)             │
+│   components/ui/         Radix UI primitives                        │
+│   components/controls/   Playback & A-B loop controls               │
+│   components/transcript/ components/waveform/ components/bookmarks/ │
+│   stores/playerStore.ts  hooks/                                     │
+│                                                                     │
+│   No isElectron() · No window.electronAPI · No Layer 3 imports      │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Layer 1 · Core (Pure)                           │
+│                                                                     │
+│   utils/platform.ts          ← isElectron() defined here           │
+│   stores/electronStorage.ts  ← only file allowed to call IPC       │
+│   utils/   services/   types/   i18n/                               │
+│                                                                     │
+│   No DOM APIs · No platform-specific calls                          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**How it works at runtime:**
+- `AppLayout.tsx` makes a single `isElectron()` check and renders either `ElectronAppLayout` or `WebAppLayout`
+- All pages use `<AppLayout>` — they never know which shell they are inside
+- Shared state lives in Zustand (`playerStore`) and is persisted via `electronStorage`, which transparently routes to Electron IPC or `localStorage`
+
 ## 🛠 Tech Stack
 
 - **Frontend**: React 18, TypeScript, Vite

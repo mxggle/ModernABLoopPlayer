@@ -1,10 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { YouTubeInput } from "../components/player/YouTubeInput";
-import { FileUploader } from "../components/player/FileUploader";
-import { FolderBrowser } from "../components/player/FolderBrowser";
-import { PlayHistory } from "../components/player/PlayHistory";
+import { ElectronFileOpener } from "../components/electron/ElectronFileOpener";
 import { motion } from "framer-motion";
-import { Youtube, FileAudio } from "lucide-react";
+import { Youtube, FileAudio, FolderSearch } from "lucide-react";
 
 interface ElectronHomePageProps {
   handleVideoIdSubmit: (videoId: string) => void;
@@ -63,7 +61,7 @@ export const ElectronHomePage = ({ handleVideoIdSubmit }: ElectronHomePageProps)
                 </h3>
                 <div className="flex-1 flex flex-col justify-center py-4">
                   <div className="uploader-studio-override">
-                    <FileUploader />
+                    <ElectronFileOpener />
                   </div>
                 </div>
               </div>

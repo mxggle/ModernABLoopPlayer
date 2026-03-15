@@ -7,7 +7,8 @@ import { MediaPlayer } from "../components/player/MediaPlayer";
 import { YouTubePlayer } from "../components/player/YouTubePlayer";
 import { CombinedControls } from "../components/controls/CombinedControls";
 import { MobileControls } from "../components/controls/MobileControls";
-import { MediaHistory } from "../components/player/MediaHistory";
+import { isElectron } from "../utils/platform";
+import { MediaHistory } from "../components/web/MediaHistory";
 import { WaveformVisualizer } from "../components/waveform/WaveformVisualizer";
 import { TranscriptPanel } from "../components/transcript";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
@@ -155,8 +156,8 @@ export const PlayerPage = () => {
         )
       }
 
-      {/* Media History - also typically outside normal flex flow */}
-      <MediaHistory />
-    </AppLayout >
+      {/* Media History – web only; Electron uses the sidebar PlayHistory */}
+      {!isElectron() && <MediaHistory />}
+    </AppLayout>
   );
 };

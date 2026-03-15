@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { FileUploader } from "../components/player/FileUploader";
+import { FileUploader } from "../components/web/FileUploader";
 import { YouTubeInput } from "../components/player/YouTubeInput";
-import { MediaHistory } from "../components/player/MediaHistory";
+import { MediaHistory } from "../components/web/MediaHistory";
 
 interface WebHomePageProps {
   handleVideoIdSubmit: (videoId: string) => void;
