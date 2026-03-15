@@ -1816,10 +1816,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           }
         }
 
-        if (version < 3) {
-          delete persistedState.mediaTranscripts;
-        }
-
         return persistedState;
       },
       onRehydrateStorage: () => (state, error) => {

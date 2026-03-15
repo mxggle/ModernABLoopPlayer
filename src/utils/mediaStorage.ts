@@ -143,6 +143,33 @@ const updateStorageMetadata = async (
   }
 };
 
+const deleteMediaRecords = async (
+  db: IDBDatabase,
+  ids: string[]
+): Promise<void> => {
+  if (ids.length === 0) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(
+      [MEDIA_STORE, TRANSCRIPT_STORE],
+      "readwrite"
+    );
+    const mediaStore = transaction.objectStore(MEDIA_STORE);
+    const transcriptStore = transaction.objectStore(TRANSCRIPT_STORE);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+
+    ids.forEach((id) => {
+      mediaStore.delete(id);
+      transcriptStore.delete(id);
+    });
+  });
+};
+
 // Clean up old files if we exceed storage limits
 const cleanupOldFiles = async (
   maxTotalStorage = DEFAULT_MAX_TOTAL_STORAGE,
@@ -194,12 +221,7 @@ const cleanupOldFiles = async (
     }
 
     if (filesToDelete.length > 0) {
-      const transaction = db.transaction([MEDIA_STORE], "readwrite");
-      const store = transaction.objectStore(MEDIA_STORE);
-
-      for (const id of filesToDelete) {
-        store.delete(id);
-      }
+      await deleteMediaRecords(db, filesToDelete);
 
       // Update metadata
       await updateStorageMetadata({
@@ -390,19 +412,7 @@ export const deleteMediaFile = async (id: string): Promise<void> => {
     }
 
     // Delete file
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction([MEDIA_STORE], "readwrite");
-      const store = transaction.objectStore(MEDIA_STORE);
-      const request = store.delete(id);
-
-      request.onsuccess = () => {
-        resolve();
-      };
-
-      request.onerror = () => {
-        reject(request.error);
-      };
-    });
+    await deleteMediaRecords(db, [id]);
 
     // Update metadata
     const metadata = await getStorageMetadata();
@@ -422,17 +432,19 @@ export const clearAllMediaFiles = async (): Promise<void> => {
     const db = await initDB();
 
     await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction([MEDIA_STORE], "readwrite");
-      const store = transaction.objectStore(MEDIA_STORE);
-      const request = store.clear();
+      const transaction = db.transaction(
+        [MEDIA_STORE, TRANSCRIPT_STORE],
+        "readwrite"
+      );
+      const mediaStore = transaction.objectStore(MEDIA_STORE);
+      const transcriptStore = transaction.objectStore(TRANSCRIPT_STORE);
 
-      request.onsuccess = () => {
-        resolve();
-      };
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
 
-      request.onerror = () => {
-        reject(request.error);
-      };
+      mediaStore.clear();
+      transcriptStore.clear();
     });
 
     // Reset metadata

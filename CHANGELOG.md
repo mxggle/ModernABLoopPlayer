@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-03-15
+
+### Added
+- **Persistent player**:
+  - Persistent media player that survives page navigation, preserving playback state across routes
+  - Virtualized transcript list for smooth rendering of long transcripts without performance degradation
+
+### Changed
+- **Transcript controls**:
+  - Merged transcript action buttons directly into the header for a cleaner, more accessible layout
+  - Replaced individual export buttons with a single dropdown menu to reduce toolbar clutter
+- **Storage cleanup**:
+  - Transcript records are now deleted atomically alongside media files using a shared `deleteMediaRecords` helper
+  - `clearAllMediaFiles` now clears both the media store and transcript store in a single transaction
+  - Cleanup routine removes orphaned transcript records when old media files are purged
+
+### Fixed
+- **AI settings**:
+  - AI provider and model selections now initialize correctly from localStorage on first render
+- **Storage**:
+  - Removed obsolete v3 migration block that incorrectly wiped `mediaTranscripts` on store rehydration
+
 ## [0.9.1] - 2026-03-14
 
 ### Added
