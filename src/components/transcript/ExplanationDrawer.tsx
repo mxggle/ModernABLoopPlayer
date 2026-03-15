@@ -10,52 +10,19 @@ import {
   normalizeModelId,
 } from "../../types/aiService";
 import { aiService } from "../../services/aiService";
+import {
+  ExplanationResult,
+  globalExplanationListeners,
+  explanationCache,
+  setGlobalExplanationState,
+  getGlobalExplanationState,
+} from "./explanationState";
 
 interface ExplanationDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   text: string;
 }
-
-interface ExplanationResult {
-  explanation: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-  model: string;
-  provider: AIProvider;
-}
-
-// Global explanation state management (shared with TranscriptSegment)
-interface ExplanationState {
-  text: string;
-  status: "idle" | "loading" | "completed" | "error";
-  result?: ExplanationResult;
-  error?: string;
-}
-
-const globalExplanationStates = new Map<string, ExplanationState>();
-const globalExplanationListeners = new Set<() => void>();
-
-const setGlobalExplanationState = (
-  text: string,
-  state: Partial<ExplanationState>
-) => {
-  const existing = globalExplanationStates.get(text) || {
-    text,
-    status: "idle",
-  };
-  globalExplanationStates.set(text, { ...existing, ...state });
-  globalExplanationListeners.forEach((listener) => listener());
-};
-
-const getGlobalExplanationState = (text: string): ExplanationState => {
-  return globalExplanationStates.get(text) || { text, status: "idle" };
-};
-
-const explanationCache = new Map<string, ExplanationResult>();
 
 export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
   isOpen,

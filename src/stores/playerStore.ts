@@ -4,6 +4,10 @@ import {
   storeMediaFile,
   retrieveMediaFile,
   deleteMediaFile,
+  getStoredTranscript,
+  setStoredTranscript,
+  deleteStoredTranscript,
+  clearAllStoredTranscripts,
 } from "../utils/mediaStorage";
 import { toast } from "react-hot-toast";
 import i18n from "../i18n";
@@ -125,6 +129,7 @@ export interface PlayerState {
 
   // Transcript state
   mediaTranscripts: MediaTranscripts; // Changed from transcriptSegments array to media-scoped object
+  isTranscriptLoading: boolean;
   showTranscript: boolean;
   isTranscribing: boolean;
   transcriptLanguage: string;
@@ -200,6 +205,7 @@ export interface PlayerActions {
   exportTranscript: (format: "txt" | "srt" | "vtt") => string;
   importTranscript: (file: File) => Promise<void>;
   createBookmarkFromTranscript: (segmentId: string) => void;
+  loadTranscriptForMedia: (mediaId: string) => Promise<void>;
 
   // Bookmark actions
   addBookmark: (bookmark: Omit<LoopBookmark, "id" | "createdAt">) => boolean;
@@ -267,6 +273,7 @@ const initialState: PlayerState = {
   mediaBookmarks: {},
   selectedBookmarkId: null,
   mediaTranscripts: {},
+  isTranscriptLoading: false,
   showTranscript: false,
   isTranscribing: false,
   transcriptLanguage: "en-US",
@@ -289,6 +296,25 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
     (set, get) => ({
       ...initialState,
 
+      async loadTranscriptForMedia(mediaId: string) {
+        set({ isTranscriptLoading: true });
+
+        const segments = await getStoredTranscript(mediaId);
+
+        set((state) => {
+          const nextTranscripts = {
+            ...state.mediaTranscripts,
+            [mediaId]: segments,
+          };
+
+          return {
+            mediaTranscripts: nextTranscripts,
+            isTranscriptLoading:
+              state.getCurrentMediaId() === mediaId ? false : state.isTranscriptLoading,
+          };
+        });
+      },
+
       // Media actions
       setCurrentFile: async (file) => {
         if (file) {
@@ -298,7 +324,15 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
             if (file instanceof File && !storageId) {
               try {
-                storageId = await storeMediaFile(file);
+                // Pass current storageId so cleanup never evicts the playing file
+                const currentStorageId = get().currentFile?.storageId;
+                const excludeIds = currentStorageId ? [currentStorageId] : [];
+                storageId = await storeMediaFile(
+                  file,
+                  undefined,
+                  undefined,
+                  excludeIds
+                );
               } catch (error) {
                 console.error("Failed to store file in IndexedDB:", error);
               }
@@ -363,12 +397,19 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
               currentYouTube: null,
               currentTime: initialTime,
               isPlaying: false,
+              isTranscriptLoading: true,
               // Reset loop points and selected bookmark when switching media
               loopStart: null,
               loopEnd: null,
               isLooping: false,
               selectedBookmarkId: null,
             });
+
+            const mediaId =
+              fileWithId.storageId ||
+              fileWithId.id ||
+              `file-${fileWithId.name}-${fileWithId.size}`;
+            await get().loadTranscriptForMedia(mediaId);
 
             if (previousUrl && previousUrl !== fileWithId.url) {
               revokeObjectUrl(previousUrl);
@@ -382,6 +423,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
               currentFile: null,
               currentTime: 0,
               isPlaying: false,
+              isTranscriptLoading: false,
               loopStart: null,
               loopEnd: null,
               isLooping: false,
@@ -394,6 +436,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             currentFile: null,
             currentTime: 0,
             isPlaying: false,
+            isTranscriptLoading: false,
             loopStart: null,
             loopEnd: null,
             isLooping: false,
@@ -401,7 +444,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           });
         }
       },
-      setCurrentYouTube: (youtube) => {
+      setCurrentYouTube: async (youtube) => {
         revokeObjectUrl(get().currentFile?.url);
         if (youtube) {
           get().addRecentYouTubeVideo(youtube);
@@ -438,12 +481,19 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           currentFile: null,
           currentTime: initialTime,
           isPlaying: false,
+          isTranscriptLoading: !!youtube,
           // Reset loop points and selected bookmark when switching media
           loopStart: null,
           loopEnd: null,
           isLooping: false,
           selectedBookmarkId: null,
         });
+
+        if (youtube?.id) {
+          await get().loadTranscriptForMedia(`youtube-${youtube.id}`);
+        } else {
+          set({ isTranscriptLoading: false });
+        }
       },
       setIsPlaying: (isPlaying) => set({ isPlaying }),
       setCurrentTime: (currentTime) => set({ currentTime }),
@@ -472,6 +522,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           // Muting
           set({ previousVolume: volume, volume: 0, muted: true });
         }
+
       },
 
       // Seek forward/backward
@@ -1035,6 +1086,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         });
 
         if (derivedMediaId) {
+          await deleteStoredTranscript(derivedMediaId);
+
           try {
             const { useShadowingStore } = await import("./shadowingStore");
             await useShadowingStore.getState().deleteAllSegments(derivedMediaId);
@@ -1085,9 +1138,12 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           loopEnd: null,
           isLooping: false,
           selectedBookmarkId: null,
+          isTranscriptLoading: false,
         });
 
         try {
+          await clearAllStoredTranscripts();
+
           const { useShadowingStore } = await import("./shadowingStore");
           await Promise.all(
             mediaIds.map((mediaId) =>
@@ -1226,6 +1282,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         const mediaId = getCurrentMediaId();
         if (!mediaId) return;
 
+        let updatedSegments: TranscriptSegment[] | null = null;
+
         set((state) => {
           const currentSegments = state.mediaTranscripts[mediaId] || [];
 
@@ -1236,13 +1294,21 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
           if (isDuplicate) return state;
 
+          updatedSegments = [...currentSegments, newSegment].sort(
+            (a, b) => a.startTime - b.startTime
+          );
+
           return {
             mediaTranscripts: {
               ...state.mediaTranscripts,
-              [mediaId]: [...currentSegments, newSegment].sort((a, b) => a.startTime - b.startTime),
+              [mediaId]: updatedSegments,
             },
           };
         });
+
+        if (updatedSegments) {
+          void setStoredTranscript(mediaId, updatedSegments);
+        }
       },
 
       updateTranscriptSegment(id, changes) {
@@ -1250,14 +1316,22 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         const mediaId = getCurrentMediaId();
         if (!mediaId) return;
 
-        set((state) => ({
-          mediaTranscripts: {
-            ...state.mediaTranscripts,
-            [mediaId]: (state.mediaTranscripts[mediaId] || []).map((segment) =>
-              segment.id === id ? { ...segment, ...changes } : segment
-            ),
-          },
-        }));
+        let updatedSegments: TranscriptSegment[] = [];
+
+        set((state) => {
+          updatedSegments = (state.mediaTranscripts[mediaId] || []).map((segment) =>
+            segment.id === id ? { ...segment, ...changes } : segment
+          );
+
+          return {
+            mediaTranscripts: {
+              ...state.mediaTranscripts,
+              [mediaId]: updatedSegments,
+            },
+          };
+        });
+
+        void setStoredTranscript(mediaId, updatedSegments);
       },
 
       clearTranscript() {
@@ -1271,6 +1345,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             [mediaId]: [],
           },
         }));
+
+        void deleteStoredTranscript(mediaId);
       },
 
       setShowTranscript(show) {
@@ -1715,7 +1791,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
     }),
     {
       name: "abloop-player-storage",
-      version: 2,
+      version: 3,
       migrate: (persistedState: any, version) => {
         if (!persistedState) return persistedState;
 
@@ -1740,7 +1816,22 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           }
         }
 
+        if (version < 3) {
+          delete persistedState.mediaTranscripts;
+        }
+
         return persistedState;
+      },
+      onRehydrateStorage: () => (state, error) => {
+        if (error || !state?.mediaTranscripts) {
+          return;
+        }
+
+        const legacyTranscripts = state.mediaTranscripts;
+
+        Object.entries(legacyTranscripts).forEach(([mediaId, segments]) => {
+          void setStoredTranscript(mediaId, segments);
+        });
       },
       partialize: (state) => ({
         volume: state.volume,
@@ -1751,7 +1842,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         showWaveform: state.showWaveform,
         videoSize: state.videoSize,
         mediaBookmarks: state.mediaBookmarks,
-        mediaTranscripts: state.mediaTranscripts,
         showTranscript: state.showTranscript,
         transcriptLanguage: state.transcriptLanguage,
         recentYouTubeVideos: state.recentYouTubeVideos,
