@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:web"],
+      "port": 3000
+    },
+    {
+      "name": "electron",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:electron"],
+      "port": 3000
+    }
+  ]
+}

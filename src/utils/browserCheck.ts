@@ -15,11 +15,14 @@ export interface BrowserCapabilities {
  * Now supports all browsers including iOS Safari through Web Audio API fallback
  */
 export function checkAudioRecordingSupport(): BrowserCapabilities {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    // In Electron, navigator.userAgent contains "Electron" — never treat as mobile
+    const isMobile = !window.electronAPI?.isElectron && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     // Detect browser name for better error messages
     let browserName = 'Unknown';
-    if (navigator.userAgent.indexOf('Safari') !== -1 && navigator.userAgent.indexOf('Chrome') === -1) {
+    if (window.electronAPI?.isElectron) {
+        browserName = 'Electron';
+    } else if (navigator.userAgent.indexOf('Safari') !== -1 && navigator.userAgent.indexOf('Chrome') === -1) {
         browserName = 'Safari';
     } else if (navigator.userAgent.indexOf('Chrome') !== -1) {
         browserName = 'Chrome';

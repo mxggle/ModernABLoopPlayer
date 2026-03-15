@@ -5,6 +5,7 @@ import {
   retrieveMediaFile,
   deleteMediaFile,
 } from "../utils/mediaStorage";
+import { nativePathToUrl } from "../utils/platform";
 import { toast } from "react-hot-toast";
 import i18n from "../i18n";
 
@@ -24,7 +25,8 @@ export interface MediaFile {
   size: number;
   url: string;
   id?: string;
-  storageId?: string; // ID for IndexedDB storage
+  storageId?: string; // ID for IndexedDB storage (web / drag-drop)
+  nativePath?: string; // Absolute filesystem path (Electron native files only)
 }
 
 export interface YouTubeMedia {
@@ -62,7 +64,8 @@ export interface MediaHistoryItem {
     title?: string;
     youtubeId?: string;
   };
-  storageId?: string; // ID for IndexedDB storage
+  storageId?: string; // ID for IndexedDB storage (web / drag-drop)
+  nativePath?: string; // Absolute filesystem path (Electron native files only)
 }
 
 export interface MediaFolder {
@@ -296,7 +299,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             const previousUrl = get().currentFile?.url;
             let storageId = file.storageId;
 
-            if (file instanceof File && !storageId) {
+            // Native Electron files: skip IndexedDB entirely — the file:// URL is persistent
+            const isNativeFile = !!file.nativePath;
+
+            if (!isNativeFile && file instanceof File && !storageId) {
               try {
                 storageId = await storeMediaFile(file);
               } catch (error) {
@@ -308,7 +314,12 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
             const { mediaHistory } = get();
             let existingHistoryItem = null;
 
-            if (storageId) {
+            if (isNativeFile && file.nativePath) {
+              // For native files, match by nativePath
+              existingHistoryItem = mediaHistory.find(
+                (item) => item.type === "file" && item.nativePath === file.nativePath
+              );
+            } else if (storageId) {
               // First try to find by storageId (most reliable)
               existingHistoryItem = mediaHistory.find(
                 (item) => item.type === "file" && item.storageId === storageId
@@ -336,7 +347,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
               storageId,
             };
 
-            // Add to history with storage ID
+            // Add to history (native files carry nativePath; web files carry storageId)
             get().addToMediaHistory({
               type: "file",
               name: fileWithId.name,
@@ -345,8 +356,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
                 type: fileWithId.type,
                 size: fileWithId.size,
                 url: fileWithId.url,
+                nativePath: fileWithId.nativePath,
               },
-              storageId,
+              storageId: isNativeFile ? undefined : storageId,
+              nativePath: fileWithId.nativePath,
             });
 
             // Resuming playback time if available in history
@@ -855,6 +868,25 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
         try {
           if (historyItem.type === "file" && historyItem.fileData) {
+            // Native Electron file: reconstruct file:// URL from the saved path
+            if (historyItem.nativePath) {
+              const url = nativePathToUrl(historyItem.nativePath);
+              const fileData: MediaFile = {
+                name: historyItem.fileData.name,
+                type: historyItem.fileData.type,
+                size: historyItem.fileData.size,
+                url,
+                id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                nativePath: historyItem.nativePath,
+              };
+              get().setCurrentFile(fileData);
+              if (historyItem.playbackTime) {
+                set({ currentTime: historyItem.playbackTime });
+              }
+              set({ isLoadingMedia: false });
+              return;
+            }
+
             // Check if we have this file stored in IndexedDB
             if (historyItem.storageId) {
               try {

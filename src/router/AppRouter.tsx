@@ -1,11 +1,13 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HomePage, PlayerPage } from "../pages";
 import { SettingsPage } from "../pages/SettingsPage";
 import { LayoutSettingsProvider } from "../contexts/LayoutSettingsContext";
 
+const Router = window.electronAPI?.isElectron ? HashRouter : BrowserRouter;
+
 export const AppRouter = () => {
   return (
-    <BrowserRouter>
+    <Router>
       <LayoutSettingsProvider>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -15,6 +17,6 @@ export const AppRouter = () => {
           <Route path="*" element={<HomePage />} />
         </Routes>
       </LayoutSettingsProvider>
-    </BrowserRouter>
+    </Router>
   );
 };

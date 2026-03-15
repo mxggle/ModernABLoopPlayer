@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../stores/playerStore";
 import { FileUploader } from "../components/player/FileUploader";
+import { FolderBrowser } from "../components/player/FolderBrowser";
 import { YouTubeInput } from "../components/player/YouTubeInput";
 import { MediaHistory } from "../components/player/MediaHistory";
 // Use the same component as the file drawer, embedded in-page
 import { AppLayout } from "../components/layout/AppLayout";
+import { isElectron } from "../utils/platform";
 
 export const HomePage = () => {
   const navigate = useNavigate();
@@ -92,6 +94,13 @@ export const HomePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Folder browser — Electron only */}
+      {isElectron() && (
+        <div className="mb-4 sm:mb-6">
+          <FolderBrowser />
+        </div>
+      )}
 
       {/* Inline Library Manager - uses the same component as the file drawer */}
       <MediaHistory embedded title={t("home.mediaLibrary")} />
