@@ -4,8 +4,9 @@ import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useShallow } from "zustand/react/shallow";
 import {
-  Settings, LayoutDashboard, History as HistoryIcon,
+  History as HistoryIcon,
   FolderSearch, PanelLeftOpen, PanelLeftClose, Home,
+  Moon, Sun, Settings,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppLayoutBase } from "../layout/AppLayoutBase";
@@ -35,13 +36,16 @@ export const ElectronAppLayout = ({
   const [activeSidebarTab, setActiveSidebarTab] = useState<"recent" | "folders">("recent");
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const isMac = typeof window !== "undefined" && navigator.userAgent.includes("Mac OS X");
 
-  const { isSidebarOpen, sidebarWidth, setIsSidebarOpen, setSidebarWidth } = usePlayerStore(
+  const { isSidebarOpen, sidebarWidth, setIsSidebarOpen, setSidebarWidth, theme, setTheme } = usePlayerStore(
     useShallow((state) => ({
       isSidebarOpen: state.isSidebarOpen,
       sidebarWidth: state.sidebarWidth,
       setIsSidebarOpen: state.setIsSidebarOpen,
       setSidebarWidth: state.setSidebarWidth,
+      theme: state.theme,
+      setTheme: state.setTheme,
     }))
   );
 
@@ -88,21 +92,8 @@ export const ElectronAppLayout = ({
     >
       {isSidebarOpen && (
         <>
-          <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-2 min-w-0">
-            <div className="flex items-center gap-2 overflow-hidden min-w-0">
-              <button
-                onClick={navigateToHome}
-                className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-purple-600 transition-colors shrink-0"
-                title={t("common.home", "Home")}
-              >
-                <Home className="w-4 h-4" />
-              </button>
-              <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2 truncate">
-                <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
-                {t("home.workspace", "Workspace")}
-              </h2>
-            </div>
-          </div>
+          {/* Top layout spacer. Aligns with AppLayoutBase header border & acts as draggable mac title bar */}
+          <div className={`w-full shrink-0 h-[52px] sm:h-[56px] border-b border-gray-200 dark:border-gray-700 ${isMac ? "[-webkit-app-region:drag]" : ""}`} />
 
           <div className="p-4 border-b border-gray-200 dark:border-gray-800">
             <div className="flex bg-gray-100 dark:bg-gray-800/50 p-1 rounded-lg">
@@ -163,13 +154,20 @@ export const ElectronAppLayout = ({
             </AnimatePresence>
           </div>
 
-          <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/20">
+          <div className="p-3 border-t border-gray-200 dark:border-gray-800 flex items-center justify-around bg-gray-50/50 dark:bg-gray-800/20">
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 transition-colors"
+              title={theme === "dark" ? t("layout.switchToLightTheme", "Light Theme") : t("layout.switchToDarkTheme", "Dark Theme")}
+            >
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             <button
               onClick={() => navigate("/settings")}
-              className="w-full flex items-center justify-center gap-2 py-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-white dark:hover:bg-gray-800 rounded-lg transition-all border border-dashed border-gray-300 dark:border-gray-700"
+              className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 transition-colors"
+              title={t("layout.openSettings", "Open Settings")}
             >
-              <Settings className="w-3.5 h-3.5" />
-              {t("layout.openSettings")}
+              <Settings className="w-4 h-4" />
             </button>
           </div>
 
@@ -210,21 +208,30 @@ export const ElectronAppLayout = ({
   );
 
   const headerLeadingSlot = (
-    <button
-      onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-      className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors mr-2 shrink-0"
-      title={
-        isSidebarOpen
-          ? t("layout.hideSidebar", "Hide Sidebar")
-          : t("layout.showSidebar", "Show Sidebar")
-      }
-    >
-      {isSidebarOpen ? (
-        <PanelLeftClose className="w-5 h-5" />
-      ) : (
-        <PanelLeftOpen className="w-5 h-5" />
-      )}
-    </button>
+    <div className="flex items-center gap-0.5 mr-2 shrink-0">
+      <button
+        onClick={navigateToHome}
+        className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-purple-600 transition-colors"
+        title={t("common.home", "Home")}
+      >
+        <Home className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
+        title={
+          isSidebarOpen
+            ? t("layout.hideSidebar", "Hide Sidebar")
+            : t("layout.showSidebar", "Show Sidebar")
+        }
+      >
+        {isSidebarOpen ? (
+          <PanelLeftClose className="w-5 h-5" />
+        ) : (
+          <PanelLeftOpen className="w-5 h-5" />
+        )}
+      </button>
+    </div>
   );
 
   return (
@@ -235,6 +242,9 @@ export const ElectronAppLayout = ({
       sidebar={sidebar}
       contentPaddingLeft={isSidebarOpen ? sidebarWidth : 0}
       headerOffsetLeft={isSidebarOpen ? sidebarWidth : 0}
+      desktopMode={true}
+      hideThemeToggle={true}
+      hideSettings={true}
     >
       {children}
     </AppLayoutBase>

@@ -31,6 +31,12 @@ export interface AppLayoutBaseProps {
   headerOffsetLeft?: number;
   /** Extra className on the outermost wrapper, e.g. "max-w-5xl mx-auto overflow-x-hidden" for web */
   containerClassName?: string;
+  /** Enables desktop-specific styling like draggable header */
+  desktopMode?: boolean;
+  /** Hides the theme toggle from the header (useful when moved to sidebar) */
+  hideThemeToggle?: boolean;
+  /** Hides the settings button from the header (useful when moved to sidebar) */
+  hideSettings?: boolean;
 }
 
 export const AppLayoutBase = ({
@@ -42,11 +48,15 @@ export const AppLayoutBase = ({
   contentPaddingLeft = 0,
   headerOffsetLeft = 0,
   containerClassName = "",
+  desktopMode = false,
+  hideThemeToggle = false,
+  hideSettings = false,
 }: AppLayoutBaseProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [isLayoutPopoverOpen, setIsLayoutPopoverOpen] = useState(false);
+  const isMac = typeof window !== "undefined" && navigator.userAgent.includes("Mac OS X");
 
   const {
     currentFile,
@@ -84,8 +94,13 @@ export const AppLayoutBase = ({
         <div className="h-[52px] sm:h-[56px]"></div>
 
         <header
-          className="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 fixed top-0 right-0 z-[55]"
-          style={{ left: headerOffsetLeft }}
+          className={`flex items-center h-[52px] sm:h-[56px] justify-between px-2 sm:px-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 fixed top-0 right-0 z-[55] ${
+            desktopMode ? "[-webkit-app-region:drag] select-none [&_button]:[-webkit-app-region:no-drag] [&_input]:[-webkit-app-region:no-drag] [&_a]:[-webkit-app-region:no-drag] [&_[role='dialog']]:[-webkit-app-region:no-drag]" : ""
+          }`}
+          style={{ 
+            left: headerOffsetLeft,
+            paddingLeft: desktopMode && isMac && headerOffsetLeft === 0 ? "80px" : undefined
+          }}
         >
           {headerLeadingSlot}
 
@@ -177,30 +192,34 @@ export const AppLayoutBase = ({
             )}
 
             {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
-              aria-label={
-                theme === "dark"
-                  ? t("layout.switchToLightTheme")
-                  : t("layout.switchToDarkTheme")
-              }
-            >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4 sm:h-5 sm:w-5" />
-              ) : (
-                <Moon className="h-4 w-4 sm:h-5 sm:w-5" />
-              )}
-            </button>
+            {!hideThemeToggle && (
+              <button
+                onClick={toggleTheme}
+                className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+                aria-label={
+                  theme === "dark"
+                    ? t("layout.switchToLightTheme")
+                    : t("layout.switchToDarkTheme")
+                }
+              >
+                {theme === "dark" ? (
+                  <Sun className="h-4 w-4 sm:h-5 sm:w-5" />
+                ) : (
+                  <Moon className="h-4 w-4 sm:h-5 sm:w-5" />
+                )}
+              </button>
+            )}
 
             {/* Settings */}
-            <button
-              onClick={() => navigate("/settings")}
-              className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
-              aria-label={t("layout.openSettings")}
-            >
-              <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
-            </button>
+            {!hideSettings && (
+              <button
+                onClick={() => navigate("/settings")}
+                className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+                aria-label={t("layout.openSettings")}
+              >
+                <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+            )}
 
             {/* Keyboard shortcuts dialog */}
             <Dialog.Root open={showKeyboardShortcuts} onOpenChange={setShowKeyboardShortcuts}>

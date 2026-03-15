@@ -16,6 +16,8 @@ function createWindow(): void {
     height: 800,
     minWidth: 800,
     minHeight: 600,
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
