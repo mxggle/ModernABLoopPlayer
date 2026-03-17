@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useShallow } from "zustand/react/shallow";
 import { useSegmentState } from "../../hooks/useSegmentState";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
 import {
   Loader,
   Trash,
@@ -457,7 +457,7 @@ export const TranscriptPanel = () => {
     getScrollElement: () => transcriptRef.current,
     estimateSize: () => 72,
     overscan: 5,
-    getItemKey: (index) => filteredSegments[index]?.id ?? `segment-${index}`,
+    getItemKey: (index: number) => filteredSegments[index]?.id ?? `segment-${index}`,
   });
 
   // Load API key and transcription provider from localStorage on component mount
@@ -1424,7 +1424,7 @@ export const TranscriptPanel = () => {
             <div
               style={{ height: virtualizer.getTotalSize(), position: "relative" }}
             >
-              {virtualizer.getVirtualItems().map((virtualItem) => {
+              {virtualizer.getVirtualItems().map((virtualItem: VirtualItem) => {
                 const segment = filteredSegments[virtualItem.index];
                 if (!segment) {
                   return null;
