@@ -4,11 +4,26 @@ export const isElectron = (): boolean =>
 export const getPlatform = (): string =>
   window.electronAPI?.platform ?? 'web'
 
+const ensureLeadingSlash = (path: string): string =>
+  path.startsWith('/') ? path : `/${path}`
+
+const encodePathForUrl = (path: string): string =>
+  ensureLeadingSlash(path)
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/')
+
 /**
- * Convert a native filesystem path to a file:// URL suitable for <audio>/<video>.
- * Handles both Unix (/path/to/file) and Windows (C:\path\to\file) paths.
+ * Convert a native filesystem path to a URL suitable for <audio>/<video>.
+ * In Electron, uses the custom local-media:// protocol which bypasses
+ * cross-origin restrictions that block file:// URLs in dev mode.
+ * In the browser, falls back to file:// URLs.
  */
 export const nativePathToUrl = (filePath: string): string => {
   const normalized = filePath.replace(/\\/g, '/')
-  return normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`
+  const encodedPath = encodePathForUrl(normalized)
+  if (isElectron()) {
+    return `local-media://media${encodedPath}`
+  }
+  return `file://${encodedPath}`
 }

@@ -2,7 +2,7 @@
  * Format seconds into a time string (MM:SS or HH:MM:SS)
  */
 export const formatTime = (seconds: number): string => {
-  if (isNaN(seconds)) return '--:--'
+  if (!Number.isFinite(seconds)) return '--:--'
   
   seconds = Math.floor(seconds)
   

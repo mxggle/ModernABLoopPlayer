@@ -18,6 +18,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   // Track pending play intent so we can start playback once the element is ready
   const pendingPlayRef = useRef(false);
   const lastReportedTimeRef = useRef(0);
+  const resolvingInfiniteDurationRef = useRef(false);
 
   const {
     currentFile,
@@ -81,6 +82,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   // Reset pending play when the media source changes
   useEffect(() => {
     pendingPlayRef.current = false;
+    resolvingInfiniteDurationRef.current = false;
   }, [currentFile?.url]);
 
   // Listen for canplay to know when the element is ready
@@ -389,13 +391,71 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   }, [currentFile, currentTime]);
 
   // Handle media metadata loaded
+  const commitDuration = useCallback(
+    (mediaElement: HTMLMediaElement) => {
+      const nextDuration = mediaElement.duration;
+      if (Number.isFinite(nextDuration) && nextDuration >= 0) {
+        resolvingInfiniteDurationRef.current = false;
+        setDuration(nextDuration);
+        return true;
+      }
+
+      setDuration(0);
+      return false;
+    },
+    [setDuration]
+  );
+
+  const resolveInfiniteDuration = useCallback(
+    (mediaElement: HTMLMediaElement) => {
+      if (
+        resolvingInfiniteDurationRef.current ||
+        Number.isFinite(mediaElement.duration) ||
+        mediaElement.readyState === 0
+      ) {
+        return;
+      }
+
+      resolvingInfiniteDurationRef.current = true;
+      const originalTime = mediaElement.currentTime;
+
+      const finalize = () => {
+        mediaElement.currentTime = originalTime;
+        commitDuration(mediaElement);
+      };
+
+      const handleTimeUpdate = () => {
+        mediaElement.removeEventListener("timeupdate", handleTimeUpdate);
+        finalize();
+      };
+
+      mediaElement.addEventListener("timeupdate", handleTimeUpdate, {
+        once: true,
+      });
+
+      try {
+        mediaElement.currentTime = Number.MAX_SAFE_INTEGER;
+      } catch (error) {
+        console.warn("Failed to resolve media duration from metadata:", error);
+        resolvingInfiniteDurationRef.current = false;
+      }
+    },
+    [commitDuration]
+  );
+
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLMediaElement>) => {
     console.log("Media metadata loaded:", {
       duration: e.currentTarget.duration,
       src: e.currentTarget.src,
       readyState: e.currentTarget.readyState,
     });
-    setDuration(e.currentTarget.duration);
+    if (!commitDuration(e.currentTarget)) {
+      resolveInfiniteDuration(e.currentTarget);
+    }
+  };
+
+  const handleDurationChange = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    commitDuration(e.currentTarget);
   };
 
   // Handle media ended
@@ -443,6 +503,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
             ref={videoRef}
             src={currentFile.url}
             onLoadedMetadata={handleLoadedMetadata}
+            onDurationChange={handleDurationChange}
             onEnded={handleEnded}
             onError={handleError}
             controls
@@ -453,6 +514,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
             ref={audioRef}
             src={currentFile.url}
             onLoadedMetadata={handleLoadedMetadata}
+            onDurationChange={handleDurationChange}
             onEnded={handleEnded}
             onError={handleError}
           />
@@ -470,6 +532,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
           src={currentFile.url}
           className="w-full h-auto max-h-[calc(100vh-220px)] sm:max-h-[calc(100vh-200px)] rounded-lg shadow-lg"
           onLoadedMetadata={handleLoadedMetadata}
+          onDurationChange={handleDurationChange}
           onEnded={handleEnded}
           onError={handleError}
           controls
@@ -481,6 +544,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
             ref={audioRef}
             src={currentFile.url}
             onLoadedMetadata={handleLoadedMetadata}
+            onDurationChange={handleDurationChange}
             onEnded={handleEnded}
             onError={handleError}
           />
