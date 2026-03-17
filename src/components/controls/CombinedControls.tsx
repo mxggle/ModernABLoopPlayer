@@ -21,7 +21,12 @@ import {
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
 
-export const CombinedControls = () => {
+interface CombinedControlsProps {
+  /** When false the bar always starts at left:0 (web – no sidebar). Defaults to true. */
+  showSidebarOffset?: boolean;
+}
+
+export const CombinedControls = ({ showSidebarOffset = true }: CombinedControlsProps) => {
   const { t } = useTranslation();
   const {
     isPlaying,
@@ -234,7 +239,7 @@ export const CombinedControls = () => {
   return (
     <div 
       className="fixed bottom-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-[50] transition-[left] duration-300 ease-in-out"
-      style={{ left: isSidebarOpen ? sidebarWidth : 0 }}
+      style={{ left: showSidebarOffset && isSidebarOpen ? sidebarWidth : 0 }}
     >
       <div className="max-w-6xl mx-auto px-2 sm:px-4 py-1 sm:py-2">
         {/* Timeline slider - improved design and visibility */}

@@ -152,7 +152,7 @@ export const PlayerPage = () => {
             {/* Media controls (should not grow) */}
             {layoutSettings.showControls && (
               <div className="mt-4 sm:mt-6 bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-4 ">
-                {isMobile ? <MobileControls /> : <CombinedControls />}
+                {isMobile ? <MobileControls /> : <CombinedControls showSidebarOffset={isElectron()} />}
               </div>
             )}
           </div>
