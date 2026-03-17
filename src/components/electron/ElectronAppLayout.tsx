@@ -33,12 +33,11 @@ export const ElectronAppLayout = ({
 }: ElectronAppLayoutProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [activeSidebarTab, setActiveSidebarTab] = useState<"recent" | "folders">("recent");
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMac = typeof window !== "undefined" && navigator.userAgent.includes("Mac OS X");
 
-  const { isSidebarOpen, sidebarWidth, setIsSidebarOpen, setSidebarWidth, theme, setTheme } = usePlayerStore(
+  const { isSidebarOpen, sidebarWidth, setIsSidebarOpen, setSidebarWidth, theme, setTheme, activeSidebarTab, setActiveSidebarTab } = usePlayerStore(
     useShallow((state) => ({
       isSidebarOpen: state.isSidebarOpen,
       sidebarWidth: state.sidebarWidth,
@@ -46,6 +45,8 @@ export const ElectronAppLayout = ({
       setSidebarWidth: state.setSidebarWidth,
       theme: state.theme,
       setTheme: state.setTheme,
+      activeSidebarTab: state.activeSidebarTab,
+      setActiveSidebarTab: state.setActiveSidebarTab,
     }))
   );
 

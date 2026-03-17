@@ -148,6 +148,7 @@ export interface PlayerState {
   // Layout state
   isSidebarOpen: boolean;
   sidebarWidth: number;
+  activeSidebarTab: "recent" | "folders";
 }
 
 export interface PlayerActions {
@@ -257,6 +258,7 @@ export interface PlayerActions {
   // Layout actions
   setIsSidebarOpen: (isOpen: boolean) => void;
   setSidebarWidth: (width: number) => void;
+  setActiveSidebarTab: (tab: "recent" | "folders") => void;
 }
 
 const initialState: PlayerState = {
@@ -304,6 +306,7 @@ const initialState: PlayerState = {
   // Layout defaults (sidebar is Electron-only; default closed so web is unaffected)
   isSidebarOpen: false,
   sidebarWidth: 288,
+  activeSidebarTab: "recent",
 };
 
 export const usePlayerStore = create<PlayerState & PlayerActions>()(
@@ -1777,6 +1780,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       // Layout actions
       setIsSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
       setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
+      setActiveSidebarTab: (activeSidebarTab) => set({ activeSidebarTab }),
     }),
     {
       name: "abloop-player-storage",
@@ -1842,6 +1846,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         sourceFolders: state.sourceFolders,
         isSidebarOpen: state.isSidebarOpen,
         sidebarWidth: state.sidebarWidth,
+        activeSidebarTab: state.activeSidebarTab,
       }),
     }
   )
