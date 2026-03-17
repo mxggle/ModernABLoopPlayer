@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../stores/playerStore";
@@ -22,6 +22,7 @@ export const PlayerPage = () => {
   const navigate = useNavigate();
   const { layoutSettings, setLayoutSettings } = useLayoutSettings();
   const { isMobile } = useWindowSize();
+  const layoutInitializedForRef = useRef<string | null>(null);
 
   const { currentFile, currentYouTube, showWaveform, isLoadingMedia } =
     usePlayerStore(
@@ -48,13 +49,15 @@ export const PlayerPage = () => {
 
   const youtubeId = currentYouTube?.id;
 
-  // Auto-default player visibility based on media type
-  // For audio files, hide the large player card by default (still render in hidden mode)
-  // For video (YouTube or file), show the player by default
+  // Auto-default player visibility based on media type — only when media changes, not on re-mount
   useEffect(() => {
     if (currentFile) {
-      const isAudio = currentFile.type.includes("audio");
-      setLayoutSettings((prev) => ({ ...prev, showPlayer: !isAudio }));
+      const mediaKey = currentFile.storageId || currentFile.id || currentFile.name;
+      if (layoutInitializedForRef.current !== mediaKey) {
+        layoutInitializedForRef.current = mediaKey;
+        const isAudio = currentFile.type.includes("audio");
+        setLayoutSettings((prev) => ({ ...prev, showPlayer: !isAudio }));
+      }
     }
   }, [currentFile]);
 

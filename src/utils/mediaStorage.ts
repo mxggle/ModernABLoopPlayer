@@ -1,5 +1,6 @@
 import { toast } from "react-hot-toast";
 import i18n from "../i18n";
+import type { TranscriptSegment } from "../stores/playerStore";
 
 // Default limits (can be made configurable in settings)
 const DEFAULT_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB per file
@@ -7,9 +8,10 @@ const DEFAULT_MAX_TOTAL_STORAGE = 10 * 1024 * 1024 * 1024; // 10GB total
 
 // IndexedDB setup
 const DB_NAME = "abloop-media-storage";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const MEDIA_STORE = "media-files";
 const META_STORE = "storage-meta";
+const TRANSCRIPT_STORE = "transcripts";
 const WAVEFORM_META_PREFIX = "waveform:";
 
 interface StorageMetadata {
@@ -25,6 +27,12 @@ interface StoredMedia {
   fileName: string;
   fileSize: number;
   timestamp: number;
+}
+
+interface StoredTranscript {
+  mediaId: string;
+  segments: TranscriptSegment[];
+  updatedAt: number;
 }
 
 export interface CachedWaveformData {
@@ -62,6 +70,10 @@ const initDB = (): Promise<IDBDatabase> => {
 
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE, { keyPath: "id" });
+      }
+
+      if (!db.objectStoreNames.contains(TRANSCRIPT_STORE)) {
+        db.createObjectStore(TRANSCRIPT_STORE, { keyPath: "mediaId" });
       }
     };
   });
@@ -131,9 +143,37 @@ const updateStorageMetadata = async (
   }
 };
 
+const deleteMediaRecords = async (
+  db: IDBDatabase,
+  ids: string[]
+): Promise<void> => {
+  if (ids.length === 0) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(
+      [MEDIA_STORE, TRANSCRIPT_STORE],
+      "readwrite"
+    );
+    const mediaStore = transaction.objectStore(MEDIA_STORE);
+    const transcriptStore = transaction.objectStore(TRANSCRIPT_STORE);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+
+    ids.forEach((id) => {
+      mediaStore.delete(id);
+      transcriptStore.delete(id);
+    });
+  });
+};
+
 // Clean up old files if we exceed storage limits
 const cleanupOldFiles = async (
-  maxTotalStorage = DEFAULT_MAX_TOTAL_STORAGE
+  maxTotalStorage = DEFAULT_MAX_TOTAL_STORAGE,
+  excludeIds: string[] = []
 ): Promise<void> => {
   try {
     const metadata = await getStorageMetadata();
@@ -164,7 +204,7 @@ const cleanupOldFiles = async (
     // Sort by timestamp (oldest first)
     files.sort((a, b) => a.timestamp - b.timestamp);
 
-    // Delete old files until we're under the limit
+    // Delete old files until we're under the limit, skipping currently-playing files
     let currentSize = metadata.totalSize;
     const filesToDelete: string[] = [];
 
@@ -173,17 +213,15 @@ const cleanupOldFiles = async (
         // Aim to get down to 80% of max
         break;
       }
+      if (excludeIds.includes(file.id)) {
+        continue; // Never delete currently-playing media
+      }
       filesToDelete.push(file.id);
       currentSize -= file.fileSize;
     }
 
     if (filesToDelete.length > 0) {
-      const transaction = db.transaction([MEDIA_STORE], "readwrite");
-      const store = transaction.objectStore(MEDIA_STORE);
-
-      for (const id of filesToDelete) {
-        store.delete(id);
-      }
+      await deleteMediaRecords(db, filesToDelete);
 
       // Update metadata
       await updateStorageMetadata({
@@ -205,7 +243,8 @@ const cleanupOldFiles = async (
 export const storeMediaFile = async (
   file: File,
   maxFileSize = DEFAULT_MAX_FILE_SIZE,
-  maxTotalStorage = DEFAULT_MAX_TOTAL_STORAGE
+  maxTotalStorage = DEFAULT_MAX_TOTAL_STORAGE,
+  excludeFromCleanup: string[] = []
 ): Promise<string> => {
   try {
     // Check if file is too large
@@ -219,9 +258,9 @@ export const storeMediaFile = async (
     // Get current storage metadata
     const metadata = await getStorageMetadata();
 
-    // Clean up if we're close to the limit
+    // Clean up if we're close to the limit, preserving currently-playing files
     if (metadata.totalSize + file.size > maxTotalStorage * 0.9) {
-      await cleanupOldFiles(maxTotalStorage);
+      await cleanupOldFiles(maxTotalStorage, excludeFromCleanup);
     }
 
     // Generate unique ID
@@ -373,19 +412,7 @@ export const deleteMediaFile = async (id: string): Promise<void> => {
     }
 
     // Delete file
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction([MEDIA_STORE], "readwrite");
-      const store = transaction.objectStore(MEDIA_STORE);
-      const request = store.delete(id);
-
-      request.onsuccess = () => {
-        resolve();
-      };
-
-      request.onerror = () => {
-        reject(request.error);
-      };
-    });
+    await deleteMediaRecords(db, [id]);
 
     // Update metadata
     const metadata = await getStorageMetadata();
@@ -405,17 +432,19 @@ export const clearAllMediaFiles = async (): Promise<void> => {
     const db = await initDB();
 
     await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction([MEDIA_STORE], "readwrite");
-      const store = transaction.objectStore(MEDIA_STORE);
-      const request = store.clear();
+      const transaction = db.transaction(
+        [MEDIA_STORE, TRANSCRIPT_STORE],
+        "readwrite"
+      );
+      const mediaStore = transaction.objectStore(MEDIA_STORE);
+      const transcriptStore = transaction.objectStore(TRANSCRIPT_STORE);
 
-      request.onsuccess = () => {
-        resolve();
-      };
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
 
-      request.onerror = () => {
-        reject(request.error);
-      };
+      mediaStore.clear();
+      transcriptStore.clear();
     });
 
     // Reset metadata
@@ -496,6 +525,88 @@ export const getCachedWaveform = async (
   } catch (error) {
     console.error("Error getting cached waveform", error);
     return null;
+  }
+};
+
+export const getStoredTranscript = async (
+  mediaId: string
+): Promise<TranscriptSegment[]> => {
+  try {
+    const db = await initDB();
+
+    const storedTranscript = await new Promise<StoredTranscript | undefined>(
+      (resolve, reject) => {
+        const transaction = db.transaction([TRANSCRIPT_STORE], "readonly");
+        const store = transaction.objectStore(TRANSCRIPT_STORE);
+        const request = store.get(mediaId);
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      }
+    );
+
+    return storedTranscript?.segments || [];
+  } catch (error) {
+    console.error("Error loading transcript", error);
+    return [];
+  }
+};
+
+export const setStoredTranscript = async (
+  mediaId: string,
+  segments: TranscriptSegment[]
+): Promise<void> => {
+  try {
+    const db = await initDB();
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction([TRANSCRIPT_STORE], "readwrite");
+      const store = transaction.objectStore(TRANSCRIPT_STORE);
+      const request = store.put({
+        mediaId,
+        segments,
+        updatedAt: Date.now(),
+      });
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.error("Error storing transcript", error);
+  }
+};
+
+export const deleteStoredTranscript = async (mediaId: string): Promise<void> => {
+  try {
+    const db = await initDB();
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction([TRANSCRIPT_STORE], "readwrite");
+      const store = transaction.objectStore(TRANSCRIPT_STORE);
+      const request = store.delete(mediaId);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.error("Error deleting transcript", error);
+  }
+};
+
+export const clearAllStoredTranscripts = async (): Promise<void> => {
+  try {
+    const db = await initDB();
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction([TRANSCRIPT_STORE], "readwrite");
+      const store = transaction.objectStore(TRANSCRIPT_STORE);
+      const request = store.clear();
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.error("Error clearing transcripts", error);
   }
 };
 

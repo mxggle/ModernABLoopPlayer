@@ -3,6 +3,7 @@ import {
   TranscriptSegment as TranscriptSegmentType,
   LoopBookmark,
 } from "../../stores/playerStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   Bookmark,
   Play,
@@ -16,47 +17,22 @@ import { useState, useEffect } from "react";
 import { ExplanationDrawer } from "./ExplanationDrawer";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { useSegmentState } from "../../hooks/useSegmentState";
 
 interface TranscriptSegmentProps {
   segment: TranscriptSegmentType;
 }
 
-// Global explanation state management
-interface ExplanationState {
-  text: string;
-  status: "idle" | "loading" | "completed" | "error";
-  result?: string;
-  error?: string;
-}
-
-// Simple global state management (shared with ExplanationDrawer)
-const globalExplanationStates = new Map<string, ExplanationState>();
-const globalExplanationListeners = new Set<() => void>();
-
-const setGlobalExplanationState = (
-  text: string,
-  state: Partial<ExplanationState>
-) => {
-  const existing = globalExplanationStates.get(text) || {
-    text,
-    status: "idle",
-  };
-  globalExplanationStates.set(text, { ...existing, ...state });
-  globalExplanationListeners.forEach((listener) => listener());
-};
-
-const getGlobalExplanationState = (text: string): ExplanationState => {
-  return globalExplanationStates.get(text) || { text, status: "idle" };
-};
+import {
+  ExplanationState,
+  subscribeToExplanation,
+  setGlobalExplanationState,
+  getGlobalExplanationState,
+} from "./explanationState";
 
 export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
   const { t } = useTranslation();
   const {
-    currentTime,
-    isPlaying,
-    loopStart,
-    loopEnd,
-    isLooping,
     setCurrentTime,
     setIsPlaying,
     setLoopPoints,
@@ -64,42 +40,45 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
     addBookmark,
     deleteBookmark,
     getCurrentMediaBookmarks,
-  } = usePlayerStore();
+  } = usePlayerStore(
+    useShallow((state) => ({
+      setCurrentTime: state.setCurrentTime,
+      setIsPlaying: state.setIsPlaying,
+      setLoopPoints: state.setLoopPoints,
+      setIsLooping: state.setIsLooping,
+      addBookmark: state.addBookmark,
+      deleteBookmark: state.deleteBookmark,
+      getCurrentMediaBookmarks: state.getCurrentMediaBookmarks,
+    }))
+  );
+
+  // Subscribe externally to avoid per-tick re-renders
+  const { isActive: isCurrentSegment, isPlaying, isCurrentlyLooping } = useSegmentState(segment);
+
+  // Reactive bookmark check (only re-renders when isBookmarked changes)
+  const isBookmarked = usePlayerStore((state) => {
+    const bks = state.getCurrentMediaBookmarks();
+    return bks.some(
+      (b: LoopBookmark) =>
+        Math.abs(b.start - segment.startTime) < 0.5 &&
+        Math.abs(b.end - segment.endTime) < 0.5
+    );
+  });
 
   const [showExplanation, setShowExplanation] = useState(false);
   const [explanationState, setLocalExplanationState] =
     useState<ExplanationState>(getGlobalExplanationState(segment.text));
 
-  // Subscribe to explanation state changes
+  // Subscribe to explanation state changes (keyed, only notified for this text)
   useEffect(() => {
     const updateState = () => {
       setLocalExplanationState(getGlobalExplanationState(segment.text));
     };
-
-    globalExplanationListeners.add(updateState);
-
-    return () => {
-      globalExplanationListeners.delete(updateState);
-    };
+    return subscribeToExplanation(segment.text, updateState);
   }, [segment.text]);
 
-  const isCurrentSegment =
-    currentTime >= segment.startTime && currentTime <= segment.endTime;
-
-  // Get current media bookmarks to check if this segment is bookmarked
+  // bookmarks reference needed for toggle handler
   const bookmarks = getCurrentMediaBookmarks();
-  const isBookmarked = bookmarks.some(
-    (bookmark: LoopBookmark) =>
-      Math.abs(bookmark.start - segment.startTime) < 0.5 &&
-      Math.abs(bookmark.end - segment.endTime) < 0.5
-  );
-
-  const isCurrentlyLooping =
-    isLooping &&
-    loopStart !== null &&
-    loopEnd !== null &&
-    Math.abs(loopStart - segment.startTime) < 0.1 &&
-    Math.abs(loopEnd - segment.endTime) < 0.1;
 
   const handlePlay = () => {
     setCurrentTime(segment.startTime);
@@ -183,14 +162,9 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
       // Simulate API call - replace with actual AI service call
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      // Mock successful response
-      const mockExplanation = t("explanation.mockExplanation", {
-        snippet: `${segment.text.substring(0, 50)}...`,
-      });
-
+      // Mark as ready so the brain icon updates; ExplanationDrawer generates the real result on open
       setGlobalExplanationState(segment.text, {
         status: "completed",
-        result: mockExplanation,
       });
 
       toast.success(t("explanation.explanationReady"), {
@@ -355,11 +329,13 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
 
       <p className="text-gray-800 dark:text-gray-200">{segment.text}</p>
 
-      <ExplanationDrawer
-        isOpen={showExplanation}
-        onClose={() => setShowExplanation(false)}
-        text={segment.text}
-      />
+      {showExplanation && (
+        <ExplanationDrawer
+          isOpen={showExplanation}
+          onClose={() => setShowExplanation(false)}
+          text={segment.text}
+        />
+      )}
     </div>
   );
 };
