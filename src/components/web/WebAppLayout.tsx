@@ -15,12 +15,14 @@ interface WebAppLayoutProps {
   children: React.ReactNode;
   layoutSettings?: LayoutSettings;
   setLayoutSettings?: Dispatch<SetStateAction<LayoutSettings>>;
+  bottomPaddingClassName?: string;
 }
 
 export const WebAppLayout = ({
   children,
   layoutSettings,
   setLayoutSettings,
+  bottomPaddingClassName,
 }: WebAppLayoutProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -60,6 +62,7 @@ export const WebAppLayout = ({
       setLayoutSettings={setLayoutSettings}
       headerLeadingSlot={headerLeadingSlot}
       containerClassName="max-w-5xl mx-auto overflow-x-hidden"
+      bottomPaddingClassName={bottomPaddingClassName}
     >
       {children}
     </AppLayoutBase>

@@ -23,6 +23,7 @@ interface AppLayoutProps {
   children: React.ReactNode;
   layoutSettings?: LayoutSettings;
   setLayoutSettings?: Dispatch<SetStateAction<LayoutSettings>>;
+  bottomPaddingClassName?: string;
 }
 
 export const AppLayout = (props: AppLayoutProps) => {

@@ -84,6 +84,7 @@ interface ElectronAppLayoutProps {
   children: React.ReactNode;
   layoutSettings?: LayoutSettings;
   setLayoutSettings?: Dispatch<SetStateAction<LayoutSettings>>;
+  bottomPaddingClassName?: string;
 }
 
 /* ── Main component ─────────────────────────────────────────────── */
@@ -91,6 +92,7 @@ export const ElectronAppLayout = ({
   children,
   layoutSettings,
   setLayoutSettings,
+  bottomPaddingClassName,
 }: ElectronAppLayoutProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -307,6 +309,7 @@ export const ElectronAppLayout = ({
     <AppLayoutBase
       layoutSettings={layoutSettings}
       setLayoutSettings={setLayoutSettings}
+      bottomPaddingClassName={bottomPaddingClassName}
       headerLeadingSlot={headerLeadingSlot}
       sidebar={sidebar}
       contentPaddingLeft={isSidebarOpen ? sidebarWidth : 0}

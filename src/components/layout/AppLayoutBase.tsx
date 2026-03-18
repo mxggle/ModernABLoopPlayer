@@ -31,6 +31,8 @@ export interface AppLayoutBaseProps {
   headerOffsetLeft?: number;
   /** Extra className on the outermost wrapper, e.g. "max-w-5xl mx-auto overflow-x-hidden" for web */
   containerClassName?: string;
+  /** Bottom padding reserved for fixed overlays like the player controls */
+  bottomPaddingClassName?: string;
   /** Enables desktop-specific styling like draggable header */
   desktopMode?: boolean;
   /** Hides the theme toggle from the header (useful when moved to sidebar) */
@@ -48,6 +50,7 @@ export const AppLayoutBase = ({
   contentPaddingLeft = 0,
   headerOffsetLeft = 0,
   containerClassName = "",
+  bottomPaddingClassName = "pb-20 sm:pb-40",
   desktopMode = false,
   hideThemeToggle = false,
   hideSettings = false,
@@ -83,7 +86,7 @@ export const AppLayoutBase = ({
   const youtubeId = currentYouTube?.id;
 
   return (
-    <div className={`flex min-h-screen w-full bg-white dark:bg-gray-900 ${containerClassName} pb-20 sm:pb-40 px-2 sm:px-4`}>
+    <div className={`flex min-h-screen w-full bg-white dark:bg-gray-900 ${containerClassName} ${bottomPaddingClassName} px-2 sm:px-4`}>
       {sidebar}
 
       <div
@@ -273,7 +276,7 @@ export const AppLayoutBase = ({
           </div>
         </header>
 
-        <main className="flex-1 w-full">{children}</main>
+        <main className="flex flex-1 min-h-0 w-full flex-col">{children}</main>
       </div>
     </div>
   );
