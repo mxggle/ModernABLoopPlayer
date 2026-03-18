@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useShadowingStore } from "../../stores/shadowingStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   CachedWaveformData,
   getCachedWaveform,
@@ -157,15 +158,60 @@ export const WaveformVisualizer = () => {
     isPlaying,
     muted,
     toggleMute,
-  } = usePlayerStore();
+  } = usePlayerStore(
+    useShallow((state) => ({
+      currentFile: state.currentFile,
+      currentYouTube: state.currentYouTube,
+      currentTime: state.currentTime,
+      duration: state.duration,
+      loopStart: state.loopStart,
+      loopEnd: state.loopEnd,
+      isLooping: state.isLooping,
+      playbackRate: state.playbackRate,
+      waveformZoom: state.waveformZoom,
+      showWaveform: state.showWaveform,
+      setCurrentTime: state.setCurrentTime,
+      setLoopPoints: state.setLoopPoints,
+      setWaveformZoom: state.setWaveformZoom,
+      setIsLooping: state.setIsLooping,
+      addBookmark: state.addBookmark,
+      selectedBookmarkId: state.selectedBookmarkId,
+      loadBookmark: state.loadBookmark,
+      setIsPlaying: state.setIsPlaying,
+      deleteBookmark: state.deleteBookmark,
+      autoAdvanceBookmarks: state.autoAdvanceBookmarks,
+      setAutoAdvanceBookmarks: state.setAutoAdvanceBookmarks,
+      updateBookmark: state.updateBookmark,
+      mediaVolume: state.mediaVolume,
+      setMediaVolume: state.setMediaVolume,
+      previousMediaVolume: state.previousMediaVolume,
+      setPreviousMediaVolume: state.setPreviousMediaVolume,
+      isPlaying: state.isPlaying,
+      muted: state.muted,
+      toggleMute: state.toggleMute,
+    }))
+  );
 
   const {
     volume: shadowVolume, setVolume: setShadowVolume,
     muted: shadowMuted, setMuted: setShadowMuted,
     currentRecording,
+    currentRecordingRevision,
     isShadowingMode, setShadowingMode,
     isRecording,
-  } = useShadowingStore();
+  } = useShadowingStore(
+    useShallow((state) => ({
+      volume: state.volume,
+      setVolume: state.setVolume,
+      muted: state.muted,
+      setMuted: state.setMuted,
+      currentRecording: state.currentRecording,
+      currentRecordingRevision: state.currentRecordingRevision,
+      isShadowingMode: state.isShadowingMode,
+      setShadowingMode: state.setShadowingMode,
+      isRecording: state.isRecording,
+    }))
+  );
 
   const mediaId = usePlayerStore((state) => state.getCurrentMediaId());
   const shadowingSegments = useShadowingStore((state) => {
@@ -950,6 +996,7 @@ export const WaveformVisualizer = () => {
     selectedBookmarkId,
     shadowingWaveforms,
     currentRecording,
+    currentRecordingRevision,
     fadingRecording,
     fadeFrame,
     isDragging,
@@ -1113,6 +1160,7 @@ export const WaveformVisualizer = () => {
     [
       currentTime,
       waveformZoom,
+      setIsPlaying,
       setIsDragging,
       setTouchStartTime,
       setPinchStartDistance,
@@ -1250,6 +1298,8 @@ export const WaveformVisualizer = () => {
       isLooping,
       loopStart,
       loopEnd,
+      isShadowingMode,
+      setShadowingMode,
       setIsLooping,
     ]
   );

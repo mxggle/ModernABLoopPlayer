@@ -70,6 +70,8 @@ export const YouTubePlayer = ({
   const [isSeeking, setIsSeeking] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
   const lastSeekTime = useRef<number>(0);
+  const playbackSyncFrameRef = useRef<number | null>(null);
+  const lastReportedTimeRef = useRef(0);
 
   const {
     isPlaying,
@@ -172,7 +174,7 @@ export const YouTubePlayer = ({
         newPlayer.destroy();
       }
     };
-  }, [apiLoaded, videoId, setDuration, setIsPlaying, setCurrentTime]);
+  }, [apiLoaded, videoId, setDuration, setIsPlaying, setCurrentTime, t]);
 
   // Handle initial seek when player is ready
   const hasPerformedInitialSeek = useRef(false);
@@ -240,18 +242,29 @@ export const YouTubePlayer = ({
     previousTimeRef.current = currentTime;
   }, [currentTime, player, isSeeking]);
 
-  // Handle A-B loop
+  // Smooth current time updates and handle A-B loop checks while playing
   useEffect(() => {
     if (!player) return;
 
-    const checkTime = () => {
-      if (!player) return;
+    const stopSync = () => {
+      if (playbackSyncFrameRef.current !== null) {
+        window.cancelAnimationFrame(playbackSyncFrameRef.current);
+        playbackSyncFrameRef.current = null;
+      }
+    };
 
+    if (!isPlaying && !isLooping) {
+      stopSync();
+      return stopSync;
+    }
+
+    const syncTime = () => {
       const playerTime = player.getCurrentTime();
 
       // Update store time only if we're not currently seeking
       // This prevents overwriting the optimistic store update with the old player time
-      if (!isSeeking) {
+      if (!isSeeking && Math.abs(playerTime - lastReportedTimeRef.current) >= 1 / 30) {
+        lastReportedTimeRef.current = playerTime;
         setCurrentTime(playerTime);
       }
 
@@ -287,17 +300,13 @@ export const YouTubePlayer = ({
           console.log("YouTube Loop: Jumping to start point", loopStart);
         }
       }
+
+      playbackSyncFrameRef.current = window.requestAnimationFrame(syncTime);
     };
 
-    if (!isPlaying && !isLooping) {
-      return;
-    }
+    playbackSyncFrameRef.current = window.requestAnimationFrame(syncTime);
 
-    const checkInterval = setInterval(checkTime, 250);
-
-    return () => {
-      clearInterval(checkInterval);
-    };
+    return stopSync;
   }, [player, isPlaying, isLooping, isSeeking, loopStart, loopEnd, setCurrentTime]);
 
   // For hidden mode, render a minimal container but still initialize the player

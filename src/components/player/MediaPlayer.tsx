@@ -16,6 +16,7 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
   const pendingPlayRef = useRef(false);
   const lastReportedTimeRef = useRef(0);
   const resolvingInfiniteDurationRef = useRef(false);
+  const playbackSyncFrameRef = useRef<number | null>(null);
 
   const {
     currentFile,
@@ -334,6 +335,44 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
       mediaElement.removeEventListener("timeupdate", handleTimeUpdate);
     };
   }, [currentFile, isLooping, loopStart, loopEnd, setCurrentTime]);
+
+  useEffect(() => {
+    const mediaElement = currentFile?.type.includes("video")
+      ? videoRef.current
+      : audioRef.current;
+    if (!mediaElement) return;
+
+    const stopSync = () => {
+      if (playbackSyncFrameRef.current !== null) {
+        window.cancelAnimationFrame(playbackSyncFrameRef.current);
+        playbackSyncFrameRef.current = null;
+      }
+    };
+
+    if (!isPlaying) {
+      const pausedTime = mediaElement.currentTime;
+      lastReportedTimeRef.current = pausedTime;
+      setCurrentTime(pausedTime);
+      stopSync();
+      return stopSync;
+    }
+
+    const syncCurrentTime = () => {
+      if (!mediaElement.paused && !mediaElement.ended && !mediaElement.seeking) {
+        const mediaTime = mediaElement.currentTime;
+        if (Math.abs(mediaTime - lastReportedTimeRef.current) >= 1 / 30) {
+          lastReportedTimeRef.current = mediaTime;
+          setCurrentTime(mediaTime);
+        }
+      }
+
+      playbackSyncFrameRef.current = window.requestAnimationFrame(syncCurrentTime);
+    };
+
+    playbackSyncFrameRef.current = window.requestAnimationFrame(syncCurrentTime);
+
+    return stopSync;
+  }, [currentFile, isPlaying, setCurrentTime]);
 
   // Add a listener for seeking to handle manual seeking
   useEffect(() => {

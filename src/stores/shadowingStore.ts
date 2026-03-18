@@ -24,6 +24,12 @@ interface ShadowingState {
     previousShadowVolume?: number;
     muted: boolean;
     sessions: Record<string, ShadowingSession>;
+    currentRecording: {
+        startTime: number;
+        peaks: number[];
+        peakTimes: number[];
+    } | null;
+    currentRecordingRevision: number;
 }
 
 interface ShadowingActions {
@@ -33,12 +39,9 @@ interface ShadowingActions {
     setVolume: (volume: number) => void;
     setPreviousShadowVolume: (volume: number) => void;
     setMuted: (muted: boolean) => void;
-    currentRecording: {
-        startTime: number;
-        peaks: number[];
-        peakTimes: number[];
-    } | null;
-    updateCurrentRecording: (data: { startTime: number; peaks: number[]; peakTimes: number[] } | null) => void;
+    beginCurrentRecording: (startTime: number) => void;
+    appendCurrentRecordingPeak: (peak: number, elapsedTime: number) => void;
+    clearCurrentRecording: () => void;
     addSegment: (mediaId: string, segment: ShadowingSegment) => void;
     getSegments: (mediaId: string) => ShadowingSegment[];
     clearSegments: (mediaId: string) => void;
@@ -82,6 +85,7 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
             muted: false,
             sessions: {},
             currentRecording: null,
+            currentRecordingRevision: 0,
 
             setShadowingMode: (enabled) => set({ isShadowingMode: enabled }),
             setDelay: (seconds) => set({ delay: seconds }),
@@ -95,7 +99,31 @@ export const useShadowingStore = create<ShadowingState & ShadowingActions>()(
                 console.log("🔇 [ShadowingStore] Setting muted:", muted);
                 set({ muted });
             },
-            updateCurrentRecording: (data) => set({ currentRecording: data }),
+            beginCurrentRecording: (startTime) => set((state) => ({
+                currentRecording: {
+                    startTime,
+                    peaks: [],
+                    peakTimes: [],
+                },
+                currentRecordingRevision: state.currentRecordingRevision + 1,
+            })),
+            appendCurrentRecordingPeak: (peak, elapsedTime) => set((state) => {
+                if (!state.currentRecording) {
+                    return state;
+                }
+
+                state.currentRecording.peaks.push(peak);
+                state.currentRecording.peakTimes.push(elapsedTime);
+
+                return {
+                    currentRecording: state.currentRecording,
+                    currentRecordingRevision: state.currentRecordingRevision + 1,
+                };
+            }),
+            clearCurrentRecording: () => set((state) => ({
+                currentRecording: null,
+                currentRecordingRevision: state.currentRecordingRevision + 1,
+            })),
 
             addSegment: (mediaId, segment) => set((state) => {
                 const session = state.sessions[mediaId] || EMPTY_SESSION;
