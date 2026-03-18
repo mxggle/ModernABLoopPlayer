@@ -149,7 +149,6 @@ export const AppLayoutBase = ({
 
                       {(
                         [
-                          ["showPlayer", "layout.player"],
                           ["showWaveform", "layout.waveform"],
                           ["showTranscript", "layout.transcript"],
                           ["showControls", "layout.controls"],

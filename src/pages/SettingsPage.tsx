@@ -17,7 +17,6 @@ import {
   Settings,
   SlidersHorizontal,
   TestTube,
-  Tv,
   Waves,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -286,7 +285,6 @@ export const SettingsPage: React.FC = () => {
   };
 
   const layoutOptions = [
-    { key: "showPlayer" as const, label: t("settings.mediaPlayer"), icon: <Tv className="h-4 w-4 text-sky-500" /> },
     { key: "showWaveform" as const, label: t("settings.waveformDisplay"), icon: <Waves className="h-4 w-4 text-teal-500" /> },
     { key: "showTranscript" as const, label: t("settings.transcriptPanel"), icon: <FileText className="h-4 w-4 text-orange-500" /> },
     { key: "showControls" as const, label: t("settings.playbackControls"), icon: <SlidersHorizontal className="h-4 w-4 text-rose-500" /> },

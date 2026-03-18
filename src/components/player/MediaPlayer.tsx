@@ -1,7 +1,6 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { usePlayerStore } from "../../stores/playerStore";
 import { toast } from "react-hot-toast";
-import { Play, Pause } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 interface MediaPlayerProps {
@@ -9,10 +8,8 @@ interface MediaPlayerProps {
 }
 
 export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
-  // Get showWaveform state to adjust player height
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [localPlayState, setLocalPlayState] = useState(false);
 
   const isDelayingRef = useRef(false);
   // Track pending play intent so we can start playback once the element is ready
@@ -31,7 +28,6 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
     loopStart,
     loopEnd,
     isLooping,
-    showWaveform,
     setCurrentTime,
     setDuration,
     setIsPlaying,
@@ -47,17 +43,11 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
       loopStart: state.loopStart,
       loopEnd: state.loopEnd,
       isLooping: state.isLooping,
-      showWaveform: state.showWaveform,
       setCurrentTime: state.setCurrentTime,
       setDuration: state.setDuration,
       setIsPlaying: state.setIsPlaying,
     }))
   );
-
-  // Keep local state in sync with global state
-  useEffect(() => {
-    setLocalPlayState(isPlaying);
-  }, [isPlaying]);
 
   // Helper to safely play a media element
   const safePlay = useCallback(
@@ -539,69 +529,14 @@ export const MediaPlayer = ({ hiddenMode = false }: MediaPlayerProps) => {
           preload="metadata"
         />
       ) : (
-        <>
-          <audio
-            ref={audioRef}
-            src={currentFile.url}
-            onLoadedMetadata={handleLoadedMetadata}
-            onDurationChange={handleDurationChange}
-            onEnded={handleEnded}
-            onError={handleError}
-          />
-          <div
-            className="w-full rounded-lg flex items-center justify-center relative"
-            style={{
-              // Compact but not cramped: keep a sensible minimum using clamp
-              height: showWaveform
-                ? "clamp(240px, calc(100vh - 420px), 300px)"
-                : "clamp(220px, calc(100vh - 300px), 280px)",
-              maxHeight: "300px",
-              transition: "height 0.3s ease-in-out", // Smooth transition
-            }}
-          >
-            {/* Improved background with subtler gradient */}
-            <div
-              className="absolute inset-0 bg-cover bg-center z-0"
-              style={{
-                backgroundImage: 'url("/audio-background.svg")',
-                backgroundSize: "cover",
-                opacity: 0.8,
-              }}
-            ></div>
-            <div className="absolute inset-0 bg-gradient-to-b from-purple-500/20 to-gray-900/60 z-10"></div>
-
-            {/* Enhanced Audio file info with quick controls */}
-            <div className="z-20 text-center p-4 sm:p-6 md:p-8 bg-white/15 backdrop-blur-md rounded-xl shadow-lg border border-white/20 max-w-md w-full mx-3 sm:mx-0">
-              <div className="flex flex-col sm:flex-row items-center justify-center mb-3 sm:mb-6 gap-3 sm:gap-0">
-                <div
-                  className="w-20 h-20 sm:w-24 md:w-28 sm:h-24 md:h-28 rounded-full bg-purple-600 flex items-center justify-center shadow-xl sm:mr-6"
-                  onClick={() => {
-                    setIsPlaying(!isPlaying);
-                    setLocalPlayState(!localPlayState);
-                  }}
-                  style={{ cursor: "pointer" }}
-                >
-                  {localPlayState ? (
-                    <Pause className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-white" />
-                  ) : (
-                    <Play className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-white ml-1 sm:ml-2" />
-                  )}
-                </div>
-                <div className="text-center sm:text-left">
-                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1 sm:mb-2 truncate max-w-full sm:max-w-[200px]">
-                    {currentFile.name}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-white/90 font-medium">
-                    Audio Track
-                  </p>
-                  <div className="mt-1 sm:mt-2 text-white/70 text-xs hidden sm:block">
-                    Click the circle to play/pause
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
+        <audio
+          ref={audioRef}
+          src={currentFile.url}
+          onLoadedMetadata={handleLoadedMetadata}
+          onDurationChange={handleDurationChange}
+          onEnded={handleEnded}
+          onError={handleError}
+        />
       )}
     </div>
   );

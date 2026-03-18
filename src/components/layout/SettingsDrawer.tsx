@@ -10,7 +10,6 @@ import {
   History as HistoryIcon, // Renamed to avoid conflict if History component is imported
   Eye,
   EyeOff,
-  Tv,
   Waves,
   FileText,
   SlidersHorizontal,
@@ -83,11 +82,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   };
 
   const layoutOptions = [
-    {
-      key: "showPlayer",
-      label: t("settings.mediaPlayer"),
-      icon: <Tv className="h-5 w-5 mr-3 text-sky-500" />,
-    },
     {
       key: "showWaveform",
       label: t("settings.waveformDisplay"),
