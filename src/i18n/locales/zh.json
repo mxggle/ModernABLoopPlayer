@@ -575,5 +575,20 @@
     "noFiles": "未找到媒体文件。",
     "hint": "添加源文件夹以浏览本地音频和视频文件。",
     "loading": "加载中..."
+  },
+  "sidebar": {
+    "explorer": "资源管理器",
+    "recent": "最近",
+    "addFolder": "添加文件夹",
+    "clearHistory": "清除历史",
+    "noFolders": "尚未添加文件夹。",
+    "noHistory": "暂无最近文件。",
+    "removeItem": "移除",
+    "timeAgo": {
+      "justNow": "刚刚",
+      "minutesAgo": "{{count}}分钟前",
+      "hoursAgo": "{{count}}小时前",
+      "daysAgo": "{{count}}天前"
+    }
   }
 }

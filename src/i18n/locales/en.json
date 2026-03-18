@@ -603,5 +603,20 @@
     "noFiles": "No media files found.",
     "hint": "Add source folders to browse your local audio and video files.",
     "loading": "Loading..."
+  },
+  "sidebar": {
+    "explorer": "EXPLORER",
+    "recent": "RECENT",
+    "addFolder": "Add folder",
+    "clearHistory": "Clear history",
+    "noFolders": "No folders added yet.",
+    "noHistory": "No recent files.",
+    "removeItem": "Remove",
+    "timeAgo": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago"
+    }
   }
 }

@@ -154,6 +154,7 @@ export interface PlayerState {
   isSidebarOpen: boolean;
   sidebarWidth: number;
   activeSidebarTab: "recent" | "folders";
+  sidebarSections: { explorer: boolean; recent: boolean };
 }
 
 export interface PlayerActions {
@@ -265,6 +266,7 @@ export interface PlayerActions {
   setIsSidebarOpen: (isOpen: boolean) => void;
   setSidebarWidth: (width: number) => void;
   setActiveSidebarTab: (tab: "recent" | "folders") => void;
+  toggleSidebarSection: (section: "explorer" | "recent") => void;
 }
 
 const initialState: PlayerState = {
@@ -314,6 +316,7 @@ const initialState: PlayerState = {
   isSidebarOpen: false,
   sidebarWidth: 288,
   activeSidebarTab: "recent",
+  sidebarSections: { explorer: true, recent: true },
 };
 
 export const usePlayerStore = create<PlayerState & PlayerActions>()(
@@ -1857,6 +1860,13 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       setIsSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
       setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
       setActiveSidebarTab: (activeSidebarTab) => set({ activeSidebarTab }),
+      toggleSidebarSection: (section) =>
+        set((state) => ({
+          sidebarSections: {
+            ...state.sidebarSections,
+            [section]: !state.sidebarSections[section],
+          },
+        })),
     }),
     {
       name: "abloop-player-storage",
@@ -1933,6 +1943,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         isSidebarOpen: state.isSidebarOpen,
         sidebarWidth: state.sidebarWidth,
         activeSidebarTab: state.activeSidebarTab,
+        sidebarSections: state.sidebarSections,
       }),
     }
   )

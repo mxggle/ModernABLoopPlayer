@@ -1,79 +1,138 @@
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore, type MediaHistoryItem } from "../../stores/playerStore";
-import { History, Music, Youtube, Trash2 } from "lucide-react";
+import { Music, Youtube, X } from "lucide-react";
 
+/* ── Time-ago helper ────────────────────────────────────────────── */
+const timeAgo = (
+  timestamp: number,
+  t: (key: string, opts?: Record<string, unknown>) => string
+): string => {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return t("sidebar.timeAgo.justNow", "just now");
+  if (minutes < 60)
+    return t("sidebar.timeAgo.minutesAgo", { count: minutes, defaultValue: `${minutes}m ago` });
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24)
+    return t("sidebar.timeAgo.hoursAgo", { count: hours, defaultValue: `${hours}h ago` });
+  const days = Math.floor(hours / 24);
+  return t("sidebar.timeAgo.daysAgo", { count: days, defaultValue: `${days}d ago` });
+};
+
+/* ── Subtext (path / URL) ───────────────────────────────────────── */
 const getSubtext = (item: MediaHistoryItem): string => {
   if (item.type === "youtube") {
     return item.youtubeData?.youtubeId
       ? `youtube.com/watch?v=${item.youtubeData.youtubeId}`
       : "YouTube";
   }
-  // Electron native file — show disk path (top-level or nested in fileData)
   const nativePath = item.nativePath ?? item.fileData?.nativePath;
   if (nativePath) return nativePath;
   return item.name;
 };
 
+/* ── Is this item currently playing? ────────────────────────────── */
+const isActive = (
+  item: MediaHistoryItem,
+  currentFilePath?: string | null,
+  currentYouTubeId?: string | null
+): boolean => {
+  if (item.type === "youtube") {
+    return item.youtubeData?.youtubeId === currentYouTubeId;
+  }
+  const nativePath = item.nativePath ?? item.fileData?.nativePath;
+  return !!nativePath && nativePath === currentFilePath;
+};
+
+/* ── Exported component ─────────────────────────────────────────── */
 export const PlayHistory = () => {
   const { t } = useTranslation();
-  const { mediaHistory, loadFromHistory, clearMediaHistory } = usePlayerStore();
+  const { mediaHistory, loadFromHistory, removeFromHistory, currentFile, currentYouTube } =
+    usePlayerStore();
 
   const sorted = [...mediaHistory].sort((a, b) => b.accessedAt - a.accessedAt);
 
-  return (
-    <div className="bg-white dark:bg-gray-800/90 backdrop-blur-sm rounded-lg sm:rounded-xl shadow-md border border-gray-100 dark:border-gray-700/50 p-4 sm:p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-          <History className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-          {t("playHistory.title", "Play History")}
-        </h3>
-        {sorted.length > 0 && (
-          <button
-            onClick={clearMediaHistory}
-            title={t("playHistory.clearHistory", "Clear history")}
-            className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg text-gray-500 dark:text-gray-400 hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            {t("playHistory.clearHistory", "Clear")}
-          </button>
-        )}
-      </div>
+  const currentFilePath = currentFile?.nativePath ?? null;
+  const currentYouTubeId = currentYouTube?.id ?? null;
 
-      {/* Empty state */}
-      {sorted.length === 0 && (
-        <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">
-          {t("playHistory.emptyState", "No play history yet. Open a file or YouTube video to get started.")}
+  const handleRemove = useCallback(
+    (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      removeFromHistory(id);
+    },
+    [removeFromHistory]
+  );
+
+  if (sorted.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-6 px-4 text-center">
+        <Music className="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
+        <p className="text-xs text-gray-400 dark:text-gray-500">
+          {t("sidebar.noHistory", "No recent files.")}
         </p>
-      )}
+      </div>
+    );
+  }
 
-      {/* History list */}
-      {sorted.length > 0 && (
-        <ul className="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700/50">
-          {sorted.map((item) => (
-            <li key={item.id}>
-              <button
-                onClick={() => loadFromHistory(item.id)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-colors group"
+  return (
+    <ul>
+      {sorted.map((item) => {
+        const active = isActive(item, currentFilePath, currentYouTubeId);
+        return (
+          <li key={item.id}>
+            <button
+              onClick={() => loadFromHistory(item.id)}
+              className={`w-full flex items-center h-[28px] px-2 text-left transition-colors group ${
+                active
+                  ? "bg-purple-500/12 dark:bg-purple-500/15 text-purple-600 dark:text-purple-300"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-700/40 text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              {/* Icon */}
+              {item.type === "youtube" ? (
+                <Youtube className="w-3.5 h-3.5 shrink-0 text-red-400 dark:text-red-500 mr-1.5" />
+              ) : (
+                <Music className="w-3.5 h-3.5 shrink-0 text-purple-400 dark:text-purple-500 mr-1.5" />
+              )}
+
+              {/* Name */}
+              <span
+                className={`text-xs truncate flex-1 min-w-0 ${
+                  active ? "font-semibold" : "font-normal"
+                }`}
               >
-                {item.type === "youtube" ? (
-                  <Youtube className="w-4 h-4 flex-shrink-0 text-red-400 dark:text-red-500" />
-                ) : (
-                  <Music className="w-4 h-4 flex-shrink-0 text-purple-400 dark:text-purple-500" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-700 dark:text-gray-200 truncate group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors">
-                    {item.name}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 truncate font-mono mt-0.5">
-                    {getSubtext(item)}
-                  </p>
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+                {item.name}
+              </span>
+
+              {/* Time ago (hidden on hover, replaced by remove button) */}
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0 ml-2 tabular-nums group-hover:hidden">
+                {timeAgo(item.accessedAt, t)}
+              </span>
+
+              {/* Remove button (visible on hover) */}
+              <span
+                role="button"
+                tabIndex={-1}
+                onClick={(e) => handleRemove(e, item.id)}
+                title={t("sidebar.removeItem", "Remove")}
+                className="hidden group-hover:flex items-center justify-center p-0.5 ml-1 rounded text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors shrink-0"
+              >
+                <X className="w-3 h-3" />
+              </span>
+            </button>
+
+            {/* Subtext line */}
+            <div
+              className={`flex items-center h-[16px] px-2 pl-[30px] ${
+                active ? "text-purple-400/70 dark:text-purple-400/50" : "text-gray-400 dark:text-gray-500"
+              }`}
+            >
+              <span className="text-[10px] font-mono truncate">{getSubtext(item)}</span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 };

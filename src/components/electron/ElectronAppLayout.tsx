@@ -4,15 +4,75 @@ import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playerStore";
 import { useShallow } from "zustand/react/shallow";
 import {
-  History as HistoryIcon,
-  FolderSearch, PanelLeftOpen, PanelLeftClose, Home,
-  Moon, Sun, Settings,
+  ChevronDown,
+  ChevronRight,
+  FolderPlus,
+  Trash2,
+  PanelLeftOpen,
+  PanelLeftClose,
+  Home,
+  Moon,
+  Sun,
+  Settings,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { AppLayoutBase } from "../layout/AppLayoutBase";
 import { PlayHistory } from "./PlayHistory";
 import { FolderBrowser } from "./FolderBrowser";
 
+/* ── Section header (VS Code style) ─────────────────────────────── */
+interface SectionHeaderProps {
+  title: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  actions?: React.ReactNode;
+}
+
+const SectionHeader = ({ title, isOpen, onToggle, actions }: SectionHeaderProps) => (
+  <div className="flex items-center h-[28px] bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-700/60 select-none group">
+    <button
+      onClick={onToggle}
+      className="flex-1 flex items-center min-w-0 h-full px-2 gap-1 text-left focus:outline-none"
+    >
+      {isOpen ? (
+        <ChevronDown className="w-3 h-3 shrink-0 text-gray-500 dark:text-gray-400" />
+      ) : (
+        <ChevronRight className="w-3 h-3 shrink-0 text-gray-500 dark:text-gray-400" />
+      )}
+      <span className="text-[11px] font-semibold tracking-wider text-gray-600 dark:text-gray-300 truncate uppercase">
+        {title}
+      </span>
+    </button>
+    {actions && (
+      <div className="flex items-center mr-1 gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {actions}
+      </div>
+    )}
+  </div>
+);
+
+/* ── Tiny icon button for section header actions ────────────────── */
+const HeaderAction = ({
+  onClick,
+  title,
+  children,
+}: {
+  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      onClick();
+    }}
+    title={title}
+    className="p-0.5 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+  >
+    {children}
+  </button>
+);
+
+/* ── Layout settings ────────────────────────────────────────────── */
 interface LayoutSettings {
   showPlayer: boolean;
   showWaveform: boolean;
@@ -26,6 +86,7 @@ interface ElectronAppLayoutProps {
   setLayoutSettings?: Dispatch<SetStateAction<LayoutSettings>>;
 }
 
+/* ── Main component ─────────────────────────────────────────────── */
 export const ElectronAppLayout = ({
   children,
   layoutSettings,
@@ -37,7 +98,18 @@ export const ElectronAppLayout = ({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMac = typeof window !== "undefined" && navigator.userAgent.includes("Mac OS X");
 
-  const { isSidebarOpen, sidebarWidth, setIsSidebarOpen, setSidebarWidth, theme, setTheme, activeSidebarTab, setActiveSidebarTab } = usePlayerStore(
+  const {
+    isSidebarOpen,
+    sidebarWidth,
+    setIsSidebarOpen,
+    setSidebarWidth,
+    theme,
+    setTheme,
+    sidebarSections,
+    toggleSidebarSection,
+    addSourceFolder,
+    clearMediaHistory,
+  } = usePlayerStore(
     useShallow((state) => ({
       isSidebarOpen: state.isSidebarOpen,
       sidebarWidth: state.sidebarWidth,
@@ -45,11 +117,14 @@ export const ElectronAppLayout = ({
       setSidebarWidth: state.setSidebarWidth,
       theme: state.theme,
       setTheme: state.setTheme,
-      activeSidebarTab: state.activeSidebarTab,
-      setActiveSidebarTab: state.setActiveSidebarTab,
+      sidebarSections: state.sidebarSections,
+      toggleSidebarSection: state.toggleSidebarSection,
+      addSourceFolder: state.addSourceFolder,
+      clearMediaHistory: state.clearMediaHistory,
     }))
   );
 
+  /* ── Resize logic ──────────────────────────────────────────────── */
   const startResizing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
@@ -76,6 +151,7 @@ export const ElectronAppLayout = ({
     };
   }, [resize, stopResizing]);
 
+  /* ── Handlers ──────────────────────────────────────────────────── */
   const navigateToHome = () => {
     const { setCurrentFile, setCurrentYouTube } = usePlayerStore.getState();
     setCurrentFile(null);
@@ -83,6 +159,17 @@ export const ElectronAppLayout = ({
     navigate("/");
   };
 
+  const handleAddFolder = useCallback(async () => {
+    const selected = await window.electronAPI!.openFolder();
+    if (!selected) return;
+    addSourceFolder(selected);
+  }, [addSourceFolder]);
+
+  const handleClearHistory = useCallback(async () => {
+    await clearMediaHistory();
+  }, [clearMediaHistory]);
+
+  /* ── Sidebar ───────────────────────────────────────────────────── */
   const sidebar = (
     <aside
       ref={sidebarRef}
@@ -93,85 +180,76 @@ export const ElectronAppLayout = ({
     >
       {isSidebarOpen && (
         <>
-          {/* Top layout spacer. Aligns with AppLayoutBase header border & acts as draggable mac title bar */}
-          <div className={`w-full shrink-0 h-[52px] sm:h-[56px] border-b border-gray-200 dark:border-gray-700 ${isMac ? "[-webkit-app-region:drag]" : ""}`} />
+          {/* Title bar spacer (macOS draggable region) */}
+          <div
+            className={`w-full shrink-0 h-[52px] sm:h-[56px] border-b border-gray-200 dark:border-gray-700 ${
+              isMac ? "[-webkit-app-region:drag]" : ""
+            }`}
+          />
 
-          <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-            <div className="flex bg-gray-100 dark:bg-gray-800/50 p-1 rounded-lg">
-              <button
-                onClick={() => setActiveSidebarTab("recent")}
-                className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-[11px] font-medium rounded-md transition-all ${
-                  activeSidebarTab === "recent"
-                    ? "bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}
-              >
-                <HistoryIcon className="w-3.5 h-3.5" />
-                {t("home.recent", "Recent")}
-              </button>
-              <button
-                onClick={() => setActiveSidebarTab("folders")}
-                className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-[11px] font-medium rounded-md transition-all ${
-                  activeSidebarTab === "folders"
-                    ? "bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}
-              >
-                <FolderSearch className="w-3.5 h-3.5" />
-                {t("home.folders", "Folders")}
-              </button>
+          {/* ─── EXPLORER section ─────────────────────────────────── */}
+          <SectionHeader
+            title={t("sidebar.explorer", "EXPLORER")}
+            isOpen={sidebarSections.explorer}
+            onToggle={() => toggleSidebarSection("explorer")}
+            actions={
+              <HeaderAction onClick={handleAddFolder} title={t("sidebar.addFolder", "Add folder")}>
+                <FolderPlus className="w-3.5 h-3.5" />
+              </HeaderAction>
+            }
+          />
+          {sidebarSections.explorer && (
+            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar flex-shrink-0 max-h-[50%]">
+              <FolderBrowser onAddFolder={handleAddFolder} />
             </div>
-          </div>
+          )}
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-3 min-w-0">
-            <AnimatePresence mode="wait">
-              {activeSidebarTab === "recent" ? (
-                <motion.div
-                  key="recent"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-1 min-w-0"
-                >
-                  <div className="sidebar-container-override no-scroll-internal min-w-0">
-                    <PlayHistory />
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="folders"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="min-w-0"
-                >
-                  <div className="sidebar-container-override no-scroll-internal min-w-0">
-                    <FolderBrowser />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          {/* ─── RECENT section ──────────────────────────────────── */}
+          <SectionHeader
+            title={t("sidebar.recent", "RECENT")}
+            isOpen={sidebarSections.recent}
+            onToggle={() => toggleSidebarSection("recent")}
+            actions={
+              <HeaderAction
+                onClick={handleClearHistory}
+                title={t("sidebar.clearHistory", "Clear history")}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </HeaderAction>
+            }
+          />
+          {sidebarSections.recent && (
+            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 min-h-0">
+              <PlayHistory />
+            </div>
+          )}
 
-          <div className="p-3 border-t border-gray-200 dark:border-gray-800 flex items-center justify-around bg-gray-50/50 dark:bg-gray-800/20">
+          {/* ─── Spacer to push footer to bottom (only when RECENT content isn't flex-filling) ── */}
+          {!sidebarSections.recent && <div className="flex-1" />}
+
+          {/* ─── Bottom bar ──────────────────────────────────────── */}
+          <div className="p-2 border-t border-gray-200 dark:border-gray-800 flex items-center justify-around bg-gray-50/50 dark:bg-gray-800/20 shrink-0">
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 transition-colors"
-              title={theme === "dark" ? t("layout.switchToLightTheme", "Light Theme") : t("layout.switchToDarkTheme", "Dark Theme")}
+              className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 transition-colors"
+              title={
+                theme === "dark"
+                  ? t("layout.switchToLightTheme", "Light Theme")
+                  : t("layout.switchToDarkTheme", "Dark Theme")
+              }
             >
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
             <button
               onClick={() => navigate("/settings")}
-              className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 transition-colors"
+              className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 transition-colors"
               title={t("layout.openSettings", "Open Settings")}
             >
               <Settings className="w-4 h-4" />
             </button>
           </div>
 
+          {/* ─── Resize handle ───────────────────────────────────── */}
           <div
             onMouseDown={startResizing}
             className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-purple-500/30 transition-colors z-[70] ${
@@ -182,19 +260,6 @@ export const ElectronAppLayout = ({
       )}
 
       <style>{`
-        .sidebar-container-override > div {
-          background: transparent !important;
-          border: none !important;
-          box-shadow: none !important;
-          padding: 0 !important;
-        }
-        .sidebar-container-override h3 { display: none !important; }
-        .no-scroll-internal ul,
-        .no-scroll-internal .max-h-72,
-        .no-scroll-internal .max-h-80 {
-          max-height: none !important;
-          overflow-y: visible !important;
-        }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb {
@@ -208,6 +273,7 @@ export const ElectronAppLayout = ({
     </aside>
   );
 
+  /* ── Header leading slot (Home + toggle) ───────────────────────── */
   const headerLeadingSlot = (
     <div className="flex items-center gap-0.5 mr-2 shrink-0">
       <button
