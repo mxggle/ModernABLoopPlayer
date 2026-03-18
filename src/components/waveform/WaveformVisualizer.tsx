@@ -1200,8 +1200,9 @@ export const WaveformVisualizer = () => {
                 setIsPlaying(true);
               }
             } else {
-              // Seek to tapped position
+              // Seek to tapped position — lift the arm if shadowing is active
               setCurrentTime(time);
+              if (isShadowingMode) setShadowingMode(false);
               // If loop is active and tap is outside loop, disable looping
               if (isLooping && loopStart !== null && loopEnd !== null) {
                 if (time < loopStart || time > loopEnd) {
@@ -1609,8 +1610,9 @@ export const WaveformVisualizer = () => {
         }
       }
 
-      // Seek to the clicked time
+      // Seek to the clicked time — lift the arm if shadowing is active
       setCurrentTime(time);
+      if (isShadowingMode) setShadowingMode(false);
 
       // Desktop: auto-adjust viewport if click target is outside current view
       if (!isMobile) {
@@ -1641,6 +1643,7 @@ export const WaveformVisualizer = () => {
     setCurrentTime(bm.start);
     setIsPlaying(true);
     setOverlapMenu(null);
+    if (isShadowingMode) setShadowingMode(false);
     document.body.classList.add("user-seeking");
     setTimeout(() => {
       document.body.classList.remove("user-seeking");
