@@ -199,7 +199,7 @@ export const ElectronAppLayout = ({
             }
           />
           {sidebarSections.explorer && (
-            <div className={`overflow-y-auto overflow-x-hidden custom-scrollbar ${
+            <div className={`overflow-y-auto overflow-x-hidden overscroll-contain custom-scrollbar ${
               sidebarSections.recent ? "flex-shrink-0 max-h-[50%]" : "flex-1 min-h-0"
             }`}>
               <FolderBrowser onAddFolder={handleAddFolder} />
@@ -221,7 +221,7 @@ export const ElectronAppLayout = ({
             }
           />
           {sidebarSections.recent && (
-            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 min-h-0">
+            <div className="overflow-y-auto overflow-x-hidden overscroll-contain custom-scrollbar flex-1 min-h-0">
               <PlayHistory />
             </div>
           )}
