@@ -3,6 +3,22 @@ import { useTranslation } from 'react-i18next'
 import { usePlayerStore } from '@/stores/playerStore'
 import { toast } from 'react-hot-toast'
 
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  if (target.isContentEditable) {
+    return true
+  }
+
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  )
+}
+
 export const useKeyboardShortcuts = () => {
   const { t } = useTranslation()
   const {
@@ -31,12 +47,13 @@ export const useKeyboardShortcuts = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input field
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLSelectElement
-      ) {
+      // Preserve native browser and OS shortcuts like copy/paste/select-all.
+      if (e.metaKey || e.ctrlKey || e.altKey) {
+        return
+      }
+
+      // Ignore if user is typing in an editable field.
+      if (isEditableTarget(e.target)) {
         return
       }
 

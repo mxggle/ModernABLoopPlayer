@@ -104,6 +104,24 @@ ipcMain.handle('dialog:openFolder', async () => {
   return filePaths[0]
 })
 
+ipcMain.handle('shell:showInFileManager', async (_event, targetPath: string) => {
+  try {
+    const normalizedPath = normalize(targetPath)
+    const stats = await fs.promises.stat(normalizedPath)
+
+    if (stats.isDirectory()) {
+      const result = await shell.openPath(normalizedPath)
+      return result === ''
+    }
+
+    shell.showItemInFolder(normalizedPath)
+    return true
+  } catch (error) {
+    console.error('Failed to show path in file manager:', targetPath, error)
+    return false
+  }
+})
+
 /**
  * Read source folders from the Zustand persisted state blob.
  * Falls back to the legacy top-level configStore key for older installs.

@@ -22,7 +22,11 @@
     "start": "Start",
     "end": "End",
     "remove": "Remove",
-    "shadowing": "Shadowing"
+    "shadowing": "Shadowing",
+    "showInFinder": "Show in Finder",
+    "showInExplorer": "Show in Windows Explorer",
+    "showInFileManager": "Show in file manager",
+    "failedToOpenLocation": "Failed to open location"
   },
   "shadowing": {
     "title": "Shadowing",

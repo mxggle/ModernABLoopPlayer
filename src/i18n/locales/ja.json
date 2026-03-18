@@ -20,7 +20,11 @@
     "show": "表示",
     "hide": "非表示",
     "remove": "削除",
-    "shadowing": "シャドーイング"
+    "shadowing": "シャドーイング",
+    "showInFinder": "Finderで表示",
+    "showInExplorer": "Windows Explorerで表示",
+    "showInFileManager": "ファイルマネージャーで表示",
+    "failedToOpenLocation": "場所を開けませんでした"
   },
   "shadowing": {
     "title": "シャドーイング",

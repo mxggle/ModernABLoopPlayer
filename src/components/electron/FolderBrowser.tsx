@@ -4,6 +4,10 @@ import { usePlayerStore } from "../../stores/playerStore";
 import { nativePathToUrl } from "../../utils/platform";
 import type { FolderTreeNode } from "../../types/electron";
 import {
+  getShowInFileManagerLabel,
+  revealInFileManager,
+} from "./fileManager";
+import {
   Folder,
   FolderOpen,
   Music,
@@ -12,6 +16,7 @@ import {
   ChevronDown,
   X,
   Loader2,
+  SquareArrowOutUpRight,
 } from "lucide-react";
 
 const VIDEO_EXTS = new Set(["mp4", "mkv", "avi", "mov", "webm", "m4v"]);
@@ -48,7 +53,9 @@ interface TreeNodeProps {
 }
 
 const TreeNode = ({ node, depth, onFileClick, activeFilePath }: TreeNodeProps) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(depth === 0);
+  const showInFileManagerLabel = getShowInFileManagerLabel(t);
 
   if (node.type === "file") {
     const ext = node.name.split(".").pop()?.toLowerCase() ?? "";
@@ -79,6 +86,20 @@ const TreeNode = ({ node, depth, onFileClick, activeFilePath }: TreeNodeProps) =
           >
             {node.name}
           </span>
+          <span className="ml-auto pr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span
+              role="button"
+              tabIndex={-1}
+              onClick={(e) => {
+                e.stopPropagation();
+                void revealInFileManager(node.path);
+              }}
+              title={showInFileManagerLabel}
+              className="flex items-center justify-center p-0.5 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors shrink-0"
+            >
+              <SquareArrowOutUpRight className="w-3 h-3" />
+            </span>
+          </span>
         </button>
       </li>
     );
@@ -89,7 +110,7 @@ const TreeNode = ({ node, depth, onFileClick, activeFilePath }: TreeNodeProps) =
     <li>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center h-[26px] text-left hover:bg-gray-100 dark:hover:bg-gray-700/40 transition-colors"
+        className="w-full flex items-center h-[26px] text-left hover:bg-gray-100 dark:hover:bg-gray-700/40 transition-colors group"
         style={{ paddingLeft: depth === 0 ? BASE_PX : 0 }}
       >
         <IndentGuides depth={depth} />
@@ -105,6 +126,20 @@ const TreeNode = ({ node, depth, onFileClick, activeFilePath }: TreeNodeProps) =
         )}
         <span className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate pr-2">
           {node.name}
+        </span>
+        <span className="ml-auto pr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span
+            role="button"
+            tabIndex={-1}
+            onClick={(e) => {
+              e.stopPropagation();
+              void revealInFileManager(node.path);
+            }}
+            title={showInFileManagerLabel}
+            className="flex items-center justify-center p-0.5 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors shrink-0"
+          >
+            <SquareArrowOutUpRight className="w-3 h-3" />
+          </span>
         </span>
       </button>
       {open && node.children && node.children.length > 0 && (
@@ -138,6 +173,7 @@ const RootFolder = ({ path, onFileClick, onRemove, activeFilePath }: RootFolderP
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(true);
   const folderName = path.split(/[\\/]/).pop() ?? path;
+  const showInFileManagerLabel = getShowInFileManagerLabel(t);
 
   const loadTree = useCallback(async () => {
     setLoading(true);
@@ -180,6 +216,13 @@ const RootFolder = ({ path, onFileClick, onRemove, activeFilePath }: RootFolderP
           {loading && (
             <Loader2 className="w-3 h-3 ml-1.5 shrink-0 text-gray-400 animate-spin" />
           )}
+        </button>
+        <button
+          onClick={() => void revealInFileManager(path)}
+          title={showInFileManagerLabel}
+          className="p-0.5 mr-1 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all shrink-0 opacity-0 group-hover:opacity-100"
+        >
+          <SquareArrowOutUpRight className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => onRemove(path)}

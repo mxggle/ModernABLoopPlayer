@@ -20,7 +20,11 @@
     "show": "显示",
     "hide": "隐藏",
     "remove": "移除",
-    "shadowing": "跟读"
+    "shadowing": "跟读",
+    "showInFinder": "在 Finder 中显示",
+    "showInExplorer": "在 Windows Explorer 中显示",
+    "showInFileManager": "在文件管理器中显示",
+    "failedToOpenLocation": "无法打开位置"
   },
   "shadowing": {
     "title": "跟读",

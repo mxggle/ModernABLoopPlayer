@@ -199,7 +199,9 @@ export const ElectronAppLayout = ({
             }
           />
           {sidebarSections.explorer && (
-            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar flex-shrink-0 max-h-[50%]">
+            <div className={`overflow-y-auto overflow-x-hidden custom-scrollbar ${
+              sidebarSections.recent ? "flex-shrink-0 max-h-[50%]" : "flex-1 min-h-0"
+            }`}>
               <FolderBrowser onAddFolder={handleAddFolder} />
             </div>
           )}
@@ -224,8 +226,8 @@ export const ElectronAppLayout = ({
             </div>
           )}
 
-          {/* ─── Spacer to push footer to bottom (only when RECENT content isn't flex-filling) ── */}
-          {!sidebarSections.recent && <div className="flex-1" />}
+          {/* ─── Spacer: push footer to bottom when no section content is flex-filling ── */}
+          {!sidebarSections.recent && !sidebarSections.explorer && <div className="flex-1" />}
 
           {/* ─── Bottom bar ──────────────────────────────────────── */}
           <div className="p-2 border-t border-gray-200 dark:border-gray-800 flex items-center justify-around bg-gray-50/50 dark:bg-gray-800/20 shrink-0">

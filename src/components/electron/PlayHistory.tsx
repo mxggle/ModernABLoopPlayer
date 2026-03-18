@@ -1,7 +1,11 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { usePlayerStore, type MediaHistoryItem } from "../../stores/playerStore";
-import { Music, Youtube, X } from "lucide-react";
+import { Music, Youtube, X, SquareArrowOutUpRight } from "lucide-react";
+import {
+  getShowInFileManagerLabel,
+  revealInFileManager,
+} from "./fileManager";
 
 /* ── Time-ago helper ────────────────────────────────────────────── */
 const timeAgo = (
@@ -10,7 +14,7 @@ const timeAgo = (
 ): string => {
   const diff = Date.now() - timestamp;
   const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return t("sidebar.timeAgo.justNow", "just now");
+  if (minutes < 1) return t("sidebar.timeAgo.justNow", { defaultValue: "just now" });
   if (minutes < 60)
     return t("sidebar.timeAgo.minutesAgo", { count: minutes, defaultValue: `${minutes}m ago` });
   const hours = Math.floor(minutes / 60);
@@ -50,6 +54,7 @@ export const PlayHistory = () => {
   const { t } = useTranslation();
   const { mediaHistory, loadFromHistory, removeFromHistory, currentFile, currentYouTube } =
     usePlayerStore();
+  const showInFileManagerLabel = getShowInFileManagerLabel(t);
 
   const sorted = [...mediaHistory].sort((a, b) => b.accessedAt - a.accessedAt);
 
@@ -79,6 +84,7 @@ export const PlayHistory = () => {
     <ul>
       {sorted.map((item) => {
         const active = isActive(item, currentFilePath, currentYouTubeId);
+        const nativePath = item.nativePath ?? item.fileData?.nativePath;
         return (
           <li key={item.id}>
             <button
@@ -109,6 +115,21 @@ export const PlayHistory = () => {
               <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0 ml-2 tabular-nums group-hover:hidden">
                 {timeAgo(item.accessedAt, t)}
               </span>
+
+              {nativePath && (
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void revealInFileManager(nativePath);
+                  }}
+                  title={showInFileManagerLabel}
+                  className="hidden group-hover:flex items-center justify-center p-0.5 ml-1 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors shrink-0"
+                >
+                  <SquareArrowOutUpRight className="w-3 h-3" />
+                </span>
+              )}
 
               {/* Remove button (visible on hover) */}
               <span

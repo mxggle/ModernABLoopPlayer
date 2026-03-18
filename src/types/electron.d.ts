@@ -15,6 +15,7 @@ interface ElectronAPI {
   platform: string
   openFile: () => Promise<string | null>
   openFolder: () => Promise<string | null>
+  showInFileManager: (targetPath: string) => Promise<boolean>
   listMediaFiles: (folderPath: string) => Promise<ElectronMediaFile[]>
   listMediaTree: (folderPath: string) => Promise<FolderTreeNode[]>
   configGet: (key: string) => Promise<unknown>
