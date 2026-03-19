@@ -1718,25 +1718,25 @@ export const WaveformVisualizer = () => {
           <button
             className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-8 w-8`}
             onClick={handleZoomIn}
-            title="Zoom In"
+            title={t("waveform.zoomIn")}
           >
             <PlusIcon className="h-3.5 w-3.5" />
           </button>
           <button
             className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-8 w-8`}
             onClick={handleZoomOut}
-            title="Zoom Out"
+            title={t("waveform.zoomOut")}
           >
             <MinusIcon className="h-3.5 w-3.5" />
           </button>
           <button
             className={`inline-flex items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400 h-8 w-8`}
             onClick={handleResetZoom}
-            title="Reset Zoom"
+            title={t("waveform.resetZoom")}
           >
             <ArrowsPointingOutIcon className="h-3.5 w-3.5" />
           </button>
-          <span className="text-xs text-white/90 px-1">{formatZoom(waveformZoom)}x</span>
+          <span className="text-xs text-white/90 px-1">{t("waveform.zoomLevel", { level: formatZoom(waveformZoom) })}</span>
         </div>
       )} */}
 
@@ -1785,7 +1785,7 @@ export const WaveformVisualizer = () => {
                   }
                 }}
                 className="h-full px-2.5 text-white/70 hover:text-white transition-colors"
-                title="Media Volume"
+                title={t("waveform.mediaVolume")}
               >
                 {(mediaVolume === 0 || muted) ? <VolumeX size={isMobile ? 16 : 14} /> : <Volume2 size={isMobile ? 16 : 14} />}
               </button>
@@ -1839,7 +1839,7 @@ export const WaveformVisualizer = () => {
                   }
                 }}
                 className="h-full px-2.5 text-white/70 hover:text-white transition-colors"
-                title="Recording Volume"
+                title={t("waveform.recordingVolume")}
               >
                 {(shadowMuted || shadowVolume === 0 || muted) ? <VolumeX size={isMobile ? 16 : 14} /> : <Volume2 size={isMobile ? 16 : 14} />}
               </button>
@@ -2057,7 +2057,7 @@ export const WaveformVisualizer = () => {
                         isMobile ? "p-1.5" : "p-1"
                       }`}
                       onClick={() => setIsConfirmingDelete(true)}
-                      title="Delete shadow track"
+                      title={t("waveform.deleteShadowTrack")}
                     >
                       <Trash2 size={isMobile ? 13 : 12} />
                     </button>
@@ -2068,12 +2068,12 @@ export const WaveformVisualizer = () => {
                         if (mediaId) {
                           await useShadowingStore.getState().deleteAllSegments(mediaId);
                           setShadowingMode(false);
-                          toast.success("Shadow track deleted");
+                          toast.success(t("shadowing.success.trackDeleted"));
                         }
                         setIsConfirmingDelete(false);
                       }}
                     >
-                      Confirm
+                      {t("waveform.confirmDelete")}
                     </button>
                   )
                 )}

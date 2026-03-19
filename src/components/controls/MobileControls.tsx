@@ -256,7 +256,7 @@ export const MobileControls = () => {
               className="p-3 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
               aria-label={t("player.playbackSpeed")}
             >
-              <span className="text-sm font-bold">{playbackRate}x</span>
+              <span className="text-sm font-bold">{t("player.speedIndicator", { rate: playbackRate })}</span>
             </button>
           </div>
 

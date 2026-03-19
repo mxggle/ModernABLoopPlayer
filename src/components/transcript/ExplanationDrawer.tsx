@@ -215,15 +215,11 @@ export const ExplanationDrawer: React.FC<ExplanationDrawerProps> = ({
               <MarkdownRenderer content={explanation.explanation} />
             </div>
             <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
-              <span className="capitalize">{explanation.provider}</span>
-              <span>·</span>
-              <span>{explanation.model}</span>
-              {explanation.usage && (
-                <>
-                  <span>·</span>
-                  <span>{explanation.usage.totalTokens} tokens</span>
-                </>
-              )}
+              {t("explanation.providerInfo", {
+                provider: explanation.provider,
+                model: explanation.model,
+                tokens: explanation.usage?.totalTokens ?? 0
+              })}
             </div>
           </div>
         )}

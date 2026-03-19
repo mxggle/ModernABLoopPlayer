@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../stores/playerStore";
 import { useShadowingStore } from "../stores/shadowingStore";
 import { storeMediaFile } from "../utils/mediaStorage";
@@ -10,6 +11,7 @@ type WindowWithWebkitAudioContext = Window & typeof globalThis & {
 };
 
 export const useShadowingRecorder = () => {
+    const { t } = useTranslation();
     const { isPlaying, currentFile, currentYouTube } = usePlayerStore();
     const {
         isShadowingMode,
@@ -43,7 +45,7 @@ export const useShadowingRecorder = () => {
         if (isShadowingMode) {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 console.error("getUserMedia is not supported in this browser");
-                toast.error("Audio recording is not supported in this browser. Please use a modern browser.");
+                toast.error(t("shadowing.errors.notSupported"));
                 const { setShadowingMode } = useShadowingStore.getState();
                 setShadowingMode(false);
                 return;
@@ -55,7 +57,7 @@ export const useShadowingRecorder = () => {
                         const isSecureContext = window.isSecureContext || window.location.protocol === "https:";
                         if (!isSecureContext && /iPhone|iPad|iPod/.test(navigator.userAgent)) {
                             console.warn("🎤 [ShadowingRecorder] iOS requires HTTPS for microphone access");
-                            toast.error("iOS Safari requires HTTPS for recording. Please access this site via HTTPS or use localhost.", { duration: 6000 });
+                            toast.error(t("shadowing.errors.iosHttpsRequired"), { duration: 6000 });
                             const { setShadowingMode } = useShadowingStore.getState();
                             setShadowingMode(false);
                             return;
@@ -78,13 +80,13 @@ export const useShadowingRecorder = () => {
                         console.error("🎤 [ShadowingRecorder] Microphone access denied or failed:", err);
                         const error = err as Error;
                         if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-                            toast.error("Microphone permission denied. Please allow microphone access in your browser settings.", { duration: 5000 });
+                            toast.error(t("shadowing.errors.permissionDenied"), { duration: 5000 });
                         } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-                            toast.error("No microphone found on this device.");
+                            toast.error(t("shadowing.errors.noMicrophone"));
                         } else if (error.name === "NotSupportedError") {
-                            toast.error("Microphone access is not supported. On iOS, please use HTTPS or localhost.", { duration: 6000 });
+                            toast.error(t("shadowing.errors.notSupportedIOS"), { duration: 6000 });
                         } else {
-                            toast.error(`Failed to access microphone: ${error.message}`, { duration: 5000 });
+                            toast.error(t("shadowing.errors.failedToAccess", { message: error.message }), { duration: 5000 });
                         }
 
                         const { setShadowingMode } = useShadowingStore.getState();
@@ -101,7 +103,7 @@ export const useShadowingRecorder = () => {
         return () => {
             cancelled = true;
         };
-    }, [isShadowingMode]);
+    }, [isShadowingMode, t]);
 
     useEffect(() => {
         const stopRecording = () => {
@@ -212,13 +214,13 @@ export const useShadowingRecorder = () => {
                                 addSegment(mediaId, segment);
                                 console.log("🎙️ [ShadowingRecorder] Segment added successfully");
 
-                                toast.success("Shadowing recording saved");
+                                toast.success(t("shadowing.success.saved"));
                             } else {
                                 console.error("🎙️ [ShadowingRecorder] No media ID available, cannot save segment");
                             }
                         } catch (error) {
                             console.error("🎙️ [ShadowingRecorder] Failed to save shadowing recording:", error);
-                            toast.error("Failed to save recording");
+                            toast.error(t("shadowing.failedToSave"));
                         }
 
                         const { clearCurrentRecording } = useShadowingStore.getState();
@@ -228,7 +230,7 @@ export const useShadowingRecorder = () => {
                     },
                     onError: (error) => {
                         console.error("🎙️ [ShadowingRecorder] Recording error:", error);
-                        toast.error(`Recording error: ${error.message}`);
+                        toast.error(t("shadowing.recordingError", { message: error.message }));
                         const { clearCurrentRecording } = useShadowingStore.getState();
                         clearCurrentRecording();
                         setIsRecording(false);
@@ -262,7 +264,7 @@ export const useShadowingRecorder = () => {
                 setShadowingMode(false);
 
                 const error = err as Error;
-                toast.error(`Recording failed: ${error.message || "Unknown error"}`);
+                toast.error(t("shadowing.errors.failedToStart", { message: error.message || t("shadowing.errors.unknownError") }));
             } finally {
                 isStartingRef.current = false;
             }
@@ -273,5 +275,5 @@ export const useShadowingRecorder = () => {
         } else if (audioRecorderRef.current && audioRecorderRef.current.getState() === "recording") {
             stopRecording();
         }
-    }, [isPlaying, isShadowingMode, currentFile, currentYouTube, setIsRecording, addSegment, setShadowingMuted, shadowingMuted, streamVersion]);
+    }, [isPlaying, isShadowingMode, currentFile, currentYouTube, setIsRecording, addSegment, setShadowingMuted, shadowingMuted, streamVersion, t]);
 };

@@ -54,7 +54,7 @@ export const ElectronHomePage = ({ handleVideoIdSubmit }: ElectronHomePageProps)
                   <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
                     <FileAudio className="w-6 h-6" />
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 group-hover:text-indigo-500 transition-colors">Local File</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 group-hover:text-indigo-500 transition-colors">{t("home.localFile")}</span>
                 </div>
                 <h3 className="text-xl font-bold mb-3 text-gray-800 dark:text-white">
                   {t("home.localMedia")}
@@ -78,7 +78,7 @@ export const ElectronHomePage = ({ handleVideoIdSubmit }: ElectronHomePageProps)
                   <div className="w-12 h-12 bg-red-50 dark:bg-red-900/30 rounded-2xl flex items-center justify-center text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform">
                     <Youtube className="w-6 h-6" />
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 group-hover:text-red-500 transition-colors">Cloud Stream</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 group-hover:text-red-500 transition-colors">{t("home.cloudStream")}</span>
                 </div>
                 <h3 className="text-xl font-bold mb-3 text-gray-800 dark:text-white">
                   {t("home.youtubeVideo")}

@@ -1251,7 +1251,7 @@ export const TranscriptPanel = () => {
               >
                 <Download size={13} />
                 {t("common.export")}
-                <span className="text-[10px]">▾</span>
+                <span className="text-[10px]">{t("transcript.dropdownArrow")}</span>
               </button>
               {exportOpen && (
                 <>

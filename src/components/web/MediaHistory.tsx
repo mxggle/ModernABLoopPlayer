@@ -1334,7 +1334,7 @@ function DeleteFolderButton({ folderId }: { folderId: string }) {
       <Button
         variant="outline"
         size="sm"
-        title="Delete folder"
+        title={t("history.deleteFolder")}
         onClick={() => setOpen(true)}
       >
         <Trash2 size={16} className="mr-1" /> Delete

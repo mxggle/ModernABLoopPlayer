@@ -257,7 +257,7 @@ export const TranscriptSegment = ({ segment }: TranscriptSegmentProps) => {
             {Math.floor(segment.startTime / 60)}:
             {(segment.startTime % 60).toFixed(1).padStart(4, "0")}
           </span>
-          <span>→</span>
+          <span>{t("transcript.timeRangeSeparator")}</span>
           <span>
             {Math.floor(segment.endTime / 60)}:
             {(segment.endTime % 60).toFixed(1).padStart(4, "0")}

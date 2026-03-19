@@ -34,7 +34,24 @@
     "delay": "停止延迟（秒）",
     "recording": "录音中...",
     "enable": "启用跟读",
-    "disable": "禁用跟读"
+    "disable": "禁用跟读",
+    "rearm": "重新录音",
+    "errors": {
+      "notSupported": "此浏览器不支持录音功能，请使用现代浏览器。",
+      "iosHttpsRequired": "iOS Safari 需要 HTTPS 才能录音。请通过 HTTPS 访问或使用 localhost。",
+      "permissionDenied": "麦克风权限被拒绝。请在浏览器设置中允许麦克风访问。",
+      "noMicrophone": "在此设备上未找到麦克风。",
+      "notSupportedIOS": "不支持麦克风访问。在 iOS 上，请使用 HTTPS 或 localhost。",
+      "failedToAccess": "无法访问麦克风：{{message}}",
+      "failedToStart": "录音失败：{{message}}",
+      "unknownError": "未知错误"
+    },
+    "success": {
+      "saved": "跟读录音已保存",
+      "trackDeleted": "跟读音轨已删除"
+    },
+    "recordingError": "录音错误：{{message}}",
+    "failedToSave": "保存录音失败"
   },
   "app": {
     "logoLabel": "LoopMate 标志"
@@ -78,7 +95,16 @@
   "loop": {
     "controlsTitle": "循环设置",
     "repeats": "重复次数",
-    "gap": "间隔"
+    "gap": "间隔",
+    "infinite": "无限",
+    "none": "无",
+    "times": "次",
+    "seconds": "秒",
+    "bpmNone": "—",
+    "speedHalf": "×½",
+    "speedDouble": "×2",
+    "pointA": "A",
+    "pointB": "B"
   },
   "aiSettingsPage": {
     "title": "AI 设置",
@@ -177,7 +203,13 @@
     "chooseMediaSource": "选择媒体源",
     "youtubeVideo": "YouTube视频",
     "localMedia": "本地媒体",
-    "mediaLibrary": "媒体库"
+    "mediaLibrary": "媒体库",
+    "localFile": "本地文件",
+    "cloudStream": "云端流媒体",
+    "startPracticing": "开始练习",
+    "studioDesc": "打开本地媒体文件或从YouTube流媒体，开始您的语言学习会话。",
+    "proTip": "专业提示：批量练习",
+    "electronHint": "将文件夹拖到侧边栏，即可立即映射所有媒体，进行结构化的跟读练习。"
   },
   "player": {
     "play": "播放",
@@ -205,6 +237,7 @@
     "playbackSpeed": "播放速度",
     "bookmarkNavigation": "书签导航",
     "now": "正在播放",
+    "speedIndicator": "{{rate}}x",
     "audioFile": "音频文件",
     "youtube": "YouTube",
     "toggleLooping": "切换循环",
@@ -231,6 +264,7 @@
     "noMediaLoadedSimple": "没有加载媒体"
   },
   "upload": {
+    "openFile": "打开文件",
     "dragDrop": "拖放音频/视频文件到此处",
     "dropToUpload": "松开以上传...",
     "browseFiles": "或点击浏览文件",
@@ -305,6 +339,7 @@
     "generate": "生成",
     "explanation": "解释",
     "tokenUsage": "{{total}}个令牌 ({{prompt}}个提示 + {{completion}}个完成)",
+    "providerInfo": "{{provider}} · {{model}} · {{tokens}} 令牌",
     "languageSettings": "语言设置",
     "targetLanguage": "目标语言",
     "languages": {
@@ -335,6 +370,7 @@
     "createBookmark": "从此片段创建书签",
     "explainWithAI": "使用AI解释此文本",
     "segmentBookmarkName": "片段 {{time}} 秒",
+    "timeRangeSeparator": "→",
     "apiKeySaved": "API密钥已保存",
     "noFileLoaded": "未加载文件",
     "errorLoadingVideo": "加载视频时出错",
@@ -373,6 +409,7 @@
     "noTranscript": "无可用转录",
     "uploadTranscript": "上传转录",
     "toggleSidebar": "切换侧边栏",
+    "dropdownArrow": "▾",
     "generateTranscript": "生成转录",
     "exportTranscript": "导出转录",
     "languages": {
@@ -446,7 +483,10 @@
     "unfiled": "未分类",
     "removeFromHistory": "从历史中移除",
     "deleteItemTitle": "删除媒体",
-    "deleteItemDescription": "要将“{{name}}”从媒体库中删除吗？这也会删除其已存储的媒体数据。",
+    "deleteItemDescription": "要将{{name}}从媒体库中删除吗？这也会删除其已存储的媒体数据。",
+    "deleteFolder": "删除文件夹",
+    "deleteFolderTitle": "删除文件夹",
+    "deleteFolderDescription": "项目将被移至未分类。此操作无法撤销。",
     "closeRecentMedia": "关闭最近媒体",
     "openRecentMedia": "打开最近媒体",
     "sort": "排序",
@@ -507,6 +547,8 @@
     "switchToDarkTheme": "切换到深色主题",
     "openSettings": "打开设置",
     "showKeyboardShortcuts": "显示键盘快捷键",
+    "hideSidebar": "隐藏侧边栏",
+    "showSidebar": "显示侧边栏",
     "keyboardShortcuts": "键盘快捷键",
     "playPause": "播放/暂停",
     "setAPoint": "在当前时间设置A点",
@@ -523,6 +565,7 @@
     "moreCapabilities": "+{{count}} 个",
     "inputPrice": "输入：{{price}}/百万",
     "outputPrice": "输出：{{price}}/百万",
+    "pricePerMillion": "{{price}}/百万",
     "contextWindow": "{{value}}K 上下文",
     "noModels": "没有可用的模型",
     "selectProvider": "请先选择提供方",
@@ -565,12 +608,23 @@
     "desktopSelectHint": "在波形上拖动以选择循环区域",
     "youtubePlaceholder": "此处为占位波形，真实波形功能即将上线",
     "analyzing": "正在分析波形...",
-    "analysisError": "波形分析失败，正在使用预览。"
+    "analysisError": "波形分析失败，正在使用预览。",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "resetZoom": "重置缩放",
+    "mediaVolume": "媒体音量",
+    "recordingVolume": "录音音量",
+    "deleteShadowTrack": "删除跟读音轨",
+    "confirmDelete": "确认",
+    "zoomLevel": "{{level}}x"
   },
   "playHistory": {
     "title": "播放历史",
     "emptyState": "暂无播放历史。请打开文件或YouTube视频开始使用。",
     "clearHistory": "清除"
+  },
+  "controls": {
+    "loopSettings": "循环设置"
   },
   "folderBrowser": {
     "title": "源文件夹",

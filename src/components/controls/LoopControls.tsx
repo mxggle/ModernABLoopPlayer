@@ -379,7 +379,7 @@ export const LoopControls = () => {
             title={t("loop.halveLength")}
             disabled={loopStart === null || loopEnd === null}
           >
-            <span className="text-xs">×½</span>
+            <span className="text-xs">{t("loop.speedHalf")}</span>
           </Button>
           <Button
             variant="outline"
@@ -388,7 +388,7 @@ export const LoopControls = () => {
             title={t("loop.doubleLength")}
             disabled={loopStart === null || loopEnd === null}
           >
-            <span className="text-xs">×2</span>
+            <span className="text-xs">{t("loop.speedDouble")}</span>
           </Button>
         </div>
 
@@ -401,7 +401,7 @@ export const LoopControls = () => {
               className={quantizeLoop ? "border-primary" : ""}
               disabled={loopStart === null || loopEnd === null}
             >
-              {t("loop.bpm")} {bpm || "—"}
+              {t("loop.bpm")} {bpm || t("loop.bpmNone")}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80">

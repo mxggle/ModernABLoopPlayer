@@ -369,7 +369,7 @@ export const CombinedControls = ({ showSidebarOffset = true }: CombinedControlsP
               <button
                 onClick={() => setShowLoopDropdown(!showLoopDropdown)}
                 className="px-1.5 h-8 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
-                aria-label="Loop settings"
+                aria-label={t("controls.loopSettings")}
               >
                 <ChevronDown size={12} />
               </button>
@@ -383,11 +383,11 @@ export const CombinedControls = ({ showSidebarOffset = true }: CombinedControlsP
                       className="h-7 rounded border border-gray-200 dark:border-gray-600 bg-transparent px-1 text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700"
                     >
                       <option value={0}>∞</option>
-                      <option value={1}>1×</option>
-                      <option value={2}>2×</option>
-                      <option value={3}>3×</option>
-                      <option value={5}>5×</option>
-                      <option value={10}>10×</option>
+                      <option value={1}>1{t("loop.times")}</option>
+                      <option value={2}>2{t("loop.times")}</option>
+                      <option value={3}>3{t("loop.times")}</option>
+                      <option value={5}>5{t("loop.times")}</option>
+                      <option value={10}>10{t("loop.times")}</option>
                     </select>
                   </div>
                   <div className="flex items-center justify-between gap-2">
@@ -397,12 +397,12 @@ export const CombinedControls = ({ showSidebarOffset = true }: CombinedControlsP
                       onChange={(e) => setLoopDelay(Number(e.target.value))}
                       className="h-7 rounded border border-gray-200 dark:border-gray-600 bg-transparent px-1 text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700"
                     >
-                      <option value={0}>0s</option>
-                      <option value={0.5}>0.5s</option>
-                      <option value={1}>1s</option>
-                      <option value={2}>2s</option>
-                      <option value={3}>3s</option>
-                      <option value={5}>5s</option>
+                      <option value={0}>0{t("loop.seconds")}</option>
+                      <option value={0.5}>0.5{t("loop.seconds")}</option>
+                      <option value={1}>1{t("loop.seconds")}</option>
+                      <option value={2}>2{t("loop.seconds")}</option>
+                      <option value={3}>3{t("loop.seconds")}</option>
+                      <option value={5}>5{t("loop.seconds")}</option>
                     </select>
                   </div>
                 </div>
@@ -492,7 +492,7 @@ export const CombinedControls = ({ showSidebarOffset = true }: CombinedControlsP
                   size={14}
                   className="sm:w-[16px] sm:h-[16px]"
                 />
-                <span className="ml-1 text-xs font-medium">A</span>
+                <span className="ml-1 text-xs font-medium">{t("loop.pointA")}</span>
               </Button>
 
               <Button
@@ -506,7 +506,7 @@ export const CombinedControls = ({ showSidebarOffset = true }: CombinedControlsP
                   size={14}
                   className="sm:w-[16px] sm:h-[16px]"
                 />
-                <span className="ml-1 text-xs font-medium">B</span>
+                <span className="ml-1 text-xs font-medium">{t("loop.pointB")}</span>
               </Button>
             </div>
 

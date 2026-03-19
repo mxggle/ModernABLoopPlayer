@@ -34,7 +34,24 @@
     "delay": "停止遅延 (秒)",
     "recording": "録音中...",
     "enable": "シャドーイングを有効化",
-    "disable": "シャドーイングを無効化"
+    "disable": "シャドーイングを無効化",
+    "rearm": "もう一度録音",
+    "errors": {
+      "notSupported": "このブラウザーでは音声録音がサポートされていません。最新のブラウザーをご使用ください。",
+      "iosHttpsRequired": "iOS Safariでは録音にHTTPSが必要です。HTTPSまたはlocalhostでアクセスしてください。",
+      "permissionDenied": "マイクの許可が拒否されました。ブラウザー設定でマイクへのアクセスを許可してください。",
+      "noMicrophone": "このデバイスにマイクが見つかりません。",
+      "notSupportedIOS": "マイクへのアクセスがサポートされていません。iOSではHTTPSまたはlocalhostをご使用ください。",
+      "failedToAccess": "マイクへのアクセスに失敗しました：{{message}}",
+      "failedToStart": "録音の開始に失敗しました：{{message}}",
+      "unknownError": "不明なエラー"
+    },
+    "success": {
+      "saved": "シャドーイング録音を保存しました",
+      "trackDeleted": "シャドートラックを削除しました"
+    },
+    "recordingError": "録音エラー：{{message}}",
+    "failedToSave": "録音の保存に失敗しました"
   },
   "app": {
     "logoLabel": "LoopMateロゴ"
@@ -78,7 +95,16 @@
   "loop": {
     "controlsTitle": "ループ設定",
     "repeats": "繰り返し",
-    "gap": "間隔"
+    "gap": "間隔",
+    "infinite": "無限",
+    "none": "なし",
+    "times": "回",
+    "seconds": "秒",
+    "bpmNone": "—",
+    "speedHalf": "×½",
+    "speedDouble": "×2",
+    "pointA": "A",
+    "pointB": "B"
   },
   "aiSettingsPage": {
     "title": "AI設定",
@@ -177,7 +203,13 @@
     "chooseMediaSource": "メディアソースを選択",
     "youtubeVideo": "YouTube動画",
     "localMedia": "ローカルメディア",
-    "mediaLibrary": "メディアライブラリ"
+    "mediaLibrary": "メディアライブラリ",
+    "localFile": "ローカルファイル",
+    "cloudStream": "クラウドストリーム",
+    "startPracticing": "練習を開始",
+    "studioDesc": "ローカルメディアファイルを開くか、YouTubeからストリーミングして、言語習得セッションを開始してください。",
+    "proTip": "プロのヒント：バッチ練習",
+    "electronHint": "サイドバーにフォルダをドラッグすると、すべてのメディアを即座にマッピングして構造化されたシャドーイングセッションを行えます。"
   },
   "player": {
     "play": "再生",
@@ -205,6 +237,7 @@
     "playbackSpeed": "再生速度",
     "bookmarkNavigation": "ブックマークナビゲーション",
     "now": "再生中",
+    "speedIndicator": "{{rate}}x",
     "audioFile": "音声ファイル",
     "youtube": "YouTube",
     "toggleLooping": "ループの切り替え",
@@ -231,6 +264,7 @@
     "noMediaLoadedSimple": "メディアが読み込まれていません"
   },
   "upload": {
+    "openFile": "ファイルを開く",
     "dragDrop": "音声/動画ファイルをここにドラッグ＆ドロップ",
     "dropToUpload": "ドロップしてアップロード...",
     "browseFiles": "またはクリックしてファイルを参照",
@@ -305,6 +339,7 @@
     "generate": "生成",
     "explanation": "説明",
     "tokenUsage": "{{total}}トークン (プロンプト{{prompt}} + 生成{{completion}} )",
+    "providerInfo": "{{provider}} · {{model}} · {{tokens}} トークン",
     "languageSettings": "言語設定",
     "targetLanguage": "ターゲット言語",
     "languages": {
@@ -335,6 +370,7 @@
     "createBookmark": "このセグメントからブックマークを作成",
     "explainWithAI": "AIでこのテキストを説明",
     "segmentBookmarkName": "セグメント {{time}} 秒",
+    "timeRangeSeparator": "→",
     "apiKeySaved": "APIキーが保存されました",
     "noFileLoaded": "ファイルが読み込まれていません",
     "errorLoadingVideo": "動画の読み込み中にエラーが発生しました",
@@ -374,6 +410,7 @@
     "noTranscript": "トランスクリプトはありません",
     "uploadTranscript": "トランスクリプトをアップロード",
     "toggleSidebar": "サイドバーの切り替え",
+    "dropdownArrow": "▾",
     "generateTranscript": "トランスクリプトを生成",
     "exportTranscript": "トランスクリプトをエクスポート",
     "languages": {
@@ -448,6 +485,9 @@
     "removeFromHistory": "履歴から削除",
     "deleteItemTitle": "メディアを削除",
     "deleteItemDescription": "「{{name}}」をメディアライブラリから削除しますか？ 保存済みのメディアデータも削除されます。",
+    "deleteFolder": "フォルダーを削除",
+    "deleteFolderTitle": "フォルダーを削除",
+    "deleteFolderDescription": "アイテムは未分類に移動されます。この操作は元に戻せません。",
     "closeRecentMedia": "最近のメディアを閉じる",
     "openRecentMedia": "最近のメディアを開く",
     "sort": "ソート",
@@ -508,6 +548,8 @@
     "switchToDarkTheme": "ダークテーマに切り替え",
     "openSettings": "設定を開く",
     "showKeyboardShortcuts": "キーボードショートカットを表示",
+    "hideSidebar": "サイドバーを隠す",
+    "showSidebar": "サイドバーを表示",
     "keyboardShortcuts": "キーボードショートカット",
     "playPause": "再生/一時停止",
     "setAPoint": "現在時刻にAポイントを設定",
@@ -524,6 +566,7 @@
     "moreCapabilities": "+{{count}} 件",
     "inputPrice": "入力: {{price}}/100万トークン",
     "outputPrice": "出力: {{price}}/100万トークン",
+    "pricePerMillion": "{{price}}/100万",
     "contextWindow": "{{value}}K コンテキスト",
     "noModels": "利用可能なモデルがありません",
     "selectProvider": "まずプロバイダーを選択してください",
@@ -566,12 +609,23 @@
     "desktopSelectHint": "波形をドラッグしてループ範囲を選択します",
     "youtubePlaceholder": "プレースホルダー波形を表示中。リアル波形機能は近日公開予定",
     "analyzing": "波形を解析中...",
-    "analysisError": "波形の解析に失敗しました。プレビューを表示しています。"
+    "analysisError": "波形の解析に失敗しました。プレビューを表示しています。",
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "resetZoom": "ズームをリセット",
+    "mediaVolume": "メディア音量",
+    "recordingVolume": "録音音量",
+    "deleteShadowTrack": "シャドートラックを削除",
+    "confirmDelete": "確認",
+    "zoomLevel": "{{level}}x"
   },
   "playHistory": {
     "title": "再生履歴",
     "emptyState": "再生履歴がありません。ファイルまたはYouTube動画を開いてください。",
     "clearHistory": "クリア"
+  },
+  "controls": {
+    "loopSettings": "ループ設定"
   },
   "folderBrowser": {
     "title": "ソースフォルダー",

@@ -144,7 +144,7 @@ export const PlaybackControls = () => {
             <Rewind size={20} />
           </button>
           
-          <span className="text-sm font-medium">{playbackRate.toFixed(2)}x</span>
+          <span className="text-sm font-medium">{t("player.speedIndicator", { rate: playbackRate.toFixed(2) })}</span>
           
           <button
             onClick={increasePlaybackRate}

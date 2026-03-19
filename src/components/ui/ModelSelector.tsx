@@ -166,7 +166,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
               <span className="truncate">{selectedModelInfo.name}</span>
               {showPricing && !compact && hasPricing(selectedModelInfo) && (
                 <span className="text-xs text-muted-foreground">
-                  {formatPrice(selectedModelInfo.pricing.input)}/1M
+                  {t("modelSelector.pricePerMillion", { price: formatPrice(selectedModelInfo.pricing.input) })}
                 </span>
               )}
             </>

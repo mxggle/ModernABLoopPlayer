@@ -36,7 +36,24 @@
     "delay": "Stop Delay (s)",
     "recording": "Recording...",
     "enable": "Enable Shadowing",
-    "disable": "Disable Shadowing"
+    "disable": "Disable Shadowing",
+    "rearm": "Record again",
+    "errors": {
+      "notSupported": "Audio recording is not supported in this browser. Please use a modern browser.",
+      "iosHttpsRequired": "iOS Safari requires HTTPS for recording. Please access this site via HTTPS or use localhost.",
+      "permissionDenied": "Microphone permission denied. Please allow microphone access in your browser settings.",
+      "noMicrophone": "No microphone found on this device.",
+      "notSupportedIOS": "Microphone access is not supported. On iOS, please use HTTPS or localhost.",
+      "failedToAccess": "Failed to access microphone: {{message}}",
+      "failedToStart": "Recording failed: {{message}}",
+      "unknownError": "Unknown error"
+    },
+    "success": {
+      "saved": "Shadowing recording saved",
+      "trackDeleted": "Shadow track deleted"
+    },
+    "recordingError": "Recording error: {{message}}",
+    "failedToSave": "Failed to save recording"
   },
   "app": {
     "logoLabel": "LoopMate logo"
@@ -88,7 +105,16 @@
   "loop": {
     "controlsTitle": "Loop Settings",
     "repeats": "Repeats",
-    "gap": "Gap"
+    "gap": "Gap",
+    "infinite": "Infinite",
+    "none": "None",
+    "times": "x",
+    "seconds": "s",
+    "bpmNone": "—",
+    "speedHalf": "×½",
+    "speedDouble": "×2",
+    "pointA": "A",
+    "pointB": "B"
   },
   "aiSettingsPage": {
     "title": "AI Settings",
@@ -199,7 +225,13 @@
     "chooseMediaSource": "Choose Your Media Source",
     "youtubeVideo": "YouTube Video",
     "localMedia": "Local Media",
-    "mediaLibrary": "Media Library"
+    "mediaLibrary": "Media Library",
+    "localFile": "Local File",
+    "cloudStream": "Cloud Stream",
+    "startPracticing": "Start Practicing",
+    "studioDesc": "Open a local media file or stream from YouTube to begin your language mastery session.",
+    "proTip": "Pro Tip: Batch Practice",
+    "electronHint": "Drag a folder to the sidebar to instantly map all media for a structured shadowing session."
   },
   "player": {
     "play": "Play",
@@ -227,6 +259,7 @@
     "playbackSpeed": "Playback Speed",
     "bookmarkNavigation": "Bookmark Navigation",
     "now": "Now",
+    "speedIndicator": "{{rate}}x",
     "audioFile": "Audio File",
     "youtube": "YouTube",
     "toggleLooping": "Toggle looping",
@@ -253,6 +286,7 @@
     "noMediaLoadedSimple": "No media loaded"
   },
   "upload": {
+    "openFile": "Open File",
     "dragDrop": "Drag & drop audio/video files here",
     "dropToUpload": "Drop to upload...",
     "browseFiles": "or click to browse files",
@@ -327,6 +361,7 @@
     "generate": "Generate",
     "explanation": "Explanation",
     "tokenUsage": "{{total}} tokens ({{prompt}} prompt + {{completion}} completion)",
+    "providerInfo": "{{provider}} · {{model}} · {{tokens}} tokens",
     "languageSettings": "Language Settings",
     "targetLanguage": "Target Language",
     "languages": {
@@ -357,6 +392,7 @@
     "createBookmark": "Create bookmark from this segment",
     "explainWithAI": "Explain this text with AI",
     "segmentBookmarkName": "Segment {{time}}s",
+    "timeRangeSeparator": "→",
     "apiKeySaved": "API key saved",
     "noFileLoaded": "No file loaded",
     "errorLoadingVideo": "Error loading video",
@@ -404,6 +440,7 @@
     "transcribeBookmarkButton": "Transcribe Bookmark",
     "noTranscriptForBookmark": "No transcript available for this bookmark range.",
     "toggleSidebar": "Toggle Sidebar",
+    "dropdownArrow": "▾",
     "languages": {
       "en-US": "English (US)",
       "en-GB": "English (UK)",
@@ -475,6 +512,9 @@
     "removeFromHistory": "Remove from history",
     "deleteItemTitle": "Delete media",
     "deleteItemDescription": "Remove \"{{name}}\" from the media library? This also deletes its stored media data.",
+    "deleteFolder": "Delete folder",
+    "deleteFolderTitle": "Delete Folder",
+    "deleteFolderDescription": "Items will be moved to Unfiled. This cannot be undone.",
     "closeRecentMedia": "Close recent media",
     "openRecentMedia": "Open recent media",
     "sort": "Sort",
@@ -533,8 +573,10 @@
     "controls": "Controls",
     "switchToLightTheme": "Switch to light theme",
     "switchToDarkTheme": "Switch to dark theme",
-    "openSettings": "Open settings",
+    "openSettings": "Open Settings",
     "showKeyboardShortcuts": "Show keyboard shortcuts",
+    "hideSidebar": "Hide Sidebar",
+    "showSidebar": "Show Sidebar",
     "keyboardShortcuts": "Keyboard Shortcuts",
     "playPause": "Play/Pause",
     "setAPoint": "Set A point at current time",
@@ -551,6 +593,7 @@
     "moreCapabilities": "+{{count}} more",
     "inputPrice": "Input: {{price}}/1M",
     "outputPrice": "Output: {{price}}/1M",
+    "pricePerMillion": "{{price}}/1M",
     "contextWindow": "{{value}}K context",
     "noModels": "No models available",
     "selectProvider": "Please select a provider first",
@@ -593,12 +636,23 @@
     "desktopSelectHint": "Drag on waveform to select loop area",
     "youtubePlaceholder": "Placeholder waveform displayed. Real waveform coming soon.",
     "analyzing": "Analyzing waveform...",
-    "analysisError": "Waveform analysis failed. Using preview."
+    "analysisError": "Waveform analysis failed. Using preview.",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "resetZoom": "Reset Zoom",
+    "mediaVolume": "Media Volume",
+    "recordingVolume": "Recording Volume",
+    "deleteShadowTrack": "Delete shadow track",
+    "confirmDelete": "Confirm",
+    "zoomLevel": "{{level}}x"
   },
   "playHistory": {
     "title": "Play History",
     "emptyState": "No play history yet. Open a file or YouTube video to get started.",
     "clearHistory": "Clear"
+  },
+  "controls": {
+    "loopSettings": "Loop settings"
   },
   "folderBrowser": {
     "title": "Source Folders",
